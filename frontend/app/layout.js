@@ -1,5 +1,5 @@
 import "./globals.css";
-import SiteChrome from "./components/SiteChrome";
+import SiteChrome from "./(user)/components/SiteChrome";
 
 export const metadata = {
   title: "Tradebot - Automated Trading Platform",

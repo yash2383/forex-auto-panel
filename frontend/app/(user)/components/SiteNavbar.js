@@ -55,9 +55,6 @@ export default function SiteNavbar() {
     };
   }, []);
 
-  const isAdmin = currentUser && ["SUPER_ADMIN", "MANAGER", "VIEWER"].includes(currentUser.role);
-  const dashboardHref = isAdmin ? "/admin/dashboard" : "/dashboard";
-
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-white/5 bg-[#050505]/85 backdrop-blur-md">
       <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
@@ -107,7 +104,7 @@ export default function SiteNavbar() {
                 Logout
               </button>
               <Link
-                href={dashboardHref}
+                href="/dashboard"
                 className="border-gradient relative inline-flex h-12 items-center whitespace-nowrap rounded-full bg-transparent px-5 text-sm font-bold text-white transition-colors hover:bg-white/10"
               >
                 Dashboard
@@ -125,7 +122,7 @@ export default function SiteNavbar() {
                 Login
               </Link>
               <Link
-                href={dashboardHref}
+                href="/dashboard"
                 className="border-gradient relative inline-flex h-12 items-center whitespace-nowrap rounded-full bg-transparent px-5 text-sm font-bold text-white transition-colors hover:bg-white/10"
               >
                 Dashboard

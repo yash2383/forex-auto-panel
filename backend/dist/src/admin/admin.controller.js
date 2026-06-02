@@ -35,6 +35,16 @@ let AdminController = class AdminController {
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
+    async getPnlReports(res) {
+        try {
+            const result = await this.adminService.getPnlReports();
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Admin pnl reports error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
     async createUser(req, body, res) {
         try {
             const user = req.user;
@@ -157,6 +167,50 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Save settings error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async getReferralSettings(res) {
+        try {
+            const result = await this.adminService.getReferralSettings();
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Fetch referral settings error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async updateReferralSettings(req, body, res) {
+        try {
+            const user = req.user;
+            const result = await this.adminService.updateReferralSettings(user.id, body, this.getClientIp(req));
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Save referral settings error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async getReferrals(res) {
+        try {
+            const result = await this.adminService.getReferrals();
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Get referrals error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async updateReferralStatus(id, status, req, res) {
+        try {
+            const user = req.user;
+            const result = await this.adminService.updateReferralStatus(user.id, id, status, this.getClientIp(req));
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Update referral status error:', error);
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
@@ -369,6 +423,14 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "getData", null);
 __decorate([
+    (0, common_1.Get)('pnl-reports'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getPnlReports", null);
+__decorate([
     (0, common_1.Post)('users'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
     __param(0, (0, common_1.Req)()),
@@ -468,6 +530,43 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "updateSettings", null);
+__decorate([
+    (0, common_1.Get)('referral-settings'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getReferralSettings", null);
+__decorate([
+    (0, common_1.Post)('referral-settings'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "updateReferralSettings", null);
+__decorate([
+    (0, common_1.Get)('referrals'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getReferrals", null);
+__decorate([
+    (0, common_1.Post)('referrals/:id/status'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)('status')),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "updateReferralStatus", null);
 __decorate([
     (0, common_1.Get)('trades'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),

@@ -5,6 +5,7 @@ export declare class AdminController {
     constructor(adminService: AdminService);
     private getClientIp;
     getData(res: Response): Promise<Response<any, Record<string, any>>>;
+    getPnlReports(res: Response): Promise<Response<any, Record<string, any>>>;
     createUser(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     updateUser(id: string, req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     deleteUser(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
@@ -15,6 +16,10 @@ export declare class AdminController {
     deletePlan(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     getSettings(res: Response): Promise<Response<any, Record<string, any>>>;
     updateSettings(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    getReferralSettings(res: Response): Promise<Response<any, Record<string, any>>>;
+    updateReferralSettings(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    getReferrals(res: Response): Promise<Response<any, Record<string, any>>>;
+    updateReferralStatus(id: string, status: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     getTrades(res: Response): Promise<Response<any, Record<string, any>>>;
     createTradeRecord(body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     updateTradeRecord(id: string, body: any, res: Response): Promise<Response<any, Record<string, any>>>;

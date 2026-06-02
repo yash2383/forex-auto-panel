@@ -177,6 +177,19 @@ export declare class AdminService {
             status: any;
             isPopular: any;
         }[];
+        referralSettings: {
+            id: string;
+            partnerId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            enabled: boolean;
+            commissionRate: Prisma.Decimal;
+            minimumDeposit: Prisma.Decimal;
+            autoApprove: boolean;
+            allowMultipleDeposits: boolean;
+            commissionPayoutMode: string;
+            maxReferralCommission: Prisma.Decimal | null;
+        } | null;
     }>;
     createUser(adminId: string, body: any, clientIp: string): Promise<{
         error: string;
@@ -198,18 +211,20 @@ export declare class AdminService {
         success: boolean;
         user: {
             id: string;
+            partnerId: string;
             name: string;
             email: string;
             passwordHash: string;
             status: import("@prisma/client").$Enums.UserStatus;
+            isDeleted: boolean;
             lastLoginAt: Date | null;
             lastLoginIP: string | null;
             createdAt: Date;
             updatedAt: Date;
-            isDeleted: boolean;
+            referralCode: string;
+            referredBy: string | null;
             autoTrading: boolean;
             riskSetting: string;
-            partnerId: string;
         };
         error?: undefined;
         status?: undefined;
@@ -234,20 +249,20 @@ export declare class AdminService {
         success: boolean;
         partner: {
             id: string;
-            slug: string;
             name: string;
-            companyName: string;
             email: string;
             passwordHash: string;
-            profitSharePct: Prisma.Decimal;
-            maxAllowedPct: Prisma.Decimal;
-            domain: string;
-            logo: string | null;
             status: import("@prisma/client").$Enums.PartnerStatus;
             lastLoginAt: Date | null;
             lastLoginIP: string | null;
             createdAt: Date;
             updatedAt: Date;
+            slug: string;
+            companyName: string;
+            profitSharePct: Prisma.Decimal;
+            maxAllowedPct: Prisma.Decimal;
+            domain: string;
+            logo: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -265,9 +280,9 @@ export declare class AdminService {
             status: string;
             createdAt: Date;
             updatedAt: Date;
+            desc: string;
             subtitle: string;
             capitalLabel: string;
-            desc: string;
             features: string[];
             btnText: string;
             isPopular: boolean;
@@ -288,9 +303,9 @@ export declare class AdminService {
             status: string;
             createdAt: Date;
             updatedAt: Date;
+            desc: string;
             subtitle: string;
             capitalLabel: string;
-            desc: string;
             features: string[];
             btnText: string;
             isPopular: boolean;
@@ -313,8 +328,8 @@ export declare class AdminService {
         success: boolean;
         settings: {
             id: string;
-            updatedAt: Date;
             partnerId: string | null;
+            updatedAt: Date;
             upiId: string | null;
             usdtAddress: string | null;
             usdtNetwork: string;
@@ -327,8 +342,8 @@ export declare class AdminService {
         success: boolean;
         settings: {
             id: string;
-            updatedAt: Date;
             partnerId: string | null;
+            updatedAt: Date;
             upiId: string | null;
             usdtAddress: string | null;
             usdtNetwork: string;
@@ -336,6 +351,86 @@ export declare class AdminService {
             platformFeePct: Prisma.Decimal;
             maintenance: boolean;
         };
+    }>;
+    getReferralSettings(): Promise<{
+        success: boolean;
+        settings: {
+            id: string;
+            partnerId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            enabled: boolean;
+            commissionRate: Prisma.Decimal;
+            minimumDeposit: Prisma.Decimal;
+            autoApprove: boolean;
+            allowMultipleDeposits: boolean;
+            commissionPayoutMode: string;
+            maxReferralCommission: Prisma.Decimal | null;
+        };
+    }>;
+    updateReferralSettings(adminId: string, body: any, clientIp: string): Promise<{
+        success: boolean;
+        settings: {
+            id: string;
+            partnerId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            enabled: boolean;
+            commissionRate: Prisma.Decimal;
+            minimumDeposit: Prisma.Decimal;
+            autoApprove: boolean;
+            allowMultipleDeposits: boolean;
+            commissionPayoutMode: string;
+            maxReferralCommission: Prisma.Decimal | null;
+        };
+    }>;
+    getReferrals(): Promise<{
+        success: boolean;
+        referrals: ({
+            referrer: {
+                name: string;
+                email: string;
+            };
+            referredUser: {
+                name: string;
+                email: string;
+            };
+        } & {
+            id: string;
+            partnerId: string;
+            status: import("@prisma/client").$Enums.ReferralStatus;
+            createdAt: Date;
+            updatedAt: Date;
+            referrerId: string;
+            referredId: string;
+            depositAmount: Prisma.Decimal | null;
+            commissionPct: Prisma.Decimal | null;
+            commissionAmount: Prisma.Decimal | null;
+            paymentId: string | null;
+        })[];
+    }>;
+    updateReferralStatus(adminId: string, referralId: string, status: string, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        referral?: undefined;
+    } | {
+        success: boolean;
+        referral: {
+            id: string;
+            partnerId: string;
+            status: import("@prisma/client").$Enums.ReferralStatus;
+            createdAt: Date;
+            updatedAt: Date;
+            referrerId: string;
+            referredId: string;
+            depositAmount: Prisma.Decimal | null;
+            commissionPct: Prisma.Decimal | null;
+            commissionAmount: Prisma.Decimal | null;
+            paymentId: string | null;
+        };
+        error?: undefined;
+        status?: undefined;
     }>;
     createTrade(adminId: string, body: any, clientIp: string): Promise<{
         error: string;
@@ -346,17 +441,17 @@ export declare class AdminService {
         success: boolean;
         trade: {
             id: string;
+            partnerId: string;
             status: import("@prisma/client").$Enums.TradeStatus;
             createdAt: Date;
-            partnerId: string;
             userId: string;
-            type: import("@prisma/client").$Enums.TradeType;
             ledgerTransactionGroupId: string | null;
             pair: string;
             entryPrice: Prisma.Decimal;
+            exitPrice: Prisma.Decimal;
+            type: import("@prisma/client").$Enums.TradeType;
             currentPrice: Prisma.Decimal;
             quantity: Prisma.Decimal;
-            exitPrice: Prisma.Decimal;
             stopLoss: Prisma.Decimal;
             target: Prisma.Decimal;
             profit: Prisma.Decimal;
@@ -376,18 +471,18 @@ export declare class AdminService {
         status?: undefined;
     }>;
     listTradeRecords(): Promise<{
+        result: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
-        result: string;
         pair: string;
+        side: string;
         entryPrice: number;
         exitPrice: number;
-        notes: string | null;
-        side: string;
         profitLoss: number;
         tradeDate: Date;
+        notes: string | null;
     }[]>;
     createTradeRecord(body: any): Promise<{
         error: string;
@@ -397,18 +492,18 @@ export declare class AdminService {
     } | {
         success: boolean;
         tradeRecord: {
+            result: string;
             id: string;
             status: string;
             createdAt: Date;
             updatedAt: Date;
-            result: string;
             pair: string;
+            side: string;
             entryPrice: number;
             exitPrice: number;
-            notes: string | null;
-            side: string;
             profitLoss: number;
             tradeDate: Date;
+            notes: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -421,18 +516,18 @@ export declare class AdminService {
     } | {
         success: boolean;
         tradeRecord: {
+            result: string;
             id: string;
             status: string;
             createdAt: Date;
             updatedAt: Date;
-            result: string;
             pair: string;
+            side: string;
             entryPrice: number;
             exitPrice: number;
-            notes: string | null;
-            side: string;
             profitLoss: number;
             tradeDate: Date;
+            notes: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -456,18 +551,18 @@ export declare class AdminService {
     } | {
         success: boolean;
         tradeRecord: {
+            result: string;
             id: string;
             status: string;
             createdAt: Date;
             updatedAt: Date;
-            result: string;
             pair: string;
+            side: string;
             entryPrice: number;
             exitPrice: number;
-            notes: string | null;
-            side: string;
             profitLoss: number;
             tradeDate: Date;
+            notes: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -485,14 +580,14 @@ export declare class AdminService {
         success: boolean;
         payment: {
             id: string;
+            partnerId: string;
             status: import("@prisma/client").$Enums.PaymentStatus;
             createdAt: Date;
             updatedAt: Date;
-            partnerId: string;
-            currency: string;
             userId: string;
             planName: string;
             amount: Prisma.Decimal;
+            currency: string;
             paymentType: import("@prisma/client").$Enums.PaymentType;
             network: string | null;
             txnHash: string | null;
@@ -513,14 +608,14 @@ export declare class AdminService {
         success: boolean;
         payment: {
             id: string;
+            partnerId: string;
             status: import("@prisma/client").$Enums.PaymentStatus;
             createdAt: Date;
             updatedAt: Date;
-            partnerId: string;
-            currency: string;
             userId: string;
             planName: string;
             amount: Prisma.Decimal;
+            currency: string;
             paymentType: import("@prisma/client").$Enums.PaymentType;
             network: string | null;
             txnHash: string | null;
@@ -569,18 +664,20 @@ export declare class AdminService {
         profitDistribution: {
             user: {
                 id: string;
+                partnerId: string;
                 name: string;
                 email: string;
                 passwordHash: string;
                 status: import("@prisma/client").$Enums.UserStatus;
+                isDeleted: boolean;
                 lastLoginAt: Date | null;
                 lastLoginIP: string | null;
                 createdAt: Date;
                 updatedAt: Date;
-                isDeleted: boolean;
+                referralCode: string;
+                referredBy: string | null;
                 autoTrading: boolean;
                 riskSetting: string;
-                partnerId: string;
             };
         } & {
             id: string;
@@ -588,9 +685,9 @@ export declare class AdminService {
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            type: string;
             amount: number;
             reference: string;
+            type: string;
             note: string | null;
             distributionDate: Date;
         };
@@ -602,18 +699,20 @@ export declare class AdminService {
         profitDistribution: {
             user: {
                 id: string;
+                partnerId: string;
                 name: string;
                 email: string;
                 passwordHash: string;
                 status: import("@prisma/client").$Enums.UserStatus;
+                isDeleted: boolean;
                 lastLoginAt: Date | null;
                 lastLoginIP: string | null;
                 createdAt: Date;
                 updatedAt: Date;
-                isDeleted: boolean;
+                referralCode: string;
+                referredBy: string | null;
                 autoTrading: boolean;
                 riskSetting: string;
-                partnerId: string;
             };
         } & {
             id: string;
@@ -621,9 +720,9 @@ export declare class AdminService {
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            type: string;
             amount: number;
             reference: string;
+            type: string;
             note: string | null;
             distributionDate: Date;
         };
@@ -753,5 +852,35 @@ export declare class AdminService {
         requestedAt: Date;
         processedAt: Date | null;
         date: string;
+    }>;
+    getPnlReports(): Promise<{
+        overview: {
+            totalTrades: number;
+            winningTrades: number;
+            losingTrades: number;
+            breakevenTrades: number;
+            winRate: number;
+            lossRate: number;
+            breakevenRate: number;
+            totalPnl: number;
+            averageWin: number;
+            averageLoss: number;
+            profitFactor: string;
+            grossProfit: number;
+            grossLoss: number;
+        };
+        profitDistribution: {
+            winningTrades: number;
+            losingTrades: number;
+            breakevenTrades: number;
+            winRate: number;
+            lossRate: number;
+            breakevenRate: number;
+        };
+        monthlyPnl: {
+            month: string;
+            pnl: number;
+        }[];
+        rows: string[][];
     }>;
 }

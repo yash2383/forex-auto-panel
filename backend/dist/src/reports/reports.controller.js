@@ -60,6 +60,30 @@ let ReportsController = class ReportsController {
                 .json({ message: 'Internal server error' });
         }
     }
+    async getPnlDistribution(res) {
+        try {
+            const data = await this.reportsService.getPnlDistribution();
+            return res.json(data);
+        }
+        catch (e) {
+            console.error('PnL Distribution error:', e);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
+        }
+    }
+    async getMonthlyPnl(res) {
+        try {
+            const data = await this.reportsService.getMonthlyPnl();
+            return res.json(data);
+        }
+        catch (e) {
+            console.error('Monthly PnL error:', e);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
+        }
+    }
     async getWalletStatement(req, res) {
         try {
             const user = req.user;
@@ -155,6 +179,20 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], ReportsController.prototype, "getProfitReport", null);
+__decorate([
+    (0, common_1.Get)('pnl/distribution'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], ReportsController.prototype, "getPnlDistribution", null);
+__decorate([
+    (0, common_1.Get)('pnl/monthly'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], ReportsController.prototype, "getMonthlyPnl", null);
 __decorate([
     (0, common_1.Get)('wallet'),
     __param(0, (0, common_1.Req)()),

@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { useAdminStore } from "../../../../hooks/adminStore";
 import { adminNavGroups, adminPermissionMatrix, quickActions } from "../_components/adminData";
+import { apiFetch } from "../../../../lib/apiFetch";
 
 const toneMap = {
   green: "border-green-500/25 bg-green-500/10 text-green-300",
@@ -145,7 +146,7 @@ const sectionContent = {
     title: "Referral System",
     description: "Manage referral rewards and track user-to-user growth.",
     metrics: [["Referral %", "10%"], ["Referrals", "1,204"], ["Payouts", "$18,420"], ["Revenue", "$92,100"]],
-    headers: ["Referrer", "User", "Deposit", "Reward"],
+    headers: ["Referrer", "User", "Deposit", "Reward", "Status"],
     rows: [
       ["Harsh", "Rahul", "$10,000", "$1,000"],
       ["Amit", "Neha", "$5,000", "$500"],
@@ -205,14 +206,6 @@ const sectionContent = {
     description: "Manage system-wide pricing plans (Club Plan, Individual Plan, Custom Plan), modify features, limits, and toggle visibility.",
     metrics: [["Total Plans", "3"], ["Active Plans", "3"], ["Micro Capital", "1"], ["Premium Plans", "2"]],
     headers: ["Plan Name", "Subtitle", "Capital Limit", "Features", "Status"],
-  },
-  withdrawals: {
-    permissionKey: "payments",
-    title: "Withdrawal Requests",
-    description: "Manage system-wide withdrawal requests. Reserve balances immediately and audit them.",
-    metrics: [["Total Requests", "0"], ["Pending", "0"], ["Approved", "0"], ["Rejected", "0"]],
-    filters: ["Pending", "Approved", "Rejected"],
-    headers: ["Request ID", "User", "Amount", "Method", "Status", "Date"],
   },
 };
 
@@ -820,7 +813,7 @@ function PlatformOverview({ onVerify, onApprove, onReject }) {
 
 function AdminSectionPage({ 
   section, activeFilter = "All", onView, onEdit, onDelete, onBlock, onVerify, onApprove, onReject, 
-  onAddClick, onCloseTrade, activeSettings, onSaveSettings, referralListModal, setReferralListModal,
+  onAddClick, onCloseTrade, activeSettings, onSaveSettings, activeReferralSettings, onSaveReferralSettings, referralListModal, setReferralListModal,
   onPublish, onUnpublish
 }) {
   const [selectedTrades, setSelectedTrades] = useState([]);
@@ -846,6 +839,8 @@ function AdminSectionPage({
   const transactions = useAdminStore((s) => s.transactions || []);
   const plans = useAdminStore((s) => s.plans || []);
   const withdrawals = useAdminStore((s) => s.withdrawals || []);
+  const pnlReports = useAdminStore((s) => s.pnlReports);
+  const fetchPnlReports = useAdminStore((s) => s.fetchPnlReports);
   const hasPermission = useAdminStore((s) => s.hasPermission);
   const canEditSettings = hasPermission("settings", "edit");
   const searchQuery = useAdminStore((s) => s.searchQuery || "");
@@ -855,6 +850,19 @@ function AdminSectionPage({
   const [reportDateRange, setReportDateRange] = useState("all");
   const [reportPartnerId, setReportPartnerId] = useState("all");
   const [reportUserId, setReportUserId] = useState("all");
+  const [globalDistribution, setGlobalDistribution] = useState(null);
+
+  useEffect(() => {
+    if (section.permissionKey === "reports") {
+      apiFetch("/api/reports/pnl/distribution")
+        .then(res => res.ok ? res.json() : null)
+        .then(data => setGlobalDistribution(data))
+        .catch(err => console.error("Failed to load global distribution:", err));
+    }
+    if (section.permissionKey === "pnl-reports" && !pnlReports) {
+      fetchPnlReports();
+    }
+  }, [section.permissionKey, pnlReports, fetchPnlReports]);
 
   // Search/Filters for Activity Logs section
   const [logModuleFilter, setLogModuleFilter] = useState("all");
@@ -874,6 +882,13 @@ function AdminSectionPage({
         ["Pending", withdrawals.filter((w) => w.status === "Pending").length.toString()],
         ["Approved", withdrawals.filter((w) => w.status === "Approved").length.toString()],
         ["Rejected", withdrawals.filter((w) => w.status === "Rejected").length.toString()],
+      ]
+    : section.permissionKey === "pnl-reports" && pnlReports
+    ? [
+        ["Total PnL", `$${pnlReports.overview.totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
+        ["User-wise Avg", pnlReports.overview.winningTrades > 0 ? `$${pnlReports.overview.averageWin}` : "$0"],
+        ["Profit Factor", pnlReports.overview.profitFactor],
+        ["Win Rate", `${pnlReports.overview.winRate}%`],
       ]
     : section.metrics;
 
@@ -975,6 +990,9 @@ function AdminSectionPage({
       );
     }
     rows = list.map((r, idx) => [r[0], r[1], reportDateRange === "today" ? "Today" : r[2], r[3], `report-id-${idx}`]);
+  } else if (section.permissionKey === "pnl-reports" && pnlReports) {
+    let list = pnlReports.rows || [];
+    rows = list.map((r, idx) => [...r, `pnl-row-id-${idx}`]);
   } else if (section.permissionKey === "notifications") {
     let list = notifications;
     if (searchQuery) {
@@ -1010,7 +1028,7 @@ function AdminSectionPage({
         r.status.toLowerCase().includes(q)
       );
     }
-    rows = list.map((r) => [r.referrer, r.user, r.deposit, r.reward, r.id]);
+    rows = list.map((r) => [r.referrer, r.user, r.deposit, r.reward, r.status, r.id]);
   } else if (section.permissionKey === "activity-logs") {
     let filteredLogs = logs;
     if (searchQuery) {
@@ -1135,6 +1153,11 @@ function AdminSectionPage({
   const [usdtEnabled, setUsdtEnabled] = useState(activeSettings.paymentModes.usdt);
   const [maintenanceMode, setMaintenanceMode] = useState(activeSettings.system.maintenanceMode);
 
+  const [refEnabled, setRefEnabled] = useState(activeReferralSettings?.enabled || false);
+  const [refCommission, setRefCommission] = useState(activeReferralSettings?.commissionRate || 10);
+  const [refMinDeposit, setRefMinDeposit] = useState(activeReferralSettings?.minimumDeposit || 1000);
+  const [refAutoApprove, setRefAutoApprove] = useState(activeReferralSettings?.autoApprove || false);
+
   useEffect(() => {
     setUpiIdInput(activeSettings.upiId);
     setUsdtNetwork(activeSettings.usdt.network);
@@ -1146,6 +1169,24 @@ function AdminSectionPage({
     setUsdtEnabled(activeSettings.paymentModes.usdt);
     setMaintenanceMode(activeSettings.system.maintenanceMode);
   }, [activeSettings]);
+
+  useEffect(() => {
+    if (activeReferralSettings) {
+      setRefEnabled(activeReferralSettings.enabled);
+      setRefCommission(activeReferralSettings.commissionRate);
+      setRefMinDeposit(activeReferralSettings.minimumDeposit);
+      setRefAutoApprove(activeReferralSettings.autoApprove);
+    }
+  }, [activeReferralSettings]);
+
+  const handleSaveReferral = () => {
+    onSaveReferralSettings({
+      enabled: refEnabled,
+      commissionRate: Number(refCommission),
+      minimumDeposit: Number(refMinDeposit),
+      autoApprove: refAutoApprove
+    });
+  };
 
   const handleSave = () => {
     onSaveSettings({
@@ -1183,24 +1224,41 @@ function AdminSectionPage({
       </div>
 
       {section.permissionKey === "reports" && (
-        <section className={`${adminPanel} p-4 flex flex-wrap gap-4 items-center justify-between`}>
-          <div className="flex flex-wrap gap-3 items-center">
-            <span className="text-sm text-neutral-400 font-semibold">Filters:</span>
-            <select value={reportDateRange} onChange={(e) => setReportDateRange(e.target.value)} className="h-10 rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-xs text-white outline-none">
-              <option value="all">Date: All Time</option>
-              <option value="today">Date: Today</option>
-            </select>
-            <select value={reportPartnerId} onChange={(e) => setReportPartnerId(e.target.value)} className="h-10 rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-xs text-white outline-none">
-              <option value="all">Partner: All Brands</option>
-              {partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <select value={reportUserId} onChange={(e) => setReportUserId(e.target.value)} className="h-10 rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-xs text-white outline-none">
-              <option value="all">User: All Clients</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-          </div>
-          <button className="h-10 rounded-lg bg-green-500 px-4 text-xs font-bold text-black hover:bg-green-400">Export All</button>
-        </section>
+        <>
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5 mb-5">
+            {[
+              { label: "Total Trades", value: globalDistribution?.totalTrades || 0, tone: "text-white" },
+              { label: "Win Rate", value: `${globalDistribution?.winRate || 0}%`, tone: "text-blue-300" },
+              { label: "Winning Trades", value: globalDistribution?.winningTrades || 0, tone: "text-green-300" },
+              { label: "Losing Trades", value: globalDistribution?.losingTrades || 0, tone: "text-red-400" },
+              { label: "Breakeven", value: globalDistribution?.breakevenTrades || 0, tone: "text-slate-300" },
+            ].map((stat) => (
+              <article key={stat.label} className={`${adminPanel} p-5`}>
+                <p className="text-sm text-neutral-500">{stat.label}</p>
+                <p className={`mt-3 text-2xl font-semibold font-mono ${stat.tone}`}>{stat.value}</p>
+              </article>
+            ))}
+          </section>
+
+          <section className={`${adminPanel} p-4 flex flex-wrap gap-4 items-center justify-between`}>
+            <div className="flex flex-wrap gap-3 items-center">
+              <span className="text-sm text-neutral-400 font-semibold">Filters:</span>
+              <select value={reportDateRange} onChange={(e) => setReportDateRange(e.target.value)} className="h-10 rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-xs text-white outline-none">
+                <option value="all">Date: All Time</option>
+                <option value="today">Date: Today</option>
+              </select>
+              <select value={reportPartnerId} onChange={(e) => setReportPartnerId(e.target.value)} className="h-10 rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-xs text-white outline-none">
+                <option value="all">Partner: All Brands</option>
+                {partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <select value={reportUserId} onChange={(e) => setReportUserId(e.target.value)} className="h-10 rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-xs text-white outline-none">
+                <option value="all">User: All Clients</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+            <button className="h-10 rounded-lg bg-green-500 px-4 text-xs font-bold text-black hover:bg-green-400">Export All</button>
+          </section>
+        </>
       )}
 
       {section.permissionKey === "activity-logs" && (
@@ -1779,6 +1837,67 @@ function AdminSectionPage({
             </div>
           </section>
 
+          {/* Referral Program Settings */}
+          <section className={`${adminPanel} p-5`}>
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/[0.06] pb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-white">🎁 Referral Program Configuration</h2>
+                <p className="mt-1 text-sm text-neutral-400">Manage referral commissions and program rules.</p>
+              </div>
+              {canEditSettings && (
+                <button onClick={handleSaveReferral} className="h-10 rounded-lg bg-green-500 px-5 text-sm font-bold text-black hover:bg-green-400 transition">
+                  Save Referral Settings
+                </button>
+              )}
+            </div>
+
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              <label className="flex items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.015] p-4 hover:bg-white/[0.03]">
+                <div>
+                  <span className="block text-sm font-semibold text-neutral-300">Enable Referral Program</span>
+                  <span className="text-xs text-neutral-500">Allow users to refer others and earn commissions</span>
+                </div>
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input type="checkbox" disabled={!canEditSettings} checked={refEnabled} onChange={(e) => setRefEnabled(e.target.checked)} className="peer sr-only" />
+                  <span className="h-6 w-11 rounded-full bg-neutral-700 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:bg-green-500 peer-checked:after:translate-x-5"></span>
+                </label>
+              </label>
+
+              <label className="flex items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.015] p-4 hover:bg-white/[0.03]">
+                <div>
+                  <span className="block text-sm font-semibold text-neutral-300">Auto Approve Commission</span>
+                  <span className="text-xs text-neutral-500">Automatically mark commission as APPROVED</span>
+                </div>
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input type="checkbox" disabled={!canEditSettings} checked={refAutoApprove} onChange={(e) => setRefAutoApprove(e.target.checked)} className="peer sr-only" />
+                  <span className="h-6 w-11 rounded-full bg-neutral-700 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:bg-green-500 peer-checked:after:translate-x-5"></span>
+                </label>
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-neutral-400">Referral Commission Rate (%)</span>
+                <input 
+                  type="number" 
+                  value={refCommission} 
+                  disabled={!canEditSettings}
+                  onChange={(e) => setRefCommission(e.target.value)} 
+                  className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" 
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold text-neutral-400">Minimum Eligible Deposit (₹)</span>
+                <input 
+                  type="number" 
+                  value={refMinDeposit} 
+                  disabled={!canEditSettings}
+                  onChange={(e) => setRefMinDeposit(e.target.value)} 
+                  className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" 
+                />
+              </label>
+            </div>
+          </section>
+
           {/* System Control */}
           <section className={`${adminPanel} p-5`}>
             <h2 className="text-lg font-semibold text-white mb-4">🔐 System Settings</h2>
@@ -1829,6 +1948,8 @@ export default function DashboardPage() {
   const publishTrade = useAdminStore((s) => s.publishTrade);
   const unpublishTrade = useAdminStore((s) => s.unpublishTrade);
   const updateSettings = useAdminStore((s) => s.updateSettings);
+  const saveReferralSettings = useAdminStore((s) => s.saveReferralSettings);
+  const referralSettings = useAdminStore((s) => s.referralSettings);
 
   // Load Admins state actions
   const addAdmin = useAdminStore((s) => s.addAdmin);
@@ -2425,10 +2546,12 @@ export default function DashboardPage() {
             if (["notifications", "campaigns", "referrals"].includes(section.permissionKey)) openRecordModal(section.permissionKey, "add");
           }}
           activeSettings={settings}
+          activeReferralSettings={referralSettings}
           onSaveSettings={(data) => {
             updateSettings(data);
             showToast("Settings saved successfully");
           }}
+          onSaveReferralSettings={saveReferralSettings}
         />
       ) : (
         <PlatformOverview 

@@ -21,7 +21,7 @@ let AdminService = class AdminService {
         this.prisma = prisma;
     }
     async getData() {
-        const [dbUsers, dbPayments, dbTrades, dbLogs, dbPartners, dbSettings, dbCampaigns, dbReferrals, dbAdmins, dbWithdrawals, dbPlans, dbProfitDistributions,] = await Promise.all([
+        const [dbUsers, dbPayments, dbTrades, dbLogs, dbPartners, dbSettings, dbCampaigns, dbReferrals, dbAdmins, dbWithdrawals, dbPlans, dbProfitDistributions, dbReferralSettings] = await Promise.all([
             this.prisma.user.findMany({ where: { isDeleted: false }, include: { wallet: true, partner: true }, orderBy: { createdAt: 'desc' } }),
             this.prisma.payment.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
             this.prisma.tradeRecord.findMany({ orderBy: { tradeDate: 'desc' } }),
@@ -34,6 +34,7 @@ let AdminService = class AdminService {
             this.prisma.withdrawal.findMany({ include: { user: { include: { wallet: true } } }, orderBy: { createdAt: 'desc' } }),
             this.prisma.plan.findMany({ orderBy: { createdAt: 'asc' } }),
             this.prisma.profitDistribution.findMany({ include: { user: true }, orderBy: { distributionDate: 'desc' } }),
+            this.prisma.referralSettings.findFirst(),
         ]);
         const users = dbUsers.map((u) => {
             let plan = 'None';
@@ -129,8 +130,8 @@ let AdminService = class AdminService {
             const referredUser = dbUsers.find((u) => u.id === r.referredId);
             return {
                 id: r.id, referrer: referrerUser?.name || 'Unknown', user: referredUser?.name || 'Unknown',
-                deposit: referredUser?.wallet ? `₹${Number(referredUser.wallet.realizedBalance).toLocaleString('en-IN')}` : '₹0',
-                reward: `₹${Number(r.rewardAmount).toLocaleString('en-IN')}`,
+                deposit: r.depositAmount ? `₹${Number(r.depositAmount).toLocaleString('en-IN')}` : (referredUser?.wallet ? `₹${Number(referredUser.wallet.realizedBalance).toLocaleString('en-IN')}` : '₹0'),
+                reward: `₹${Number(r.commissionAmount || 0).toLocaleString('en-IN')}`,
                 status: r.status === 'PENDING' ? 'Pending' : r.status === 'PAID' ? 'Paid' : 'Cancelled',
             };
         });
@@ -233,6 +234,7 @@ let AdminService = class AdminService {
                 id: p.id, name: p.name, subtitle: p.subtitle, capitalLabel: p.capitalLabel,
                 desc: p.desc, features: p.features, btnText: p.btnText, status: p.status, isPopular: p.isPopular,
             })),
+            referralSettings: dbReferralSettings,
         };
     }
     async createUser(adminId, body, clientIp) {
@@ -448,6 +450,77 @@ let AdminService = class AdminService {
         });
         return { success: true, settings };
     }
+    async getReferralSettings() {
+        let settings = await this.prisma.referralSettings.findFirst();
+        if (!settings) {
+            settings = await this.prisma.referralSettings.create({
+                data: {}
+            });
+        }
+        return { success: true, settings };
+    }
+    async updateReferralSettings(adminId, body, clientIp) {
+        const { enabled, commissionRate, minimumDeposit, autoApprove, allowMultipleDeposits, commissionPayoutMode, maxReferralCommission } = body;
+        let existing = await this.prisma.referralSettings.findFirst();
+        let settings;
+        if (existing) {
+            settings = await this.prisma.referralSettings.update({
+                where: { id: existing.id },
+                data: {
+                    enabled: enabled !== undefined ? Boolean(enabled) : existing.enabled,
+                    commissionRate: commissionRate !== undefined ? Number(commissionRate) : existing.commissionRate,
+                    minimumDeposit: minimumDeposit !== undefined ? Number(minimumDeposit) : existing.minimumDeposit,
+                    autoApprove: autoApprove !== undefined ? Boolean(autoApprove) : existing.autoApprove,
+                    allowMultipleDeposits: allowMultipleDeposits !== undefined ? Boolean(allowMultipleDeposits) : existing.allowMultipleDeposits,
+                    commissionPayoutMode: commissionPayoutMode !== undefined ? String(commissionPayoutMode) : existing.commissionPayoutMode,
+                    maxReferralCommission: maxReferralCommission !== undefined ? (maxReferralCommission ? Number(maxReferralCommission) : null) : existing.maxReferralCommission,
+                },
+            });
+        }
+        else {
+            settings = await this.prisma.referralSettings.create({
+                data: {
+                    enabled: enabled !== undefined ? Boolean(enabled) : false,
+                    commissionRate: commissionRate !== undefined ? Number(commissionRate) : 10.00,
+                    minimumDeposit: minimumDeposit !== undefined ? Number(minimumDeposit) : 1000.00,
+                    autoApprove: autoApprove !== undefined ? Boolean(autoApprove) : false,
+                    allowMultipleDeposits: allowMultipleDeposits !== undefined ? Boolean(allowMultipleDeposits) : false,
+                    commissionPayoutMode: commissionPayoutMode !== undefined ? String(commissionPayoutMode) : 'PENDING',
+                    maxReferralCommission: maxReferralCommission ? Number(maxReferralCommission) : null,
+                },
+            });
+        }
+        await this.prisma.securityEvent.create({
+            data: { adminId, action: 'SETTINGS_UPDATE', reason: 'Updated Referral Program settings', ipAddress: clientIp },
+        });
+        return { success: true, settings };
+    }
+    async getReferrals() {
+        const referrals = await this.prisma.referral.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: {
+                referrer: { select: { name: true, email: true } },
+                referredUser: { select: { name: true, email: true } },
+            }
+        });
+        return { success: true, referrals };
+    }
+    async updateReferralStatus(adminId, referralId, status, clientIp) {
+        const referral = await this.prisma.referral.findUnique({ where: { id: referralId } });
+        if (!referral)
+            return { error: 'Referral not found', status: 404 };
+        const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'PAID'];
+        if (!validStatuses.includes(status))
+            return { error: 'Invalid status', status: 400 };
+        const updated = await this.prisma.referral.update({
+            where: { id: referralId },
+            data: { status: status },
+        });
+        await this.prisma.securityEvent.create({
+            data: { adminId, action: 'REFERRAL_UPDATE', reason: `Updated referral ${referralId} status to ${status}`, ipAddress: clientIp },
+        });
+        return { success: true, referral: updated };
+    }
     async createTrade(adminId, body, clientIp) {
         const { userId, pair, type, entry, stopLoss, target } = body;
         if (!userId || !pair || !type || !entry || !stopLoss || !target)
@@ -602,6 +675,39 @@ let AdminService = class AdminService {
                 nextStatus = 'VIP';
             await tx.user.update({ where: { id: payment.userId }, data: { status: nextStatus } });
             const updatedPayment = await tx.payment.update({ where: { id: paymentId }, data: { status: 'APPROVED', ledgerTransactionGroupId: ledgerGroup.id } });
+            if (payment.user.referredBy) {
+                const refSettings = await tx.referralSettings.findFirst();
+                if (refSettings && refSettings.enabled) {
+                    const eligible = amountVal >= Number(refSettings.minimumDeposit);
+                    if (eligible) {
+                        const previousCommissions = await tx.referral.count({
+                            where: { referredId: payment.userId }
+                        });
+                        if (refSettings.allowMultipleDeposits || previousCommissions === 0) {
+                            const commissionRate = Number(refSettings.commissionRate);
+                            let commissionAmount = (amountVal * commissionRate) / 100;
+                            if (refSettings.maxReferralCommission) {
+                                const max = Number(refSettings.maxReferralCommission);
+                                if (commissionAmount > max)
+                                    commissionAmount = max;
+                            }
+                            const status = refSettings.autoApprove ? 'APPROVED' : 'PENDING';
+                            await tx.referral.create({
+                                data: {
+                                    partnerId: payment.partnerId,
+                                    referrerId: payment.user.referredBy,
+                                    referredId: payment.userId,
+                                    depositAmount: amountVal,
+                                    commissionPct: commissionRate,
+                                    commissionAmount: commissionAmount,
+                                    paymentId: payment.id,
+                                    status: status
+                                }
+                            });
+                        }
+                    }
+                }
+            }
             await tx.securityEvent.create({
                 data: { adminId, userId: payment.userId, partnerId: payment.partnerId, action: 'PAYMENT_APPROVED', reason: `Approved payment ${payment.id} for amount ${amountVal}`, ipAddress: clientIp },
             });
@@ -990,6 +1096,77 @@ let AdminService = class AdminService {
             requestedAt: w.createdAt,
             processedAt: w.processedAt,
             date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        };
+    }
+    async getPnlReports() {
+        const trades = await this.prisma.tradeRecord.findMany({
+            orderBy: { tradeDate: 'desc' }
+        });
+        const totalTrades = trades.length;
+        let winningTrades = 0;
+        let losingTrades = 0;
+        let breakevenTrades = 0;
+        let totalPnl = 0;
+        let grossProfit = 0;
+        let grossLoss = 0;
+        const monthlyPnlMap = {};
+        trades.forEach(t => {
+            const pnl = Number(t.profitLoss);
+            totalPnl += pnl;
+            if (pnl > 0) {
+                winningTrades++;
+                grossProfit += pnl;
+            }
+            else if (pnl < 0) {
+                losingTrades++;
+                grossLoss += Math.abs(pnl);
+            }
+            else {
+                breakevenTrades++;
+            }
+            const date = new Date(t.tradeDate);
+            const month = date.toLocaleString('default', { month: 'short' });
+            monthlyPnlMap[month] = (monthlyPnlMap[month] || 0) + pnl;
+        });
+        const winRate = totalTrades > 0 ? ((winningTrades / totalTrades) * 100).toFixed(2) : '0.00';
+        const lossRate = totalTrades > 0 ? ((losingTrades / totalTrades) * 100).toFixed(2) : '0.00';
+        const breakevenRate = totalTrades > 0 ? ((breakevenTrades / totalTrades) * 100).toFixed(2) : '0.00';
+        const averageWin = winningTrades > 0 ? (grossProfit / winningTrades).toFixed(2) : '0.00';
+        const averageLoss = losingTrades > 0 ? (grossLoss / losingTrades).toFixed(2) : '0.00';
+        const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : (grossProfit > 0 ? 'Infinite' : '0.00');
+        const monthlyPnl = Object.keys(monthlyPnlMap).map(month => ({
+            month,
+            pnl: monthlyPnlMap[month]
+        }));
+        const rows = [
+            ["All Users", `$${totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "-", `${winRate}%`]
+        ];
+        return {
+            overview: {
+                totalTrades,
+                winningTrades,
+                losingTrades,
+                breakevenTrades,
+                winRate: Number(winRate),
+                lossRate: Number(lossRate),
+                breakevenRate: Number(breakevenRate),
+                totalPnl,
+                averageWin: Number(averageWin),
+                averageLoss: Number(averageLoss),
+                profitFactor,
+                grossProfit,
+                grossLoss
+            },
+            profitDistribution: {
+                winningTrades,
+                losingTrades,
+                breakevenTrades,
+                winRate: Number(winRate),
+                lossRate: Number(lossRate),
+                breakevenRate: Number(breakevenRate),
+            },
+            monthlyPnl,
+            rows
         };
     }
 };

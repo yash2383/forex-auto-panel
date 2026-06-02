@@ -96,4 +96,44 @@ export declare class UserService {
         error?: undefined;
         status?: undefined;
     }>;
+    getReferralStats(userId: string): Promise<{
+        error: string;
+        status: number;
+        referralCode?: undefined;
+        stats?: undefined;
+    } | {
+        referralCode: string;
+        stats: {
+            totalReferrals: number;
+            activeReferrals: number;
+            totalDepositsGenerated: number;
+            totalEarnings: number;
+            pendingEarnings: number;
+            approvedEarnings: number;
+            paidEarnings: number;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    getReferrals(userId: string): Promise<{
+        referrals: {
+            id: string;
+            name: string;
+            email: string;
+            joinDate: Date;
+            plan: string;
+            depositAmount: number;
+        }[];
+    }>;
+    getReferralEarnings(userId: string): Promise<{
+        earnings: {
+            id: string;
+            date: Date;
+            referredUser: string;
+            depositAmount: number;
+            commissionPct: number;
+            commissionAmount: number;
+            status: import("@prisma/client").$Enums.ReferralStatus;
+        }[];
+    }>;
 }

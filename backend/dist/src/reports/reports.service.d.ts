@@ -41,6 +41,26 @@ export declare class ReportsService {
             notes: string;
         }[];
     }>;
+    getPnlDistribution(): Promise<{
+        totalTrades: number;
+        winningTrades: number;
+        losingTrades: number;
+        breakevenTrades: number;
+        winRate: number;
+        lossRate: number;
+        breakevenRate: number;
+        grossProfit: number;
+        grossLoss: number;
+        netProfit: number;
+        averageWin: number;
+        averageLoss: number;
+        profitFactor: number;
+        riskRewardRatio: number;
+    }>;
+    getMonthlyPnl(): Promise<{
+        month: string;
+        pnl: number;
+    }[]>;
     getProfitReport(userId: string): Promise<{
         totalDistributed: number;
         pendingAmount: number;
@@ -102,7 +122,7 @@ export declare class ReportsService {
         fileName: string;
         reportType: string;
         fileUrl: string;
-    }>;
+    } | null>;
     generateCsvBuffer(userId: string, type: string): Promise<{
         buffer: Buffer;
         fileName: string;

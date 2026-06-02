@@ -98,6 +98,7 @@ export const useAdminStore = create((set, get) => ({
     winRate: 72.91,
     activeTradesCount: 0
   },
+  pnlReports: null,
   currentUser: null,
   searchQuery: "",
   setSearchQuery: (query) => set({ searchQuery: query }),
@@ -144,6 +145,7 @@ export const useAdminStore = create((set, get) => ({
     }
   ],
   adminOtpCounts: {},
+  referralSettings: null,
 
   // SYNC ACTION (CONNECTS DATABASE)
   fetchData: async () => {
@@ -189,11 +191,24 @@ export const useAdminStore = create((set, get) => ({
             settings: data.settings,
             plans: data.plans,
             profitDistributions: data.profitDistributions || [],
+            referralSettings: data.referralSettings || null,
           });
         }
       }
     } catch (e) {
       console.error("fetchData error:", e);
+    }
+  },
+
+  fetchPnlReports: async () => {
+    try {
+      const res = await apiFetch("/api/admin/pnl-reports");
+      if (res.ok) {
+        const data = await res.json();
+        set({ pnlReports: data });
+      }
+    } catch (e) {
+      console.error("fetchPnlReports error:", e);
     }
   },
 
@@ -735,6 +750,40 @@ export const useAdminStore = create((set, get) => ({
   },
 
   distributeProfit: () => {},
+
+  saveSettings: async (settings) => {
+    try {
+      const res = await apiFetch("/api/admin/settings", {
+        method: "POST",
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) {
+        await get().fetchData();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  },
+
+  saveReferralSettings: async (settings) => {
+    try {
+      const res = await apiFetch("/api/admin/referral-settings", {
+        method: "POST",
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) {
+        await get().fetchData();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  },
 
   addProfitDistribution: async (body) => {
     try {

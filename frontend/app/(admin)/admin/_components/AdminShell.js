@@ -354,8 +354,12 @@ export default function AdminShell({ children }) {
               const allowedItems = group.items.filter((item) => {
                 const itemSectionRaw = item.href.includes("?section=") ? item.href.split("?section=").at(-1) : "";
                 const itemSection = itemSectionRaw.includes("&filter=") ? itemSectionRaw.split("&filter=")[0] : itemSectionRaw;
-                let permissionKey = itemSection || (item.href.includes("profit-distribution") ? "profit-distribution" : 
-                                     item.href.includes("white-label") ? "partners" : "dashboard");
+                let permissionKey = itemSection || (
+                  item.href.includes("profit-distribution") ? "profit-distribution" : 
+                  item.href.includes("white-label") ? "partners" : 
+                  item.href.includes("withdrawals") ? "payments" : 
+                  "dashboard"
+                );
                 if (permissionKey === "transactions") permissionKey = "payments";
                 if (item.label === "Dashboard") return true;
                 if (item.label === "Create Partner") {
@@ -426,7 +430,7 @@ export default function AdminShell({ children }) {
 
         <div className="min-w-0">
           <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-[#050a0f]/88 px-4 py-4 backdrop-blur-xl sm:px-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap xl:flex-nowrap items-center justify-between gap-4">
               <div className="relative hidden max-w-[460px] flex-1 lg:block z-40">
                 <label className="flex h-11 w-full items-center gap-2 rounded-full border border-white/[0.09] bg-black/10 px-4 text-sm text-neutral-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] focus-within:border-green-500/35 transition">
                   <Search className="h-4 w-4" />
@@ -453,11 +457,11 @@ export default function AdminShell({ children }) {
                   </>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-nowrap items-center gap-2 sm:gap-3 overflow-x-auto pb-1 scrollbar-hide w-full lg:w-auto">
                 
                 {/* Role Switcher Selector Dropdown (RBAC Simulator) */}
-                <div className="flex h-11 items-center rounded-lg border border-white/[0.09] bg-[#0b141b] px-3 font-semibold text-xs shadow-inner">
-                  <span className="text-neutral-400 mr-2 uppercase tracking-wider font-bold">Simulator:</span>
+                <div className="flex h-11 items-center rounded-lg border border-white/[0.09] bg-[#0b141b] px-3 font-semibold text-xs shadow-inner shrink-0">
+                  <span className="hidden xl:inline text-neutral-400 mr-2 uppercase tracking-wider font-bold">Simulator:</span>
                   <select 
                     value={currentUser?.role || ""}
                     onChange={(e) => setCurrentUserRole(e.target.value)}
@@ -465,37 +469,37 @@ export default function AdminShell({ children }) {
                   >
                     <option value="SUPER_ADMIN" className="bg-[#0b141b] text-white">Super Admin</option>
                     <option value="MANAGER" className="bg-[#0b141b] text-white">Manager</option>
-                    <option value="VIEWER" className="bg-[#0b141b] text-white">Viewer (Read-Only)</option>
+                    <option value="VIEWER" className="bg-[#0b141b] text-white">Viewer</option>
                   </select>
                 </div>
 
-                <Link href="/" className="inline-flex h-11 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.03] px-4 text-sm font-bold text-white transition hover:border-green-500/30 hover:text-green-300">
-                  Visit Website
+                <Link href="/" className="inline-flex shrink-0 h-11 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.03] px-3 sm:px-4 text-sm font-bold text-white transition hover:border-green-500/30 hover:text-green-300">
+                  <span className="hidden lg:inline">Visit Website</span>
                   <ExternalLink className="h-4 w-4" />
                 </Link>
-                <button className="hidden h-11 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.03] px-4 text-sm text-white md:flex">
+                <button className="hidden xl:flex shrink-0 h-11 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.03] px-4 text-sm text-white">
                   <CalendarDays className="h-4 w-4" />
                   May 19, 2025 - May 25, 2025
                 </button>
                 <button
                   onClick={toggleTheme}
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.03] text-white transition hover:bg-white/[0.08]"
+                  className="flex shrink-0 h-11 w-11 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.03] text-white transition hover:bg-white/[0.08]"
                   aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
                 >
                   {theme === "light" ? <Sun className="h-5 w-5 text-yellow-500" /> : <Moon className="h-5 w-5" />}
                 </button>
-                <button className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.03] text-white">
+                <button className="relative shrink-0 flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.03] text-white">
                   <Bell className="h-5 w-5" />
                   <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white">12</span>
                 </button>
-                <div className="relative">
+                <div className="relative shrink-0">
                   <button 
                     onClick={() => setShowProfileMenu(!showProfileMenu)}
-                    className="flex h-11 items-center gap-3 rounded-lg border border-white/[0.09] bg-white/[0.03] px-3 text-left text-sm text-white hover:bg-white/[0.06] active:scale-[0.98] transition cursor-pointer select-none"
+                    className="flex h-11 items-center gap-2 sm:gap-3 rounded-lg border border-white/[0.09] bg-white/[0.03] px-2 sm:px-3 text-left text-sm text-white hover:bg-white/[0.06] active:scale-[0.98] transition cursor-pointer select-none"
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-neutral-200 to-neutral-600 text-xs font-black text-black">SA</span>
                     <span className="hidden sm:block">
-                      <span className="block font-bold leading-tight">{getCleanRoleLabel(currentUser?.role)}</span>
+                      <span className="block font-bold leading-tight max-w-[100px] truncate">{getCleanRoleLabel(currentUser?.role)}</span>
                       <span className="text-xs text-neutral-500">Operator</span>
                     </span>
                     <ChevronDown className={`h-4 w-4 text-neutral-500 transition-transform duration-200 ${showProfileMenu ? "rotate-180" : ""}`} />

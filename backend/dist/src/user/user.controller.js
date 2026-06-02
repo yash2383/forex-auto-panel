@@ -86,6 +86,41 @@ let UserController = class UserController {
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
+    async getReferralStats(req, res) {
+        try {
+            const user = req.user;
+            const result = await this.userService.getReferralStats(user.id);
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Fetch referral stats error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async getReferrals(req, res) {
+        try {
+            const user = req.user;
+            const result = await this.userService.getReferrals(user.id);
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Fetch referrals error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async getReferralEarnings(req, res) {
+        try {
+            const user = req.user;
+            const result = await this.userService.getReferralEarnings(user.id);
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Fetch referral earnings error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
 };
 exports.UserController = UserController;
 __decorate([
@@ -130,6 +165,30 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], UserController.prototype, "changePassword", null);
+__decorate([
+    (0, common_1.Get)('referrals/stats'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], UserController.prototype, "getReferralStats", null);
+__decorate([
+    (0, common_1.Get)('referrals'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], UserController.prototype, "getReferrals", null);
+__decorate([
+    (0, common_1.Get)('referrals/earnings'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], UserController.prototype, "getReferralEarnings", null);
 exports.UserController = UserController = __decorate([
     (0, common_1.Controller)('user'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

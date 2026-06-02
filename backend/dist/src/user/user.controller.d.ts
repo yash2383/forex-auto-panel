@@ -14,4 +14,7 @@ export declare class UserController {
         newPassword: string;
         confirmPassword: string;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
+    getReferralStats(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    getReferrals(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    getReferralEarnings(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
 }

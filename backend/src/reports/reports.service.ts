@@ -72,6 +72,81 @@ export class ReportsService {
     };
   }
 
+  // ─── Profit Distribution Metrics (Dynamic) ────────────────────────────────
+  async getPnlDistribution() {
+    const records = await this.prisma.tradeRecord.findMany({
+      where: { status: 'published' },
+    });
+
+    let winningTrades = 0;
+    let losingTrades = 0;
+    let breakevenTrades = 0;
+    let grossProfit = 0;
+    let grossLoss = 0;
+
+    records.forEach((t) => {
+      if (t.profitLoss > 0) {
+        winningTrades++;
+        grossProfit += t.profitLoss;
+      } else if (t.profitLoss < 0) {
+        losingTrades++;
+        grossLoss += Math.abs(t.profitLoss);
+      } else {
+        breakevenTrades++;
+      }
+    });
+
+    const totalTrades = records.length;
+    const netProfit = grossProfit - grossLoss;
+    
+    const winRate = totalTrades > 0 ? Number(((winningTrades / totalTrades) * 100).toFixed(1)) : 0;
+    const lossRate = totalTrades > 0 ? Number(((losingTrades / totalTrades) * 100).toFixed(1)) : 0;
+    const breakevenRate = totalTrades > 0 ? Number(((breakevenTrades / totalTrades) * 100).toFixed(1)) : 0;
+
+    const averageWin = winningTrades > 0 ? Number((grossProfit / winningTrades).toFixed(2)) : 0;
+    const averageLoss = losingTrades > 0 ? Number((grossLoss / losingTrades).toFixed(2)) : 0;
+    const profitFactor = grossLoss > 0 ? Number((grossProfit / grossLoss).toFixed(2)) : grossProfit > 0 ? 999 : 0;
+    const riskRewardRatio = averageLoss > 0 ? Number((averageWin / averageLoss).toFixed(2)) : averageWin > 0 ? 999 : 0;
+
+    return {
+      totalTrades,
+      winningTrades,
+      losingTrades,
+      breakevenTrades,
+      winRate,
+      lossRate,
+      breakevenRate,
+      grossProfit: Number(grossProfit.toFixed(2)),
+      grossLoss: Number(grossLoss.toFixed(2)),
+      netProfit: Number(netProfit.toFixed(2)),
+      averageWin,
+      averageLoss,
+      profitFactor,
+      riskRewardRatio,
+    };
+  }
+
+  // ─── Monthly PnL Metrics (Dynamic) ────────────────────────────────────────
+  async getMonthlyPnl() {
+    const records = await this.prisma.tradeRecord.findMany({
+      where: { status: 'published' },
+      orderBy: { tradeDate: 'asc' },
+    });
+
+    const monthlyMap: Record<string, number> = {};
+
+    records.forEach((t) => {
+      // tradeDate is a Date object. Group by "MMM YYYY" format e.g., "Jan 2026"
+      const dateKey = t.tradeDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      monthlyMap[dateKey] = (monthlyMap[dateKey] || 0) + t.profitLoss;
+    });
+
+    return Object.entries(monthlyMap).map(([month, pnl]) => ({
+      month,
+      pnl: Number(pnl.toFixed(2)),
+    }));
+  }
+
   // ─── Profit Distribution Report ───────────────────────────────────────────
   async getProfitReport(userId: string) {
     const distributions = await this.prisma.profitDistribution.findMany({
@@ -165,6 +240,11 @@ export class ReportsService {
 
   // ─── Save Report Record ───────────────────────────────────────────────────
   async saveReportRecord(userId: string, fileName: string, reportType: string, fileUrl: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      console.warn(`User ${userId} not found, skipping report record generation.`);
+      return null;
+    }
     return this.prisma.generatedReport.create({ data: { userId, fileName, reportType, fileUrl } });
   }
 

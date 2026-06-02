@@ -59,6 +59,32 @@ export class ReportsController {
     }
   }
 
+  @Get('pnl/distribution')
+  async getPnlDistribution(@Res() res: Response) {
+    try {
+      const data = await this.reportsService.getPnlDistribution();
+      return res.json(data);
+    } catch (e: any) {
+      console.error('PnL Distribution error:', e);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
+  @Get('pnl/monthly')
+  async getMonthlyPnl(@Res() res: Response) {
+    try {
+      const data = await this.reportsService.getMonthlyPnl();
+      return res.json(data);
+    } catch (e: any) {
+      console.error('Monthly PnL error:', e);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
   @Get('wallet')
   async getWalletStatement(@Req() req: Request, @Res() res: Response) {
     try {

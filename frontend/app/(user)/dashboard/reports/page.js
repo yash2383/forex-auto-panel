@@ -143,6 +143,8 @@ export default function ReportsPage() {
   const [profitData, setProfitData] = useState(null);
   const [walletData, setWalletData] = useState(null);
   const [taxData, setTaxData] = useState(null);
+  const [distributionData, setDistributionData] = useState(null);
+  const [monthlyData, setMonthlyData] = useState(null);
   const [history, setHistory] = useState([]);
 
   // Loading / UI states
@@ -151,6 +153,8 @@ export default function ReportsPage() {
     profit: false,
     wallet: false,
     tax: false,
+    distribution: false,
+    monthly: false,
   });
   const [exporting, setExporting] = useState({});
   const [toast, setToast] = useState(null);
@@ -200,6 +204,8 @@ export default function ReportsPage() {
     loadPanel("profit", setProfitData, "/api/reports/profit");
     loadPanel("wallet", setWalletData, "/api/reports/wallet");
     loadPanel("tax", setTaxData, "/api/reports/tax");
+    loadPanel("distribution", setDistributionData, "/api/reports/pnl/distribution");
+    loadPanel("monthly", setMonthlyData, "/api/reports/pnl/monthly");
     loadHistory();
   }, [fetchData, loadSummary, loadPanel, loadHistory]);
 
@@ -304,6 +310,8 @@ export default function ReportsPage() {
             loadPanel("profit", setProfitData, "/api/reports/profit");
             loadPanel("wallet", setWalletData, "/api/reports/wallet");
             loadPanel("tax", setTaxData, "/api/reports/tax");
+            loadPanel("distribution", setDistributionData, "/api/reports/pnl/distribution");
+            loadPanel("monthly", setMonthlyData, "/api/reports/pnl/monthly");
             loadHistory();
           }}
           className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-neutral-300 transition hover:bg-white/[0.08]"
@@ -347,46 +355,83 @@ export default function ReportsPage() {
             </>
           }
         >
-          {panelLoading.trading ? (
+          {panelLoading.distribution ? (
             <div className="space-y-2">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-8 w-full animate-pulse rounded-lg bg-white/[0.03]" />
               ))}
             </div>
-          ) : tradingData ? (
+          ) : distributionData ? (
             <div>
-              <StatRow label="Total Trades" value={tradingData.totalTrades} />
-              <StatRow
-                label="Winning Trades"
-                value={tradingData.winningTrades}
-                tone="text-green-300"
-              />
-              <StatRow
-                label="Losing Trades"
-                value={tradingData.losingTrades}
-                tone="text-red-400"
-              />
-              <StatRow label="Break Even" value={tradingData.breakEven} tone="text-yellow-300" />
-              <StatRow label="Win Rate" value={`${tradingData.winRate}%`} tone="text-blue-300" />
+              <StatRow label="Total Trades" value={distributionData.totalTrades} />
+              <StatRow label="Win Rate" value={`${distributionData.winRate}%`} tone="text-blue-300" />
+              <StatRow label="Profit Factor" value={distributionData.profitFactor} tone="text-green-300" />
+              <StatRow label="Average Win" value={fmt(distributionData.averageWin)} tone="text-green-300" />
+              <StatRow label="Average Loss" value={fmt(distributionData.averageLoss)} tone="text-red-400" />
+              <StatRow label="Risk/Reward" value={`1:${distributionData.riskRewardRatio}`} tone="text-amber-300" />
               <StatRow
                 label="Total P&L"
-                value={fmt(tradingData.totalPnL)}
-                tone={tradingData.totalPnL >= 0 ? "text-green-300" : "text-red-400"}
+                value={fmt(distributionData.netProfit)}
+                tone={distributionData.netProfit >= 0 ? "text-green-300" : "text-red-400"}
               />
-              {tradingData.bestTrade && (
-                <StatRow
-                  label="Best Trade"
-                  value={`${tradingData.bestTrade.pair} • ${fmt(tradingData.bestTrade.profitLoss)}`}
-                  tone="text-green-300"
-                />
-              )}
-              {tradingData.worstTrade && (
-                <StatRow
-                  label="Worst Trade"
-                  value={`${tradingData.worstTrade.pair} • ${fmt(tradingData.worstTrade.profitLoss)}`}
-                  tone="text-red-400"
-                />
-              )}
+
+              <div className="mt-6 border-t border-white/5 pt-5">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                  Profit Distribution
+                </p>
+                <div className="flex items-center gap-4">
+                  <div 
+                    className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full"
+                    style={{
+                      background: `conic-gradient(#22c55e 0 ${distributionData.winRate}%, #ef4444 ${distributionData.winRate}% ${distributionData.winRate + distributionData.lossRate}%, #94a3b8 ${distributionData.winRate + distributionData.lossRate}% 100%)`
+                    }}
+                  >
+                    <div className="absolute inset-2 rounded-full bg-[#07100d]" />
+                  </div>
+                  <div className="flex-1 space-y-2 text-sm font-semibold">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-white">
+                        <span className="h-2.5 w-2.5 rounded-sm bg-green-500" /> Winning Trades
+                      </span>
+                      <span className="text-green-300">{distributionData.winRate}%</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-white">
+                        <span className="h-2.5 w-2.5 rounded-sm bg-red-500" /> Losing Trades
+                      </span>
+                      <span className="text-red-400">{distributionData.lossRate}%</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-white">
+                        <span className="h-2.5 w-2.5 rounded-sm bg-slate-400" /> Breakeven
+                      </span>
+                      <span className="text-slate-300">{distributionData.breakevenRate}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-white/5 pt-5">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                  Monthly PnL
+                </p>
+                {panelLoading.monthly ? (
+                  <div className="h-8 w-full animate-pulse rounded-lg bg-white/[0.03]" />
+                ) : monthlyData && monthlyData.length > 0 ? (
+                  <div className="space-y-1">
+                    {monthlyData.map((m) => (
+                      <div key={m.month} className="flex items-center justify-between py-1.5">
+                        <span className="text-sm font-medium text-neutral-300">{m.month}</span>
+                        <span className={`text-sm font-bold font-mono ${m.pnl >= 0 ? "text-green-300" : "text-red-400"}`}>
+                          {m.pnl >= 0 ? "+" : ""}{fmt(m.pnl)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-neutral-500">No monthly data found.</p>
+                )}
+              </div>
             </div>
           ) : (
             <p className="text-sm text-neutral-500">No trade data available.</p>

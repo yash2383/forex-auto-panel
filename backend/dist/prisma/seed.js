@@ -138,6 +138,7 @@ async function main() {
                 email: u.email,
                 passwordHash: (0, crypto_util_1.hashPassword)("password123"),
                 status: u.status,
+                referralCode: "SEED" + Math.random().toString(36).substring(2, 8).toUpperCase(),
             },
         });
         await prisma.wallet.create({

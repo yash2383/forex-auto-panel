@@ -8,19 +8,22 @@ import AccountDetails from "./components/AccountDetails";
 import SubscriptionCard from "./components/SubscriptionCard";
 import VerificationStatus from "./components/VerificationStatus";
 import PaymentHistory from "./components/PaymentHistory";
+import ReferAndEarnCard from "./components/ReferAndEarnCard";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [payments, setPayments] = useState([]);
   const [subscription, setSubscription] = useState(null);
+  const [referralStats, setReferralStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async () => {
     try {
-      const [profileRes, paymentsRes, subRes] = await Promise.all([
+      const [profileRes, paymentsRes, subRes, refStatsRes] = await Promise.all([
         apiFetch("/api/user/profile"),
         apiFetch("/api/user/payments"),
         apiFetch("/api/user/subscription"),
+        apiFetch("/api/user/referrals/stats"),
       ]);
 
       if (profileRes.ok) {
@@ -36,6 +39,11 @@ export default function ProfilePage() {
       if (subRes.ok) {
         const data = await subRes.json();
         setSubscription(data);
+      }
+
+      if (refStatsRes.ok) {
+        const data = await refStatsRes.json();
+        setReferralStats(data);
       }
     } catch (err) {
       console.error("Profile fetch error:", err);
@@ -92,6 +100,9 @@ export default function ProfilePage() {
 
           {/* Account configuration Details */}
           <AccountDetails profile={profile} onUpdateName={handleUpdateName} />
+
+          {/* Refer & Earn */}
+          <ReferAndEarnCard profile={profile} stats={referralStats} />
 
           {/* History Table */}
           <PaymentHistory payments={payments} />

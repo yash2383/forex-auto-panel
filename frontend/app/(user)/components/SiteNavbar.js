@@ -102,19 +102,21 @@ export default function SiteNavbar() {
                   My Account <span className="text-[9px] text-neutral-500 ml-0.5">▼</span>
                 </button>
 
-                <div className="absolute right-0 top-full mt-1 hidden group-hover:block w-40 rounded-xl border border-white/10 bg-[#0B1110] p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.6)] z-50">
-                  <Link
-                    href="/profile"
-                    className="block px-4 py-2 text-sm text-neutral-300 hover:text-white hover:bg-white/5 rounded-lg transition font-medium"
-                  >
-                    Profile
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition font-semibold"
-                  >
-                    Logout
-                  </button>
+                <div className="absolute right-0 top-full hidden group-hover:block w-40 pt-2 z-50">
+                  <div className="rounded-xl border border-white/10 bg-[#0B1110] p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-neutral-300 hover:text-white hover:bg-white/5 rounded-lg transition font-medium"
+                    >
+                      Profile
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition font-semibold"
+                    >
+                      Logout
+                    </button>
+                  </div>
                 </div>
               </div>
               <Link

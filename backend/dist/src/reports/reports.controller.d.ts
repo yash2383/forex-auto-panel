@@ -6,6 +6,8 @@ export declare class ReportsController {
     getSummary(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     getTradingReport(res: Response): Promise<Response<any, Record<string, any>>>;
     getProfitReport(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    getPnlDistribution(res: Response): Promise<Response<any, Record<string, any>>>;
+    getMonthlyPnl(res: Response): Promise<Response<any, Record<string, any>>>;
     getWalletStatement(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     getTaxSummary(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     getHistory(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;

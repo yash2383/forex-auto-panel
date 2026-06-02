@@ -113,4 +113,43 @@ export class UserController {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
+
+  // --- Referrals ---
+
+  @Get('referrals/stats')
+  async getReferralStats(@Req() req: Request, @Res() res: Response) {
+    try {
+      const user = (req as any).user;
+      const result = await this.userService.getReferralStats(user.id);
+      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Fetch referral stats error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Get('referrals')
+  async getReferrals(@Req() req: Request, @Res() res: Response) {
+    try {
+      const user = (req as any).user;
+      const result = await this.userService.getReferrals(user.id);
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Fetch referrals error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Get('referrals/earnings')
+  async getReferralEarnings(@Req() req: Request, @Res() res: Response) {
+    try {
+      const user = (req as any).user;
+      const result = await this.userService.getReferralEarnings(user.id);
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Fetch referral earnings error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
 }

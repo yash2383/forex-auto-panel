@@ -161,7 +161,14 @@ model User {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
+  referralCode   String           @unique
+  referredBy     String?
+
   // Relations
+  referrer       User?            @relation("UserReferrals", fields: [referredBy], references: [id])
+  referredUsers  User[]           @relation("UserReferrals")
+  referralsMade    Referral[] @relation("ReferrerToReferral")
+  referralsGotten  Referral[] @relation("ReferredToReferral")
   partner        Partner          @relation(fields: [partnerId], references: [id])
   wallet         Wallet?
   payments       Payment[]
@@ -375,17 +382,40 @@ model OtpRequest {
 }
 
 model Referral {
-  id           String         @id @default(uuid())
-  partnerId    String
-  referrerId   String         // User sharing link
-  referredId   String         @unique // Target registered user
-  rewardAmount Decimal        @db.Decimal(18, 4)
-  status       ReferralStatus @default(PENDING)
-  createdAt    DateTime       @default(now())
+  id                String         @id @default(cuid())
+  partnerId         String
+  referrerId        String         // User sharing link
+  referredId        String         // Target registered user
+  depositAmount     Decimal?       @db.Decimal(18, 4)
+  commissionPct     Decimal?       @db.Decimal(5, 2)
+  commissionAmount  Decimal?       @db.Decimal(18, 4)
+  paymentId         String?
+  status            ReferralStatus @default(PENDING)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Relations
+  referrer          User           @relation("ReferrerToReferral", fields: [referrerId], references: [id])
+  referredUser      User           @relation("ReferredToReferral", fields: [referredId], references: [id])
 
   // Indexes
   @@index([partnerId])
   @@index([referrerId])
+  @@index([referredId])
+}
+
+model ReferralSettings {
+  id                        String   @id @default(uuid())
+  partnerId                 String?  @unique
+  enabled                   Boolean  @default(false)
+  commissionRate            Decimal  @default(10.00) @db.Decimal(5, 2)
+  minimumDeposit            Decimal  @default(1000.00) @db.Decimal(18, 4)
+  autoApprove               Boolean  @default(false)
+  allowMultipleDeposits     Boolean  @default(false)
+  commissionPayoutMode      String   @default("PENDING")
+  maxReferralCommission     Decimal? @db.Decimal(18, 4)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
 }
 
 model Campaign {

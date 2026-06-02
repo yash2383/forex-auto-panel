@@ -25,6 +25,18 @@ export class AdminController {
     }
   }
 
+  @Get('pnl-reports')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getPnlReports(@Res() res: Response) {
+    try {
+      const result = await this.adminService.getPnlReports();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Admin pnl reports error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
   // --- Users ---
 
   @Post('users')
@@ -166,6 +178,59 @@ export class AdminController {
       return res.json(result);
     } catch (error: any) {
       console.error('Save settings error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Get('referral-settings')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getReferralSettings(@Res() res: Response) {
+    try {
+      const result = await this.adminService.getReferralSettings();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Fetch referral settings error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Post('referral-settings')
+  @Roles('SUPER_ADMIN')
+  async updateReferralSettings(@Req() req: Request, @Body() body: any, @Res() res: Response) {
+    try {
+      const user = (req as any).user;
+      const result = await this.adminService.updateReferralSettings(user.id, body, this.getClientIp(req));
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Save referral settings error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  // --- Referrals ---
+
+  @Get('referrals')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getReferrals(@Res() res: Response) {
+    try {
+      const result = await this.adminService.getReferrals();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Get referrals error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Post('referrals/:id/status')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async updateReferralStatus(@Param('id') id: string, @Body('status') status: string, @Req() req: Request, @Res() res: Response) {
+    try {
+      const user = (req as any).user;
+      const result = await this.adminService.updateReferralStatus(user.id, id, status, this.getClientIp(req));
+      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Update referral status error:', error);
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }

@@ -147,6 +147,7 @@ async function main() {
         email: u.email,
         passwordHash: hashPassword("password123"),
         status: u.status as any,
+        referralCode: "SEED" + Math.random().toString(36).substring(2, 8).toUpperCase(),
       },
     });
 

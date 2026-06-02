@@ -4,7 +4,7 @@ import { Bell, CalendarDays, ChevronDown, Crown, ExternalLink, Globe2, Hexagon, 
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { adminNavGroups } from "../../../(user)/dashboard/_components/dashboardData";
+import { adminNavGroups } from "./adminData";
 import { useAdminStore } from "../../../../hooks/adminStore";
 import { apiFetch } from "../../../../lib/apiFetch";
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
-import { adminPermissionMatrix } from "../../../../(user)/dashboard/_components/dashboardData";
+import { adminPermissionMatrix } from "../../_components/adminData";
 import { useAdminStore } from "../../../../../hooks/adminStore";
 import { CrudPermissionPanel, FormInput, WhiteLabelShell } from "../_components/WhiteLabelUI";
 

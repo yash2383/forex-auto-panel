@@ -43,16 +43,14 @@ export declare class AdminService {
         trades: {
             id: any;
             pair: any;
-            type: any;
-            entry: number;
-            exit: number;
-            stopLoss: number;
-            target: number;
-            profit: number;
-            pnl: number;
-            status: string;
-            userId: any;
-            userName: any;
+            side: any;
+            entryPrice: number;
+            exitPrice: number;
+            tradeDate: any;
+            result: any;
+            profitLoss: number;
+            notes: any;
+            status: any;
         }[];
         logs: {
             id: string;
@@ -133,6 +131,19 @@ export declare class AdminService {
                 usdt: boolean;
             };
         };
+        profitDistributions: {
+            id: any;
+            reference: any;
+            userId: any;
+            userName: any;
+            userEmail: any;
+            amount: any;
+            type: any;
+            status: any;
+            note: any;
+            distributionDate: any;
+            createdAt: any;
+        }[];
         plans: {
             id: any;
             name: any;
@@ -342,6 +353,103 @@ export declare class AdminService {
         error?: undefined;
         status?: undefined;
     }>;
+    listTradeRecords(): Promise<{
+        id: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+        result: string;
+        pair: string;
+        entryPrice: number;
+        exitPrice: number;
+        side: string;
+        profitLoss: number;
+        tradeDate: Date;
+        notes: string | null;
+    }[]>;
+    createTradeRecord(body: any): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        tradeRecord?: undefined;
+    } | {
+        success: boolean;
+        tradeRecord: {
+            id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            result: string;
+            pair: string;
+            entryPrice: number;
+            exitPrice: number;
+            side: string;
+            profitLoss: number;
+            tradeDate: Date;
+            notes: string | null;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    updateTradeRecord(id: string, body: any): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        tradeRecord?: undefined;
+    } | {
+        success: boolean;
+        tradeRecord: {
+            id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            result: string;
+            pair: string;
+            entryPrice: number;
+            exitPrice: number;
+            side: string;
+            profitLoss: number;
+            tradeDate: Date;
+            notes: string | null;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    deleteTradeRecord(id: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        message?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        error?: undefined;
+        status?: undefined;
+    }>;
+    setTradeRecordStatus(id: string, status: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        tradeRecord?: undefined;
+    } | {
+        success: boolean;
+        tradeRecord: {
+            id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            result: string;
+            pair: string;
+            entryPrice: number;
+            exitPrice: number;
+            side: string;
+            profitLoss: number;
+            tradeDate: Date;
+            notes: string | null;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
     approvePayment(adminId: string, paymentId: string, clientIp: string): Promise<{
         success: boolean;
         payment: any;
@@ -430,5 +538,78 @@ export declare class AdminService {
     reverseTransaction(adminId: string, transactionGroupId: string, reason: string, clientIp: string): Promise<{
         success: boolean;
         reversalGroup: any;
+    }>;
+    generateProfitDistributionReference(date: Date): Promise<string>;
+    createProfitDistribution(body: any): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        profitDistribution?: undefined;
+    } | {
+        success: boolean;
+        profitDistribution: {
+            user: {
+                id: string;
+                name: string;
+                email: string;
+                passwordHash: string;
+                status: import("@prisma/client").$Enums.UserStatus;
+                lastLoginAt: Date | null;
+                lastLoginIP: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                isDeleted: boolean;
+                autoTrading: boolean;
+                riskSetting: string;
+                partnerId: string;
+            };
+        } & {
+            id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            userId: string;
+            type: string;
+            amount: number;
+            reference: string;
+            note: string | null;
+            distributionDate: Date;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    updateProfitDistribution(id: string, body: any): Promise<{
+        success: boolean;
+        profitDistribution: {
+            user: {
+                id: string;
+                name: string;
+                email: string;
+                passwordHash: string;
+                status: import("@prisma/client").$Enums.UserStatus;
+                lastLoginAt: Date | null;
+                lastLoginIP: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                isDeleted: boolean;
+                autoTrading: boolean;
+                riskSetting: string;
+                partnerId: string;
+            };
+        } & {
+            id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            userId: string;
+            type: string;
+            amount: number;
+            reference: string;
+            note: string | null;
+            distributionDate: Date;
+        };
+    }>;
+    deleteProfitDistribution(id: string): Promise<{
+        success: boolean;
     }>;
 }

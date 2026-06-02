@@ -60,6 +60,8 @@ export const useAdminStore = create((set, get) => ({
   users: [],
   payments: [],
   trades: [],
+  profitDistributions: [],
+  profitSummary: { totalProfit: 0, pendingProfit: 0, monthlyProfit: 0, lastDistribution: null },
   partners: [],
   campaigns: [],
   referrals: [],
@@ -163,6 +165,8 @@ export const useAdminStore = create((set, get) => ({
             trades: data.trades,
             payments: data.payments,
             withdrawals: data.withdrawals,
+            profitDistributions: data.profitDistributions || [],
+            profitSummary: data.profitSummary || { totalProfit: 0, pendingProfit: 0, monthlyProfit: 0, lastDistribution: null },
           });
         }
       } else {
@@ -182,6 +186,7 @@ export const useAdminStore = create((set, get) => ({
             transactions: data.transactions,
             settings: data.settings,
             plans: data.plans,
+            profitDistributions: data.profitDistributions || [],
           });
         }
       }
@@ -413,12 +418,15 @@ export const useAdminStore = create((set, get) => ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: trade.userId,
           pair: trade.pair,
-          type: trade.type,
-          entry: Number(trade.entry),
-          stopLoss: Number(trade.stopLoss),
-          target: Number(trade.target),
+          side: trade.side,
+          entryPrice: Number(trade.entryPrice),
+          exitPrice: Number(trade.exitPrice),
+          tradeDate: trade.tradeDate,
+          profitLoss: Number(trade.profitLoss),
+          result: trade.result,
+          notes: trade.notes,
+          status: trade.status || "published",
         }),
       });
       if (res.ok) {
@@ -426,6 +434,31 @@ export const useAdminStore = create((set, get) => ({
       }
     } catch (e) {
       console.error("addTrade API error:", e);
+    }
+  },
+
+  editTrade: async (id, fields) => {
+    try {
+      const res = await apiFetch(`/api/admin/trades/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pair: fields.pair,
+          side: fields.side,
+          entryPrice: fields.entryPrice !== undefined ? Number(fields.entryPrice) : undefined,
+          exitPrice: fields.exitPrice !== undefined ? Number(fields.exitPrice) : undefined,
+          tradeDate: fields.tradeDate,
+          profitLoss: fields.profitLoss !== undefined ? Number(fields.profitLoss) : undefined,
+          result: fields.result,
+          notes: fields.notes,
+          status: fields.status,
+        }),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("editTrade API error:", e);
     }
   },
 
@@ -444,10 +477,44 @@ export const useAdminStore = create((set, get) => ({
     }
   },
 
-  deleteTrade: (id) =>
-    set((state) => ({
-      trades: state.trades.filter((t) => t.id !== id)
-    })),
+  deleteTrade: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/trades/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("deleteTrade API error:", e);
+    }
+  },
+
+  publishTrade: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/trades/${id}/publish`, {
+        method: "PATCH",
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("publishTrade API error:", e);
+    }
+  },
+
+  unpublishTrade: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/trades/${id}/unpublish`, {
+        method: "PATCH",
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("unpublishTrade API error:", e);
+    }
+  },
 
   // PARTNERS CRUD VIA API
   addPartner: async (partner) => {
@@ -659,6 +726,47 @@ export const useAdminStore = create((set, get) => ({
   },
 
   distributeProfit: () => {},
+
+  addProfitDistribution: async (body) => {
+    try {
+      const res = await apiFetch("/api/admin/profit-distributions", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("addProfitDistribution API error:", e);
+    }
+  },
+
+  editProfitDistribution: async (id, body) => {
+    try {
+      const res = await apiFetch(`/api/admin/profit-distributions/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("editProfitDistribution API error:", e);
+    }
+  },
+
+  deleteProfitDistribution: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/profit-distributions/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("deleteProfitDistribution API error:", e);
+    }
+  },
 
   createOtpRequest: (req) => {
     const newReq = {

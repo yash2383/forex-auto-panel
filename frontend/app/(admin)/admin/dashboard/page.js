@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAdminStore } from "../../../../hooks/adminStore";
-import { adminNavGroups, adminPermissionMatrix, quickActions } from "../../../(user)/dashboard/_components/dashboardData";
+import { adminNavGroups, adminPermissionMatrix, quickActions } from "../_components/adminData";
 
 const toneMap = {
   green: "border-green-500/25 bg-green-500/10 text-green-300",
@@ -98,10 +98,11 @@ const sectionContent = {
   },
   trades: {
     permissionKey: "trades",
-    title: "Trade Management",
-    description: "Manage all trading activity executed on the platform.",
-    metrics: [["Active Trades", "184"], ["Closed Trades", "18,378"], ["Winning Trades", "13,392"], ["Open PnL", "$8,420"]],
-    headers: ["Pair", "Type", "Entry", "Exit / Tgt", "PnL", "Status"],
+    title: "Master Trade Database",
+    description: "Manage historical trade records. Draft items are only visible to admins; published records populate the public homepage and user past trades archives.",
+    metrics: [["Total Records", "0"], ["Published", "0"], ["Drafts", "0"], ["Win Rate", "0.0%"]],
+    filters: ["Wins", "Losses", "Published", "Draft"],
+    headers: ["Pair", "Side", "Entry", "Exit", "Date", "Result", "P/L", "Status"],
   },
   "pnl-reports": {
     permissionKey: "pnl-reports",
@@ -248,7 +249,7 @@ function CreateActionButton({ permissionKey, onClick }) {
   return <CrudButton icon={Plus} label={createLabels[permissionKey] || "Create"} tone="create" onClick={onClick} />;
 }
 
-function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, onEdit, onDelete, onBlock, onVerify, onApprove, onReject, onCloseTrade }) {
+function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, onEdit, onDelete, onBlock, onVerify, onApprove, onReject, onCloseTrade, onPublish, onUnpublish }) {
   const hasPermission = useAdminStore((s) => s.hasPermission);
   const canEdit = hasPermission(permissionKey, "edit");
   const canDelete = hasPermission(permissionKey, "delete");
@@ -297,20 +298,18 @@ function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, o
   }
 
   if (permissionKey === "trades") {
-    const status = itemRow[5];
-    if (status === "Active") {
-      return (
-        <div className="flex gap-2">
-          {canEdit && <CrudButton icon={X} label="Close" tone="reject" onClick={() => onCloseTrade(itemId)} />}
-          {canDelete && <CrudButton icon={Trash2} label="Delete" tone="delete" onClick={() => onDelete(itemId)} />}
-          {!canEdit && !canDelete && <span className="text-xs text-neutral-500">Read-Only</span>}
-        </div>
-      );
-    }
+    const status = itemRow[7];
     return (
       <div className="flex gap-2">
+        {canEdit && <CrudButton icon={Pencil} label="Edit" tone="edit" onClick={() => onEdit(itemId)} />}
+        {canEdit && status === "draft" && (
+          <CrudButton icon={Check} label="Publish" tone="approve" onClick={() => onPublish(itemId)} />
+        )}
+        {canEdit && status === "published" && (
+          <CrudButton icon={X} label="Unpublish" tone="reject" onClick={() => onUnpublish(itemId)} />
+        )}
         {canDelete && <CrudButton icon={Trash2} label="Delete" tone="delete" onClick={() => onDelete(itemId)} />}
-        {!canDelete && <span className="text-xs text-neutral-500">Read-Only</span>}
+        {!canEdit && !canDelete && <span className="text-xs text-neutral-500">Read-Only</span>}
       </div>
     );
   }
@@ -780,10 +779,17 @@ function PlatformOverview({ onVerify, onApprove, onReject }) {
 
 function AdminSectionPage({ 
   section, activeFilter = "All", onView, onEdit, onDelete, onBlock, onVerify, onApprove, onReject, 
-  onAddClick, onCloseTrade, activeSettings, onSaveSettings, referralListModal, setReferralListModal 
+  onAddClick, onCloseTrade, activeSettings, onSaveSettings, referralListModal, setReferralListModal,
+  onPublish, onUnpublish
 }) {
-  const showFilterTabs = section.permissionKey === "users" || section.title === "Transaction History";
-  const filterBaseUrl = section.title === "Transaction History" ? "/admin/dashboard?section=transactions" : "/admin/dashboard?section=users";
+  const [selectedTrades, setSelectedTrades] = useState([]);
+  
+  const showFilterTabs = section.permissionKey === "users" || section.title === "Transaction History" || section.permissionKey === "trades";
+  const filterBaseUrl = section.title === "Transaction History" ? "/admin/dashboard?section=transactions" : section.permissionKey === "trades" ? "/admin/dashboard?section=trades" : "/admin/dashboard?section=users";
+
+  useEffect(() => {
+    setSelectedTrades([]);
+  }, [section, activeFilter]);
 
   const users = useAdminStore((s) => s.users);
   const payments = useAdminStore((s) => s.payments);
@@ -812,10 +818,13 @@ function AdminSectionPage({
   const [logModuleFilter, setLogModuleFilter] = useState("all");
   const sectionMetrics = section.permissionKey === "trades"
     ? [
-        ["Active Trades", trades.filter((trade) => trade.status === "Active").length.toLocaleString()],
-        ["Closed Trades", trades.filter((trade) => trade.status === "Closed").length.toLocaleString()],
-        ["Winning Trades", trades.filter((trade) => trade.status === "Closed" && Number(trade.profit || trade.pnl || 0) > 0).length.toLocaleString()],
-        ["Open PnL", `₹${trades.filter((trade) => trade.status === "Active").reduce((sum, trade) => sum + Number(trade.profit || trade.pnl || 0), 0).toLocaleString("en-IN")}`],
+        ["Total Records", trades.length.toLocaleString()],
+        ["Published", trades.filter((trade) => trade.status === "published").length.toLocaleString()],
+        ["Drafts", trades.filter((trade) => trade.status === "draft").length.toLocaleString()],
+        ["Win Rate", (() => {
+          const wins = trades.filter((t) => t.profitLoss > 0).length;
+          return trades.length > 0 ? `${((wins / trades.length) * 100).toFixed(1)}%` : "0.0%";
+        })()],
       ]
     : section.metrics;
 
@@ -856,15 +865,36 @@ function AdminSectionPage({
     rows = list.map((p) => [p.id, p.user, p.plan, p.amount, p.paymentType, p.utr || p.txnHash || "N/A", p.status, p.id]);
   } else if (section.permissionKey === "trades") {
     let list = trades;
+    if (activeFilter === "Wins") {
+      list = trades.filter((t) => t.profitLoss > 0);
+    } else if (activeFilter === "Losses") {
+      list = trades.filter((t) => t.profitLoss <= 0);
+    } else if (activeFilter === "Published") {
+      list = trades.filter((t) => t.status === "published");
+    } else if (activeFilter === "Draft") {
+      list = trades.filter((t) => t.status === "draft");
+    }
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       list = list.filter((t) => 
         t.pair.toLowerCase().includes(q) || 
-        t.type.toLowerCase().includes(q) || 
-        t.status.toLowerCase().includes(q)
+        t.side.toLowerCase().includes(q) || 
+        t.status.toLowerCase().includes(q) ||
+        (t.result && t.result.toLowerCase().includes(q))
       );
     }
-    rows = list.map((t) => [t.pair, t.type, `₹${t.entry.toLocaleString()}`, t.status === "Closed" ? `₹${t.exit.toLocaleString()}` : `₹${t.target.toLocaleString()}`, t.status === "Closed" ? (t.profit >= 0 ? `+₹${t.profit}` : `-₹${Math.abs(t.profit)}`) : "-", t.status, t.id]);
+    rows = list.map((t) => [
+      t.pair, 
+      t.side, 
+      `₹${Number(t.entryPrice).toLocaleString("en-IN")}`, 
+      `₹${Number(t.exitPrice).toLocaleString("en-IN")}`, 
+      t.tradeDate ? new Date(t.tradeDate).toLocaleDateString("en-IN") : "N/A", 
+      t.result, 
+      t.profitLoss >= 0 ? `+₹${t.profitLoss.toLocaleString("en-IN")}` : `-₹${Math.abs(t.profitLoss).toLocaleString("en-IN")}`, 
+      t.status, 
+      t.id
+    ]);
   } else if (section.permissionKey === "admins") {
     let list = admins;
     if (searchQuery) {
@@ -1147,6 +1177,49 @@ function AdminSectionPage({
                   )}
                 </label>
               )}
+              {section.permissionKey === "trades" && selectedTrades.length > 0 && (
+                <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/25 px-3 py-1.5 rounded-lg text-xs font-semibold text-green-300">
+                  <span>{selectedTrades.length} selected</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (confirm("Are you sure you want to delete the selected trade records?")) {
+                        for (const id of selectedTrades) {
+                          await onDelete(id);
+                        }
+                        setSelectedTrades([]);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 hover:text-red-400 font-bold ml-2 transition border-l border-white/10 pl-2"
+                  >
+                    <Trash2 className="h-3 w-3" /> Delete Selected
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      for (const id of selectedTrades) {
+                        await onPublish(id);
+                      }
+                      setSelectedTrades([]);
+                    }}
+                    className="inline-flex items-center gap-1 hover:text-green-200 font-bold ml-2 transition"
+                  >
+                    <Check className="h-3 w-3" /> Publish Selected
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      for (const id of selectedTrades) {
+                        await onUnpublish(id);
+                      }
+                      setSelectedTrades([]);
+                    }}
+                    className="inline-flex items-center gap-1 hover:text-yellow-200 font-bold ml-2 transition"
+                  >
+                    <X className="h-3 w-3" /> Unpublish Selected
+                  </button>
+                </div>
+              )}
             </div>
             <div className="flex gap-2">
               <button className={`h-10 px-4 text-sm font-bold text-white ${adminControl}`}>Filter</button>
@@ -1178,6 +1251,22 @@ function AdminSectionPage({
             <table className="w-full min-w-[860px] text-left text-sm">
               <thead className="bg-white/[0.025] text-xs uppercase tracking-wide text-neutral-500">
                 <tr>
+                  {section.permissionKey === "trades" && (
+                    <th className="px-4 py-4 font-semibold w-10">
+                      <input 
+                        type="checkbox" 
+                        checked={rows.length > 0 && selectedTrades.length === rows.length} 
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedTrades(rows.map(r => r[r.length - 1]));
+                          } else {
+                            setSelectedTrades([]);
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-white/10 bg-white/[0.02] text-green-500 focus:ring-green-500/50 cursor-pointer" 
+                      />
+                    </th>
+                  )}
                   {section.headers.map((header) => (
                     <th key={header} className="px-4 py-4 font-semibold">{header}</th>
                   ))}
@@ -1191,6 +1280,22 @@ function AdminSectionPage({
 
                   return (
                     <tr key={`${itemId}-${index}`} className="hover:bg-white/[0.025]">
+                      {section.permissionKey === "trades" && (
+                        <td className="px-4 py-4 w-10">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedTrades.includes(itemId)} 
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedTrades(prev => [...prev, itemId]);
+                              } else {
+                                setSelectedTrades(prev => prev.filter(id => id !== itemId));
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-white/10 bg-white/[0.02] text-green-500 focus:ring-green-500/50 cursor-pointer" 
+                          />
+                        </td>
+                      )}
                       {cells.map((cell, idx) => {
                         if (section.permissionKey === "payments" && section.title !== "Transaction History") {
                           const paymentItem = payments.find(p => p.id === itemId);
@@ -1250,6 +1355,40 @@ function AdminSectionPage({
                                   {paymentItem.remark && (
                                     <span className="block text-[10px] text-red-400 mt-1">Remark: {paymentItem.remark}</span>
                                   )}
+                                </td>
+                              );
+                            }
+                          }
+                        }
+
+                        // Trades dynamic state render
+                        if (section.permissionKey === "trades") {
+                          const tradeItem = trades.find(t => t.id === itemId);
+                          if (tradeItem) {
+                            if (idx === 5) { // Result column
+                              const winTone = tradeItem.result?.toUpperCase() === "WIN" ? "text-green-400 bg-green-500/10 border border-green-500/20" : tradeItem.result?.toUpperCase() === "LOSS" ? "text-red-400 bg-red-500/10 border border-red-500/20" : "text-neutral-400 bg-neutral-500/10 border border-neutral-500/20";
+                              return (
+                                <td key={idx} className="px-4 py-4">
+                                  <span className={`rounded px-2.5 py-0.5 text-xs font-bold ${winTone}`}>
+                                    {tradeItem.result}
+                                  </span>
+                                </td>
+                              );
+                            }
+                            if (idx === 6) { // P/L column
+                              const plColor = tradeItem.profitLoss >= 0 ? "text-green-300 font-bold" : "text-red-300 font-bold";
+                              return (
+                                <td key={idx} className={`px-4 py-4 font-mono ${plColor}`}>
+                                  {tradeItem.profitLoss >= 0 ? `+₹${tradeItem.profitLoss.toLocaleString("en-IN")}` : `-₹${Math.abs(tradeItem.profitLoss).toLocaleString("en-IN")}`}
+                                </td>
+                              );
+                            }
+                            if (idx === 7) { // Status column
+                              return (
+                                <td key={idx} className="px-4 py-4">
+                                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${tradeItem.status === "published" ? "bg-green-500/10 text-green-300" : "bg-yellow-500/10 text-yellow-300"}`}>
+                                    {tradeItem.status}
+                                  </span>
                                 </td>
                               );
                             }
@@ -1398,6 +1537,8 @@ function AdminSectionPage({
                           onApprove={onApprove}
                           onReject={onReject}
                           onCloseTrade={onCloseTrade}
+                          onPublish={onPublish}
+                          onUnpublish={onUnpublish}
                         />
                       </td>
                     </tr>
@@ -1563,6 +1704,7 @@ export default function DashboardPage() {
 
   // Load Zustand State actions
   const users = useAdminStore((s) => s.users);
+  const trades = useAdminStore((s) => s.trades || []);
   const settings = useAdminStore((s) => s.settings);
   const admins = useAdminStore((s) => s.admins);
   const plans = useAdminStore((s) => s.plans || []);
@@ -1576,6 +1718,9 @@ export default function DashboardPage() {
   const addTrade = useAdminStore((s) => s.addTrade);
   const closeTrade = useAdminStore((s) => s.closeTrade);
   const deleteTrade = useAdminStore((s) => s.deleteTrade);
+  const editTrade = useAdminStore((s) => s.editTrade);
+  const publishTrade = useAdminStore((s) => s.publishTrade);
+  const unpublishTrade = useAdminStore((s) => s.unpublishTrade);
   const updateSettings = useAdminStore((s) => s.updateSettings);
 
   // Load Admins state actions
@@ -1685,11 +1830,26 @@ export default function DashboardPage() {
 
   const [isAddTradeOpen, setIsAddTradeOpen] = useState(false);
   const [tradePair, setTradePair] = useState("BTC/USDT");
-  const [tradeType, setTradeType] = useState("BUY");
+  const [tradeSide, setTradeSide] = useState("BUY");
   const [tradeEntry, setTradeEntry] = useState("");
-  const [tradeStopLoss, setTradeStopLoss] = useState("");
-  const [tradeTarget, setTradeTarget] = useState("");
-  const [tradeUserId, setTradeUserId] = useState("");
+  const [tradeExit, setTradeExit] = useState("");
+  const [tradeDate, setTradeDate] = useState("");
+  const [tradeResult, setTradeResult] = useState("WIN");
+  const [tradeProfitLoss, setTradeProfitLoss] = useState("");
+  const [tradeNotes, setTradeNotes] = useState("");
+  const [tradeStatus, setTradeStatus] = useState("published");
+
+  const [isEditTradeOpen, setIsEditTradeOpen] = useState(false);
+  const [editTradeId, setEditTradeId] = useState("");
+  const [editTradePair, setEditTradePair] = useState("");
+  const [editTradeSide, setEditTradeSide] = useState("BUY");
+  const [editTradeEntry, setEditTradeEntry] = useState("");
+  const [editTradeExit, setEditTradeExit] = useState("");
+  const [editTradeDate, setEditTradeDate] = useState("");
+  const [editTradeResult, setEditTradeResult] = useState("WIN");
+  const [editTradeProfitLoss, setEditTradeProfitLoss] = useState("");
+  const [editTradeNotes, setEditTradeNotes] = useState("");
+  const [editTradeStatus, setEditTradeStatus] = useState("published");
 
   const [isCloseTradeOpen, setIsCloseTradeOpen] = useState(false);
   const [activeCloseId, setActiveCloseId] = useState("");
@@ -1778,20 +1938,47 @@ export default function DashboardPage() {
 
   const handleAddTradeSubmit = (e) => {
     e.preventDefault();
-    if (!tradeEntry || !tradeStopLoss || !tradeTarget || !tradeUserId) return;
+    if (!tradePair || !tradeEntry || !tradeExit || !tradeDate || !tradeProfitLoss) return;
     addTrade({
       pair: tradePair,
-      type: tradeType,
-      entry: Number(tradeEntry),
-      stopLoss: Number(tradeStopLoss),
-      target: Number(tradeTarget),
-      userId: tradeUserId
+      side: tradeSide,
+      entryPrice: Number(tradeEntry),
+      exitPrice: Number(tradeExit),
+      tradeDate: tradeDate,
+      profitLoss: Number(tradeProfitLoss),
+      result: tradeResult,
+      notes: tradeNotes,
+      status: tradeStatus
     });
+    setTradePair("BTC/USDT");
+    setTradeSide("BUY");
     setTradeEntry("");
-    setTradeStopLoss("");
-    setTradeTarget("");
+    setTradeExit("");
+    setTradeDate("");
+    setTradeResult("WIN");
+    setTradeProfitLoss("");
+    setTradeNotes("");
+    setTradeStatus("published");
     setIsAddTradeOpen(false);
-    showToast("Trade signal created");
+    showToast("Trade record added successfully");
+  };
+
+  const handleEditTradeSubmit = (e) => {
+    e.preventDefault();
+    if (!editTradePair || !editTradeEntry || !editTradeExit || !editTradeDate || !editTradeProfitLoss) return;
+    editTrade(editTradeId, {
+      pair: editTradePair,
+      side: editTradeSide,
+      entryPrice: Number(editTradeEntry),
+      exitPrice: Number(editTradeExit),
+      tradeDate: editTradeDate,
+      profitLoss: Number(editTradeProfitLoss),
+      result: editTradeResult,
+      notes: editTradeNotes,
+      status: editTradeStatus
+    });
+    setIsEditTradeOpen(false);
+    showToast("Trade record updated successfully");
   };
 
   const handleCloseTradeSubmit = (e) => {
@@ -2028,6 +2215,8 @@ export default function DashboardPage() {
           activeFilter={filterKey || "All"} 
           referralListModal={referralListModal}
           setReferralListModal={setReferralListModal}
+          onPublish={(id) => { publishTrade(id); showToast("Trade record published"); }}
+          onUnpublish={(id) => { unpublishTrade(id); showToast("Trade record unpublished"); }}
           onView={(id) => {
             if (["notifications", "campaigns", "referrals"].includes(section.permissionKey)) {
               openRecordModal(section.permissionKey, "view", id);
@@ -2056,7 +2245,7 @@ export default function DashboardPage() {
           onDelete={(id) => {
             if (section.permissionKey === "trades") {
               deleteTrade(id);
-              showToast("Trade signal deleted");
+              showToast("Trade record deleted");
             } else if (section.permissionKey === "admins") {
               deleteAdmin(id);
               showToast("Admin account deactivated");
@@ -2074,7 +2263,22 @@ export default function DashboardPage() {
             }
           }}
           onEdit={(id) => {
-            if (section.permissionKey === "admins") {
+            if (section.permissionKey === "trades") {
+              const trade = trades.find((t) => t.id === id);
+              if (trade) {
+                setEditTradeId(id);
+                setEditTradePair(trade.pair);
+                setEditTradeSide(trade.side);
+                setEditTradeEntry(String(trade.entryPrice));
+                setEditTradeExit(String(trade.exitPrice));
+                setEditTradeDate(trade.tradeDate ? new Date(trade.tradeDate).toISOString().slice(0, 10) : "");
+                setEditTradeResult(trade.result);
+                setEditTradeProfitLoss(String(trade.profitLoss));
+                setEditTradeNotes(trade.notes || "");
+                setEditTradeStatus(trade.status || "published");
+                setIsEditTradeOpen(true);
+              }
+            } else if (section.permissionKey === "admins") {
               handleEditAdminClick(id);
             } else if (section.permissionKey === "otp") {
               setActiveOtpRequestId(id);
@@ -2209,72 +2413,145 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ADD TRADE MODAL */}
+      {/* ADD TRADE RECORD MODAL */}
       {isAddTradeOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <form onSubmit={handleAddTradeSubmit} className="w-full max-w-md rounded-2xl border border-white/[0.1] bg-[#0b141b] p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-white/[0.08] pb-3">
-              <h3 className="text-lg font-bold text-white">Create Trade Signal</h3>
+              <h3 className="text-lg font-bold text-white">Create Historical Trade Record</h3>
               <button type="button" onClick={() => setIsAddTradeOpen(false)} className="text-neutral-400 hover:text-white">✕</button>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
                 <span className="block text-xs font-semibold text-neutral-400 mb-2">Pair</span>
-                <input type="text" required value={tradePair} onChange={(e) => setTradePair(e.target.value)} placeholder="BTC/USDT" className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+                <input type="text" required value={tradePair} onChange={(e) => setTradePair(e.target.value)} placeholder="EUR/USD" className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
               </label>
               <label className="block">
-                <span className="block text-xs font-semibold text-neutral-400 mb-2">Type</span>
-                <select value={tradeType} onChange={(e) => setTradeType(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Side</span>
+                <select value={tradeSide} onChange={(e) => setTradeSide(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
                   <option value="BUY">BUY</option>
                   <option value="SELL">SELL</option>
                 </select>
               </label>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className="block text-xs font-semibold text-neutral-400 mb-2">Entry</span>
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Entry Price</span>
                 <input type="number" step="any" required value={tradeEntry} onChange={(e) => setTradeEntry(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
               </label>
               <label className="block">
-                <span className="block text-xs font-semibold text-neutral-400 mb-2">Stop Loss</span>
-                <input type="number" step="any" required value={tradeStopLoss} onChange={(e) => setTradeStopLoss(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Exit Price</span>
+                <input type="number" step="any" required value={tradeExit} onChange={(e) => setTradeExit(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Result</span>
+                <select value={tradeResult} onChange={(e) => setTradeResult(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
+                  <option value="WIN">WIN</option>
+                  <option value="LOSS">LOSS</option>
+                  <option value="REFUND">REFUND</option>
+                </select>
               </label>
               <label className="block">
-                <span className="block text-xs font-semibold text-neutral-400 mb-2">Target</span>
-                <input type="number" step="any" required value={tradeTarget} onChange={(e) => setTradeTarget(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Profit/Loss (P/L)</span>
+                <input type="number" step="any" required value={tradeProfitLoss} onChange={(e) => setTradeProfitLoss(e.target.value)} placeholder="e.g. 780 or -250" className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Trade Date</span>
+                <input type="date" required value={tradeDate} onChange={(e) => setTradeDate(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              </label>
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Status</span>
+                <select value={tradeStatus} onChange={(e) => setTradeStatus(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
+                  <option value="published">Published</option>
+                  <option value="draft">Draft</option>
+                </select>
               </label>
             </div>
             <label className="block">
-              <span className="block text-xs font-semibold text-neutral-400 mb-2">Assign to Client</span>
-              <select required value={tradeUserId} onChange={(e) => setTradeUserId(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
-                <option value="">-- Select Client --</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                ))}
-              </select>
+              <span className="block text-xs font-semibold text-neutral-400 mb-2">Notes</span>
+              <textarea value={tradeNotes} onChange={(e) => setTradeNotes(e.target.value)} placeholder="Add transaction notes..." className="h-20 w-full rounded-lg border border-white/[0.08] bg-black/10 p-3 text-sm text-white outline-none focus:border-green-500/50 resize-none" />
             </label>
             <button type="submit" className="w-full h-11 rounded-lg bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition mt-2">
-              Launch Signal
+              Add Trade Record
             </button>
           </form>
         </div>
       )}
 
-      {/* CLOSE TRADE MODAL */}
-      {isCloseTradeOpen && (
+      {/* EDIT TRADE RECORD MODAL */}
+      {isEditTradeOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <form onSubmit={handleCloseTradeSubmit} className="w-full max-sm:max-w-xs rounded-2xl border border-white/[0.1] bg-[#0b141b] p-6 shadow-2xl space-y-4">
+          <form onSubmit={handleEditTradeSubmit} className="w-full max-w-md rounded-2xl border border-white/[0.1] bg-[#0b141b] p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-white/[0.08] pb-3">
-              <h3 className="text-lg font-bold text-white">Close Trade</h3>
-              <button type="button" onClick={() => setIsCloseTradeOpen(false)} className="text-neutral-400 hover:text-white">✕</button>
+              <h3 className="text-lg font-bold text-white">Edit Historical Trade Record</h3>
+              <button type="button" onClick={() => setIsEditTradeOpen(false)} className="text-neutral-400 hover:text-white">✕</button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Pair</span>
+                <input type="text" required value={editTradePair} onChange={(e) => setEditTradePair(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              </label>
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Side</span>
+                <select value={editTradeSide} onChange={(e) => setEditTradeSide(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
+                  <option value="BUY">BUY</option>
+                  <option value="SELL">SELL</option>
+                </select>
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Entry Price</span>
+                <input type="number" step="any" required value={editTradeEntry} onChange={(e) => setEditTradeEntry(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              </label>
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Exit Price</span>
+                <input type="number" step="any" required value={editTradeExit} onChange={(e) => setEditTradeExit(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Result</span>
+                <select value={editTradeResult} onChange={(e) => setEditTradeResult(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
+                  <option value="WIN">WIN</option>
+                  <option value="LOSS">LOSS</option>
+                  <option value="REFUND">REFUND</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Profit/Loss (P/L)</span>
+                <input type="number" step="any" required value={editTradeProfitLoss} onChange={(e) => setEditTradeProfitLoss(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Trade Date</span>
+                <input type="date" required value={editTradeDate} onChange={(e) => setEditTradeDate(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              </label>
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Status</span>
+                <select value={editTradeStatus} onChange={(e) => setEditTradeStatus(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
+                  <option value="published">Published</option>
+                  <option value="draft">Draft</option>
+                </select>
+              </label>
             </div>
             <label className="block">
-              <span className="block text-xs font-semibold text-neutral-400 mb-2">Exit Settlement Price</span>
-              <input type="number" step="any" required value={exitPrice} onChange={(e) => setExitPrice(e.target.value)} placeholder="0.00" className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              <span className="block text-xs font-semibold text-neutral-400 mb-2">Notes</span>
+              <textarea value={editTradeNotes} onChange={(e) => setEditTradeNotes(e.target.value)} placeholder="Add transaction notes..." className="h-20 w-full rounded-lg border border-white/[0.08] bg-black/10 p-3 text-sm text-white outline-none focus:border-green-500/50 resize-none" />
             </label>
-            <button type="submit" className="w-full h-11 rounded-lg bg-red-500 text-white font-bold text-sm hover:bg-red-400 transition mt-2">
-              Settle & Close Trade
-            </button>
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={() => setIsEditTradeOpen(false)} className="flex-1 h-11 rounded-lg border border-white/[0.08] bg-white/[0.025] text-neutral-300 font-bold text-sm hover:bg-white/[0.08] transition">
+                Cancel
+              </button>
+              <button type="submit" className="flex-1 h-11 rounded-lg bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition">
+                Save Changes
+              </button>
+            </div>
           </form>
         </div>
       )}

@@ -14,6 +14,7 @@ const dashboard_module_1 = require("./dashboard/dashboard.module");
 const trade_module_1 = require("./trade/trade.module");
 const plans_module_1 = require("./plans/plans.module");
 const admin_module_1 = require("./admin/admin.module");
+const reports_module_1 = require("./reports/reports.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -26,6 +27,7 @@ exports.AppModule = AppModule = __decorate([
             trade_module_1.TradeModule,
             plans_module_1.PlansModule,
             admin_module_1.AdminModule,
+            reports_module_1.ReportsModule,
         ],
     })
 ], AppModule);

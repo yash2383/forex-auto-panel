@@ -47,6 +47,32 @@ export class DashboardService {
       ? Number(((winningTrades / closedTrades.length) * 100).toFixed(2))
       : 72.91;
 
+    // Fetch profit distributions
+    const profitDistributions = await this.prisma.profitDistribution.findMany({
+      where: { userId },
+      orderBy: { distributionDate: 'desc' },
+    });
+
+    const paidDistributions = profitDistributions.filter((d: any) => d.status === 'PAID');
+    const pendingDistributions = profitDistributions.filter((d: any) => d.status === 'PENDING');
+
+    const totalProfitEarned = paidDistributions.reduce((sum: number, d: any) => sum + d.amount, 0);
+    const pendingProfit = pendingDistributions.reduce((sum: number, d: any) => sum + d.amount, 0);
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const monthlyProfit = paidDistributions
+      .filter((d: any) => {
+        const dDate = new Date(d.distributionDate);
+        return dDate.getFullYear() === currentYear && dDate.getMonth() === currentMonth;
+      })
+      .reduce((sum: number, d: any) => sum + d.amount, 0);
+
+    const lastDistribution = profitDistributions.length > 0
+      ? profitDistributions[0].distributionDate
+      : null;
+
     return {
       stats: {
         totalProfit,
@@ -90,6 +116,22 @@ export class DashboardService {
         date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         status: w.status === 'PENDING' ? 'Pending' : w.status === 'APPROVED' ? 'Approved' : 'Rejected',
       })),
+      profitDistributions: profitDistributions.map((pd: any) => ({
+        id: pd.id,
+        reference: pd.reference,
+        amount: pd.amount,
+        type: pd.type,
+        status: pd.status,
+        note: pd.note || '',
+        distributionDate: pd.distributionDate,
+        createdAt: pd.createdAt,
+      })),
+      profitSummary: {
+        totalProfit: totalProfitEarned,
+        pendingProfit,
+        monthlyProfit,
+        lastDistribution,
+      },
       user: {
         id: user.id,
         name: user.name,

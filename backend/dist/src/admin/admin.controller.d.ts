@@ -14,10 +14,12 @@ export declare class AdminController {
     deletePlan(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     getSettings(res: Response): Promise<Response<any, Record<string, any>>>;
     updateSettings(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
-    createTrade(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
-    closeTrade(id: string, req: Request, body: {
-        exitPrice?: number;
-    }, res: Response): Promise<Response<any, Record<string, any>>>;
+    getTrades(res: Response): Promise<Response<any, Record<string, any>>>;
+    createTradeRecord(body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    updateTradeRecord(id: string, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    deleteTradeRecord(id: string, res: Response): Promise<Response<any, Record<string, any>>>;
+    publishTradeRecord(id: string, res: Response): Promise<Response<any, Record<string, any>>>;
+    unpublishTradeRecord(id: string, res: Response): Promise<Response<any, Record<string, any>>>;
     approvePayment(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     rejectPayment(id: string, req: Request, body: {
         remark?: string;
@@ -28,4 +30,7 @@ export declare class AdminController {
     reverseTransaction(id: string, req: Request, body: {
         reason: string;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
+    createProfitDistribution(body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    updateProfitDistribution(id: string, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    deleteProfitDistribution(id: string, res: Response): Promise<Response<any, Record<string, any>>>;
 }

@@ -118,7 +118,7 @@ __decorate([
 exports.DashboardController = DashboardController = __decorate([
     (0, common_1.Controller)('dashboard'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_guard_1.Roles)('USER'),
+    (0, roles_guard_1.Roles)('USER', 'SUPER_ADMIN', 'MANAGER', 'VIEWER', 'PARTNER'),
     __metadata("design:paramtypes", [dashboard_service_1.DashboardService])
 ], DashboardController);
 //# sourceMappingURL=dashboard.controller.js.map

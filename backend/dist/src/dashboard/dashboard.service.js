@@ -46,6 +46,26 @@ let DashboardService = class DashboardService {
         const winRate = closedTrades.length > 0
             ? Number(((winningTrades / closedTrades.length) * 100).toFixed(2))
             : 72.91;
+        const profitDistributions = await this.prisma.profitDistribution.findMany({
+            where: { userId },
+            orderBy: { distributionDate: 'desc' },
+        });
+        const paidDistributions = profitDistributions.filter((d) => d.status === 'PAID');
+        const pendingDistributions = profitDistributions.filter((d) => d.status === 'PENDING');
+        const totalProfitEarned = paidDistributions.reduce((sum, d) => sum + d.amount, 0);
+        const pendingProfit = pendingDistributions.reduce((sum, d) => sum + d.amount, 0);
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+        const monthlyProfit = paidDistributions
+            .filter((d) => {
+            const dDate = new Date(d.distributionDate);
+            return dDate.getFullYear() === currentYear && dDate.getMonth() === currentMonth;
+        })
+            .reduce((sum, d) => sum + d.amount, 0);
+        const lastDistribution = profitDistributions.length > 0
+            ? profitDistributions[0].distributionDate
+            : null;
         return {
             stats: {
                 totalProfit,
@@ -89,6 +109,22 @@ let DashboardService = class DashboardService {
                 date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
                 status: w.status === 'PENDING' ? 'Pending' : w.status === 'APPROVED' ? 'Approved' : 'Rejected',
             })),
+            profitDistributions: profitDistributions.map((pd) => ({
+                id: pd.id,
+                reference: pd.reference,
+                amount: pd.amount,
+                type: pd.type,
+                status: pd.status,
+                note: pd.note || '',
+                distributionDate: pd.distributionDate,
+                createdAt: pd.createdAt,
+            })),
+            profitSummary: {
+                totalProfit: totalProfitEarned,
+                pendingProfit,
+                monthlyProfit,
+                lastDistribution,
+            },
             user: {
                 id: user.id,
                 name: user.name,

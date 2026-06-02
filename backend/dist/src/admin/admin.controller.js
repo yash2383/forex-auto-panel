@@ -147,29 +147,73 @@ let AdminController = class AdminController {
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
-    async createTrade(req, body, res) {
+    async getTrades(res) {
         try {
-            const user = req.user;
-            const result = await this.adminService.createTrade(user.id, body, this.getClientIp(req));
-            if ('error' in result)
-                return res.status(result.status || 400).json({ message: result.error });
+            const result = await this.adminService.listTradeRecords();
             return res.json(result);
         }
         catch (error) {
-            console.error('Create trade error:', error);
+            console.error('Get trades error:', error);
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
-    async closeTrade(id, req, body, res) {
+    async createTradeRecord(body, res) {
         try {
-            const user = req.user;
-            const result = await this.adminService.closeTrade(user.id, id, body.exitPrice, this.getClientIp(req));
+            const result = await this.adminService.createTradeRecord(body);
             if ('error' in result)
                 return res.status(result.status || 400).json({ message: result.error });
             return res.json(result);
         }
         catch (error) {
-            console.error('Close trade error:', error);
+            console.error('Create trade record error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async updateTradeRecord(id, body, res) {
+        try {
+            const result = await this.adminService.updateTradeRecord(id, body);
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Update trade record error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async deleteTradeRecord(id, res) {
+        try {
+            const result = await this.adminService.deleteTradeRecord(id);
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Delete trade record error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async publishTradeRecord(id, res) {
+        try {
+            const result = await this.adminService.setTradeRecordStatus(id, 'published');
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Publish trade record error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async unpublishTradeRecord(id, res) {
+        try {
+            const result = await this.adminService.setTradeRecordStatus(id, 'draft');
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Unpublish trade record error:', error);
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
@@ -243,6 +287,40 @@ let AdminController = class AdminController {
         catch (error) {
             console.error('Reverse transaction error:', error.message);
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
+        }
+    }
+    async createProfitDistribution(body, res) {
+        try {
+            const result = await this.adminService.createProfitDistribution(body);
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Create profit distribution error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async updateProfitDistribution(id, body, res) {
+        try {
+            const result = await this.adminService.updateProfitDistribution(id, body);
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Update profit distribution error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async deleteProfitDistribution(id, res) {
+        try {
+            const result = await this.adminService.deleteProfitDistribution(id);
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Delete profit distribution error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
 };
@@ -346,26 +424,59 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "updateSettings", null);
 __decorate([
+    (0, common_1.Get)('trades'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getTrades", null);
+__decorate([
     (0, common_1.Post)('trades'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
-    __param(0, (0, common_1.Req)()),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "createTradeRecord", null);
+__decorate([
+    (0, common_1.Put)('trades/:id'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
     __param(2, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
-], AdminController.prototype, "createTrade", null);
+], AdminController.prototype, "updateTradeRecord", null);
 __decorate([
-    (0, common_1.Post)('trades/:id/close'),
+    (0, common_1.Delete)('trades/:id'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
     __param(0, (0, common_1.Param)('id')),
-    __param(1, (0, common_1.Req)()),
-    __param(2, (0, common_1.Body)()),
-    __param(3, (0, common_1.Res)()),
+    __param(1, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, Object, Object, Object]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
-], AdminController.prototype, "closeTrade", null);
+], AdminController.prototype, "deleteTradeRecord", null);
+__decorate([
+    (0, common_1.Patch)('trades/:id/publish'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "publishTradeRecord", null);
+__decorate([
+    (0, common_1.Patch)('trades/:id/unpublish'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "unpublishTradeRecord", null);
 __decorate([
     (0, common_1.Post)('payments/:id/approve'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
@@ -428,6 +539,34 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "reverseTransaction", null);
+__decorate([
+    (0, common_1.Post)('profit-distributions'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "createProfitDistribution", null);
+__decorate([
+    (0, common_1.Put)('profit-distributions/:id'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "updateProfitDistribution", null);
+__decorate([
+    (0, common_1.Delete)('profit-distributions/:id'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "deleteProfitDistribution", null);
 exports.AdminController = AdminController = __decorate([
     (0, common_1.Controller)('admin'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2, SlidersHorizontal, Check, ArrowRight, Ban, AlertTriangle } from "lucide-react";
 import Link from "next/link";
-import { adminPermissionMatrix } from "../../../../(user)/dashboard/_components/dashboardData";
+import { adminPermissionMatrix } from "../../_components/adminData";
 import { useAdminStore } from "../../../../../hooks/adminStore";
 import { CrudPermissionPanel, DataTable, StatsCard, WhiteLabelShell } from "../_components/WhiteLabelUI";
 

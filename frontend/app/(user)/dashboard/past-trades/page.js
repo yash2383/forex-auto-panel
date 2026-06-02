@@ -1,4 +1,4 @@
-import { PastTradesTable, SectionCard, TableActions, Disclaimer, PageIntro } from "../_components/DashboardPieces";
+import { PastTradesTable, SectionCard, Disclaimer, PageIntro } from "../_components/DashboardPieces";
 
 export default function DashboardPastTradesPage() {
   return (
@@ -11,8 +11,7 @@ export default function DashboardPastTradesPage() {
 
       <SectionCard
         title="Past Trades"
-        description="Entry and exit points, trade outcomes, PnL, and performance metrics."
-        action={<TableActions />}>
+        description="Entry and exit points, trade outcomes, PnL, and performance metrics.">
         <PastTradesTable />
         <div className="mt-5 grid gap-3 text-sm md:grid-cols-4">
           <span className="rounded-lg bg-white/[0.03] p-3 text-neutral-300">Entry / Exit: trade execution points</span>

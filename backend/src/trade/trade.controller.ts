@@ -6,7 +6,7 @@ import { RolesGuard, Roles } from '../common/guards/roles.guard';
 
 @Controller('trade')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('USER')
+@Roles('USER', 'SUPER_ADMIN', 'MANAGER', 'VIEWER', 'PARTNER')
 export class TradeController {
   constructor(private tradeService: TradeService) {}
 

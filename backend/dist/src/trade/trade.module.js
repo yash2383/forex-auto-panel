@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TradeModule = void 0;
 const common_1 = require("@nestjs/common");
 const trade_controller_1 = require("./trade.controller");
+const trades_controller_1 = require("./trades.controller");
 const trade_service_1 = require("./trade.service");
 const trade_engine_service_1 = require("./trade-engine.service");
 let TradeModule = class TradeModule {
@@ -16,7 +17,7 @@ let TradeModule = class TradeModule {
 exports.TradeModule = TradeModule;
 exports.TradeModule = TradeModule = __decorate([
     (0, common_1.Module)({
-        controllers: [trade_controller_1.TradeController],
+        controllers: [trade_controller_1.TradeController, trades_controller_1.TradesController],
         providers: [trade_service_1.TradeService, trade_engine_service_1.TradeEngineService],
     })
 ], TradeModule);

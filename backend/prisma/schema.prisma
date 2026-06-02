@@ -169,6 +169,8 @@ model User {
   ledgerEntries  LedgerEntry[]
   securityEvents SecurityEvent[]
   otpRequests    OtpRequest[]
+  profitDistributions ProfitDistribution[]
+  generatedReports GeneratedReport[]
 
   // Simulation settings
   autoTrading    Boolean          @default(false)
@@ -411,5 +413,54 @@ model Plan {
   isPopular    Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model TradeRecord {
+  id          String   @id @default(cuid())
+  pair        String
+  side        String
+  entryPrice  Float
+  exitPrice   Float
+  result      String
+  profitLoss  Float
+  tradeDate   DateTime
+  notes       String?  @default("")
+  status      String   @default("published")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tradeDate])
+  @@index([status])
+}
+
+model ProfitDistribution {
+  id               String   @id @default(cuid())
+  reference        String   @unique
+  userId           String
+  amount           Float
+  type             String   // e.g. "Weekly Profit"
+  status           String   @default("PAID") // "PAID" or "PENDING"
+  note             String?  @default("")
+  distributionDate DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([reference])
+}
+
+model GeneratedReport {
+  id          String   @id @default(cuid())
+  userId      String
+  fileName    String
+  reportType  String   // e.g. "TRADING", "PROFIT", "WALLET", "TAX"
+  createdAt   DateTime @default(now())
+  fileUrl     String
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 

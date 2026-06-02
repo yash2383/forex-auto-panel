@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Req, Res, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Patch, Body, Param, Req, Res, HttpStatus, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -158,30 +158,79 @@ export class AdminController {
 
   // --- Trades ---
 
-  @Post('trades')
-  @Roles('SUPER_ADMIN', 'MANAGER')
-  async createTrade(@Req() req: Request, @Body() body: any, @Res() res: Response) {
+  @Get('trades')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getTrades(@Res() res: Response) {
     try {
-      const user = (req as any).user;
-      const result = await this.adminService.createTrade(user.id, body, this.getClientIp(req));
-      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
+      const result = await this.adminService.listTradeRecords();
       return res.json(result);
     } catch (error: any) {
-      console.error('Create trade error:', error);
+      console.error('Get trades error:', error);
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
 
-  @Post('trades/:id/close')
+  @Post('trades')
   @Roles('SUPER_ADMIN', 'MANAGER')
-  async closeTrade(@Param('id') id: string, @Req() req: Request, @Body() body: { exitPrice?: number }, @Res() res: Response) {
+  async createTradeRecord(@Body() body: any, @Res() res: Response) {
     try {
-      const user = (req as any).user;
-      const result = await this.adminService.closeTrade(user.id, id, body.exitPrice, this.getClientIp(req));
+      const result = await this.adminService.createTradeRecord(body);
       if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
       return res.json(result);
     } catch (error: any) {
-      console.error('Close trade error:', error);
+      console.error('Create trade record error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Put('trades/:id')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async updateTradeRecord(@Param('id') id: string, @Body() body: any, @Res() res: Response) {
+    try {
+      const result = await this.adminService.updateTradeRecord(id, body);
+      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Update trade record error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Delete('trades/:id')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async deleteTradeRecord(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const result = await this.adminService.deleteTradeRecord(id);
+      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Delete trade record error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Patch('trades/:id/publish')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async publishTradeRecord(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const result = await this.adminService.setTradeRecordStatus(id, 'published');
+      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Publish trade record error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Patch('trades/:id/unpublish')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async unpublishTradeRecord(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const result = await this.adminService.setTradeRecordStatus(id, 'draft');
+      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Unpublish trade record error:', error);
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
@@ -270,6 +319,46 @@ export class AdminController {
     } catch (error: any) {
       console.error('Reverse transaction error:', error.message);
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
+    }
+  }
+
+  // --- Profit Distributions ---
+
+  @Post('profit-distributions')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async createProfitDistribution(@Body() body: any, @Res() res: Response) {
+    try {
+      const result = await this.adminService.createProfitDistribution(body);
+      if ('error' in result) return res.status((result as any).status || 400).json({ message: (result as any).error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Create profit distribution error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Put('profit-distributions/:id')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async updateProfitDistribution(@Param('id') id: string, @Body() body: any, @Res() res: Response) {
+    try {
+      const result = await this.adminService.updateProfitDistribution(id, body);
+      if ('error' in result) return res.status((result as any).status || 400).json({ message: (result as any).error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Update profit distribution error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Delete('profit-distributions/:id')
+  @Roles('SUPER_ADMIN')
+  async deleteProfitDistribution(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const result = await this.adminService.deleteProfitDistribution(id);
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Delete profit distribution error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
 }

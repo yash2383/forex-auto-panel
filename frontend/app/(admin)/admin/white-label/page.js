@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Eye, Pencil, Search, ShieldOff, SlidersHorizontal, Trash2, Plus, Ban, Check } from "lucide-react";
 import Link from "next/link";
 import { useAdminStore } from "../../../../hooks/adminStore";
-import { adminPermissionMatrix } from "../../../(user)/dashboard/_components/dashboardData";
+import { adminPermissionMatrix } from "../_components/adminData";
 import { CrudPermissionPanel, DataTable, PrimaryLink, StatusBadge, WhiteLabelShell } from "./_components/WhiteLabelUI";
 
 export default function WhiteLabelPage() {

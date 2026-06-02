@@ -3,7 +3,7 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import { useAdminStore } from "../../../../../hooks/adminStore";
-import { adminPermissionMatrix } from "../../../../(user)/dashboard/_components/dashboardData";
+import { adminPermissionMatrix } from "../../_components/adminData";
 import { CrudPermissionPanel, DataTable, StatsCard, StatusBadge, WhiteLabelShell } from "../_components/WhiteLabelUI";
 import { partnerUsers, transactions } from "../_components/whiteLabelData";
 import { Ban } from "lucide-react";

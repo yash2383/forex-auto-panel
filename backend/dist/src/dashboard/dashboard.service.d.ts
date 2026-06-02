@@ -10,6 +10,8 @@ export declare class DashboardService {
         trades?: undefined;
         payments?: undefined;
         withdrawals?: undefined;
+        profitDistributions?: undefined;
+        profitSummary?: undefined;
         user?: undefined;
     } | {
         stats: {
@@ -62,6 +64,22 @@ export declare class DashboardService {
             date: any;
             status: string;
         }[];
+        profitDistributions: {
+            id: any;
+            reference: any;
+            amount: any;
+            type: any;
+            status: any;
+            note: any;
+            distributionDate: any;
+            createdAt: any;
+        }[];
+        profitSummary: {
+            totalProfit: any;
+            pendingProfit: any;
+            monthlyProfit: any;
+            lastDistribution: Date | null;
+        };
         user: {
             id: string;
             name: string;

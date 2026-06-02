@@ -87,8 +87,7 @@ export default function AuthPage({ mode }) {
       // Sync Zustand data
       await useAdminStore.getState().fetchData();
 
-      // Redirect to target path or dashboard
-      const target = nextTarget || (user.role === "USER" ? "/dashboard" : "/admin");
+      const target = nextTarget || "/dashboard";
       router.push(target);
     } catch (err) {
       setError("An unexpected network error occurred. Please try again.");

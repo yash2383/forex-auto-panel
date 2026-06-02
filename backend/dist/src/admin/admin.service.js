@@ -21,10 +21,10 @@ let AdminService = class AdminService {
         this.prisma = prisma;
     }
     async getData() {
-        const [dbUsers, dbPayments, dbTrades, dbLogs, dbPartners, dbSettings, dbCampaigns, dbReferrals, dbAdmins, dbWithdrawals, dbPlans,] = await Promise.all([
+        const [dbUsers, dbPayments, dbTrades, dbLogs, dbPartners, dbSettings, dbCampaigns, dbReferrals, dbAdmins, dbWithdrawals, dbPlans, dbProfitDistributions,] = await Promise.all([
             this.prisma.user.findMany({ where: { isDeleted: false }, include: { wallet: true, partner: true }, orderBy: { createdAt: 'desc' } }),
             this.prisma.payment.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
-            this.prisma.trade.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
+            this.prisma.tradeRecord.findMany({ orderBy: { tradeDate: 'desc' } }),
             this.prisma.securityEvent.findMany({ include: { admin: true, user: true }, orderBy: { createdAt: 'desc' }, take: 50 }),
             this.prisma.partner.findMany({ orderBy: { createdAt: 'desc' } }),
             this.prisma.systemSettings.findFirst(),
@@ -33,6 +33,7 @@ let AdminService = class AdminService {
             this.prisma.admin.findMany({ orderBy: { createdAt: 'desc' } }),
             this.prisma.withdrawal.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
             this.prisma.plan.findMany({ orderBy: { createdAt: 'asc' } }),
+            this.prisma.profitDistribution.findMany({ include: { user: true }, orderBy: { distributionDate: 'desc' } }),
         ]);
         const users = dbUsers.map((u) => {
             let plan = 'None';
@@ -90,12 +91,16 @@ let AdminService = class AdminService {
             };
         });
         const trades = dbTrades.map((t) => ({
-            id: t.id, pair: t.pair, type: t.type,
-            entry: Number(t.entryPrice), exit: Number(t.exitPrice),
-            stopLoss: Number(t.stopLoss), target: Number(t.target),
-            profit: Number(t.profit), pnl: Number(t.pnl),
-            status: t.status === 'ACTIVE' ? 'Active' : 'Closed',
-            userId: t.userId, userName: t.user?.name || 'Unknown User',
+            id: t.id,
+            pair: t.pair,
+            side: t.side,
+            entryPrice: Number(t.entryPrice),
+            exitPrice: Number(t.exitPrice),
+            tradeDate: t.tradeDate,
+            result: t.result,
+            profitLoss: Number(t.profitLoss),
+            notes: t.notes || '',
+            status: t.status,
         }));
         const logs = dbLogs.map((l) => ({
             id: l.id, actor: l.admin?.name || l.user?.name || 'System',
@@ -167,9 +172,22 @@ let AdminService = class AdminService {
             system: { maintenanceMode: dbSettings?.maintenance || false },
             paymentModes: { upi: !!dbSettings?.upiId, bank: false, usdt: dbSettings ? !!dbSettings.usdtAddress : true },
         };
+        const profitDistributions = dbProfitDistributions.map((pd) => ({
+            id: pd.id,
+            reference: pd.reference,
+            userId: pd.userId,
+            userName: pd.user?.name || 'Unknown',
+            userEmail: pd.user?.email || '',
+            amount: pd.amount,
+            type: pd.type,
+            status: pd.status,
+            note: pd.note || '',
+            distributionDate: pd.distributionDate,
+            createdAt: pd.createdAt,
+        }));
         return {
             stats: platformStats, users, payments, trades, logs, partners, campaigns,
-            referrals, admins, transactions, settings,
+            referrals, admins, transactions, settings, profitDistributions,
             plans: dbPlans.map((p) => ({
                 id: p.id, name: p.name, subtitle: p.subtitle, capitalLabel: p.capitalLabel,
                 desc: p.desc, features: p.features, btnText: p.btnText, status: p.status, isPopular: p.isPopular,
@@ -451,6 +469,67 @@ let AdminService = class AdminService {
         });
         return { success: true };
     }
+    async listTradeRecords() {
+        return this.prisma.tradeRecord.findMany({ orderBy: { tradeDate: 'desc' } });
+    }
+    async createTradeRecord(body) {
+        const { pair, side, entryPrice, exitPrice, tradeDate, profitLoss, result, notes, status } = body;
+        if (!pair || !side || entryPrice === undefined || exitPrice === undefined || !tradeDate || profitLoss === undefined || !result) {
+            return { error: 'Missing required fields for trade record', status: 400 };
+        }
+        const tradeRecord = await this.prisma.tradeRecord.create({
+            data: {
+                pair,
+                side,
+                entryPrice: Number(entryPrice),
+                exitPrice: Number(exitPrice),
+                tradeDate: new Date(tradeDate),
+                profitLoss: Number(profitLoss),
+                result,
+                notes: notes || '',
+                status: status || 'published',
+            },
+        });
+        return { success: true, tradeRecord };
+    }
+    async updateTradeRecord(id, body) {
+        const { pair, side, entryPrice, exitPrice, tradeDate, profitLoss, result, notes, status } = body;
+        const existing = await this.prisma.tradeRecord.findUnique({ where: { id } });
+        if (!existing)
+            return { error: 'Trade record not found', status: 404 };
+        const updated = await this.prisma.tradeRecord.update({
+            where: { id },
+            data: {
+                pair: pair ?? existing.pair,
+                side: side ?? existing.side,
+                entryPrice: entryPrice !== undefined ? Number(entryPrice) : existing.entryPrice,
+                exitPrice: exitPrice !== undefined ? Number(exitPrice) : existing.exitPrice,
+                tradeDate: tradeDate ? new Date(tradeDate) : existing.tradeDate,
+                profitLoss: profitLoss !== undefined ? Number(profitLoss) : existing.profitLoss,
+                result: result ?? existing.result,
+                notes: notes !== undefined ? notes : existing.notes,
+                status: status ?? existing.status,
+            },
+        });
+        return { success: true, tradeRecord: updated };
+    }
+    async deleteTradeRecord(id) {
+        const existing = await this.prisma.tradeRecord.findUnique({ where: { id } });
+        if (!existing)
+            return { error: 'Trade record not found', status: 404 };
+        await this.prisma.tradeRecord.delete({ where: { id } });
+        return { success: true, message: 'Trade record deleted successfully' };
+    }
+    async setTradeRecordStatus(id, status) {
+        const existing = await this.prisma.tradeRecord.findUnique({ where: { id } });
+        if (!existing)
+            return { error: 'Trade record not found', status: 404 };
+        const updated = await this.prisma.tradeRecord.update({
+            where: { id },
+            data: { status },
+        });
+        return { success: true, tradeRecord: updated };
+    }
     async approvePayment(adminId, paymentId, clientIp) {
         const result = await this.prisma.$transaction(async (tx) => {
             const payment = await tx.payment.findUnique({ where: { id: paymentId }, include: { user: true } });
@@ -555,6 +634,84 @@ let AdminService = class AdminService {
             data: { adminId, action: 'TRANSACTION_REVERSED', reason: `Reversed transaction group ${transactionGroupId}. Reason: ${reason}`, ipAddress: clientIp },
         });
         return { success: true, reversalGroup: result };
+    }
+    async generateProfitDistributionReference(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const datePrefix = `PD-${year}${month}${day}`;
+        const latest = await this.prisma.profitDistribution.findFirst({
+            where: {
+                reference: {
+                    startsWith: datePrefix,
+                },
+            },
+            orderBy: {
+                reference: 'desc',
+            },
+        });
+        let sequence = 1;
+        if (latest) {
+            const parts = latest.reference.split('-');
+            const lastSeq = parseInt(parts[2], 10);
+            if (!isNaN(lastSeq)) {
+                sequence = lastSeq + 1;
+            }
+        }
+        const seqStr = String(sequence).padStart(3, '0');
+        return `${datePrefix}-${seqStr}`;
+    }
+    async createProfitDistribution(body) {
+        const { userId, amount, type, status, note, distributionDate } = body;
+        if (!userId || amount === undefined || !type || !distributionDate) {
+            return { error: 'userId, amount, type, and distributionDate are required', status: 400 };
+        }
+        const distDate = new Date(distributionDate);
+        const reference = await this.generateProfitDistributionReference(distDate);
+        const profitDist = await this.prisma.profitDistribution.create({
+            data: {
+                reference,
+                userId,
+                amount: Number(amount),
+                type,
+                status: status || 'PAID',
+                note: note || '',
+                distributionDate: distDate,
+            },
+            include: {
+                user: true,
+            },
+        });
+        return { success: true, profitDistribution: profitDist };
+    }
+    async updateProfitDistribution(id, body) {
+        const { amount, type, status, note, distributionDate } = body;
+        const dataToUpdate = {};
+        if (amount !== undefined)
+            dataToUpdate.amount = Number(amount);
+        if (type !== undefined)
+            dataToUpdate.type = type;
+        if (status !== undefined)
+            dataToUpdate.status = status;
+        if (note !== undefined)
+            dataToUpdate.note = note;
+        if (distributionDate !== undefined) {
+            dataToUpdate.distributionDate = new Date(distributionDate);
+        }
+        const updated = await this.prisma.profitDistribution.update({
+            where: { id },
+            data: dataToUpdate,
+            include: {
+                user: true,
+            },
+        });
+        return { success: true, profitDistribution: updated };
+    }
+    async deleteProfitDistribution(id) {
+        await this.prisma.profitDistribution.delete({
+            where: { id },
+        });
+        return { success: true };
     }
 };
 exports.AdminService = AdminService;

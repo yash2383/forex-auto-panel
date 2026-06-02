@@ -46,6 +46,58 @@ function PnLWidget({ stats, wallet }) {
   );
 }
 
+function ProfitOverviewWidget({ summary }) {
+  const totalProfit = summary ? Number(summary.totalProfit) : 0;
+  const pendingProfit = summary ? Number(summary.pendingProfit) : 0;
+  const lastDistributionDate = summary?.lastDistribution
+    ? new Date(summary.lastDistribution).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : "Never";
+
+  return (
+    <article className="relative overflow-hidden rounded-2xl border border-green-500/20 bg-gradient-to-r from-[#06120e] to-[#020907] p-6 shadow-[0_0_50px_-25px_rgba(34,197,94,0.35)] h-full flex flex-col justify-between">
+      <div className="absolute right-0 top-0 h-32 w-32 -translate-y-1/2 translate-x-1/2 rounded-full bg-green-500/10 blur-3xl"></div>
+      <div>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 px-3 py-1 text-xs font-bold text-green-300 border border-green-500/20">
+          <ArrowUpRight className="h-3.5 w-3.5" />
+          Profit Overview
+        </span>
+        
+        <div className="mt-4 space-y-3">
+          <div>
+            <p className="text-xs text-neutral-500 font-semibold">Total Profit Earned</p>
+            <p className="text-2xl font-extrabold text-white font-mono mt-0.5">
+              +₹{totalProfit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="flex justify-between items-center pt-2 border-t border-white/5">
+            <div>
+              <p className="text-[10px] text-neutral-500 font-semibold uppercase tracking-wider">Pending Profit</p>
+              <p className="text-sm font-bold text-yellow-300 font-mono mt-0.5">
+                ₹{pendingProfit.toLocaleString("en-IN")}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-neutral-500 font-semibold uppercase tracking-wider">Last Payout</p>
+              <p className="text-xs font-medium text-neutral-300 mt-0.5">
+                {lastDistributionDate}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <a 
+          href="/dashboard/profit-history" 
+          className="w-full inline-flex h-9 items-center justify-center rounded-lg bg-green-500/10 text-xs font-bold text-green-300 border border-green-500/20 hover:bg-green-500 hover:text-black transition"
+        >
+          View Profit History &rarr;
+        </a>
+      </div>
+    </article>
+  );
+}
+
 function StatCard({ label, value, sub, tone, isLive }) {
   return (
     <article className="rounded-2xl border border-white/10 bg-[#07100d]/95 p-5 shadow-[0_0_35px_-24px_rgba(34,197,94,0.45)] relative overflow-hidden group">
@@ -78,6 +130,7 @@ export default function DashboardPage() {
   const stats = useAdminStore((s) => s.stats);
   const trades = useAdminStore((s) => s.trades || []);
   const wallet = useAdminStore((s) => s.wallet);
+  const profitSummary = useAdminStore((s) => s.profitSummary);
   const currentUser = useAdminStore((s) => s.currentUser);
   const updateUserSettings = useAdminStore((s) => s.updateUserSettings);
   const fetchData = useAdminStore((s) => s.fetchData);
@@ -113,7 +166,14 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PnLWidget stats={stats} wallet={wallet} />
+      <div className="grid gap-5 lg:grid-cols-3 items-stretch">
+        <div className="lg:col-span-2">
+          <PnLWidget stats={stats} wallet={wallet} />
+        </div>
+        <div className="lg:col-span-1">
+          <ProfitOverviewWidget summary={profitSummary} />
+        </div>
+      </div>
 
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
         {userStats.map((item) => (

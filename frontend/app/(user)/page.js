@@ -1,12 +1,34 @@
 "use client";
 
-import { useEffect } from "react";
-import { pastTrades } from "./data/pastTrades";
+import { useEffect, useState } from "react";
 import { useAdminStore } from "../../hooks/adminStore";
+import { apiFetch } from "../../lib/apiFetch";
 
 export default function Home() {
   const plans = useAdminStore((s) => s.plans || []);
   const activePlans = plans.filter(p => p.status === "Active");
+
+  const [trades, setTrades] = useState([]);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadTrades() {
+      try {
+        const res = await apiFetch("/api/trades/public");
+        if (res.ok) {
+          const data = await res.json();
+          setTrades(data.trades || []);
+          setIsSubscribed(data.isSubscribed || false);
+        }
+      } catch (e) {
+        console.error("Failed to load public trades:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadTrades();
+  }, []);
 
   useEffect(() => {
     // Scroll Animation Observer
@@ -685,32 +707,42 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-sm">
-                  {pastTrades.map((trade) => {
-                    const isWin = trade.result === "WIN";
+                  {trades.slice(0, 10).map((trade) => {
+                    const isWin = trade.result?.toUpperCase() === "WIN";
                     const isBuy = trade.side === "BUY";
 
                     return (
-                      <tr key={`${trade.symbol}-${trade.date}-${trade.pnl}`} className="transition-colors hover:bg-white/[0.03]">
-                        <td className="px-5 py-4 font-semibold text-white">{trade.symbol}</td>
+                      <tr key={trade.id} className="transition-colors hover:bg-white/[0.03]">
+                        <td className="px-5 py-4 font-semibold text-white">{trade.pair}</td>
                         <td className="px-5 py-4">
                           <span className={`inline-flex min-w-12 justify-center rounded-md px-2 py-1 text-xs font-bold ${isBuy ? "bg-green-500/10 text-green-300" : "bg-red-500/10 text-red-300"}`}>
                             {trade.side}
                           </span>
                         </td>
-                        <td className="px-5 py-4 font-mono text-neutral-300">{trade.entry}</td>
-                        <td className="px-5 py-4 font-mono text-neutral-300">{trade.exit}</td>
-                        <td className="px-5 py-4 text-neutral-400">{trade.date}</td>
+                        <td className="px-5 py-4 font-mono text-neutral-300">₹{Number(trade.entryPrice).toLocaleString("en-IN")}</td>
+                        <td className="px-5 py-4 font-mono text-neutral-300">₹{Number(trade.exitPrice).toLocaleString("en-IN")}</td>
+                        <td className="px-5 py-4 text-neutral-400">{trade.tradeDate ? new Date(trade.tradeDate).toLocaleDateString("en-IN") : "N/A"}</td>
                         <td className="px-5 py-4">
                           <span className={`inline-flex min-w-12 justify-center rounded-md px-2 py-1 text-xs font-bold ${isWin ? "bg-green-500/10 text-green-300" : "bg-red-500/10 text-red-300"}`}>
                             {trade.result}
                           </span>
                         </td>
                         <td className={`px-5 py-4 text-right font-mono font-semibold ${isWin ? "text-green-300" : "text-red-300"}`}>
-                          {trade.pnl}
+                          {trade.profitLoss >= 0 ? `+₹${trade.profitLoss.toLocaleString("en-IN")}` : `-₹${Math.abs(trade.profitLoss).toLocaleString("en-IN")}`}
                         </td>
                       </tr>
                     );
                   })}
+                  {trades.length === 0 && !loading && (
+                    <tr>
+                      <td colSpan="7" className="px-5 py-8 text-center text-sm text-neutral-500">No published trade records found.</td>
+                    </tr>
+                  )}
+                  {loading && (
+                    <tr>
+                      <td colSpan="7" className="px-5 py-8 text-center text-sm text-neutral-500">Loading trade records...</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -718,7 +750,7 @@ export default function Home() {
 
           <div className="mt-8 flex justify-center">
             <a
-              href="/past-trades"
+              href={isSubscribed ? "/past-trades" : "#pricing"}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-green-500/30 bg-green-500/10 px-6 py-3 text-sm font-semibold text-green-300 transition-colors hover:bg-green-500 hover:text-black">
               View All
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"

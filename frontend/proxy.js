@@ -45,66 +45,57 @@ export function proxy(req) {
     (route) => path === route || path.startsWith(route + "/")
   );
 
-  // 2. UNAUTHENTICATED GUEST FLOW
-  if (!isAuthenticated) {
-    // If attempting to access admin routes (except login), redirect to admin login
-    if (path.startsWith("/admin") && path !== "/admin/login") {
+  // 2. ROUTE PROTECTION LOGIC
+
+  // Protect admin routes separately
+  if (path.startsWith("/admin") && path !== "/admin/login") {
+    if (!isAdmin) {
       return NextResponse.redirect(new URL("/admin/login", req.url));
     }
-    // If attempting to access client routes, redirect to user login
-    if (path.startsWith("/dashboard") || path === "/checkout" || path.startsWith("/checkout/")) {
+  }
+
+  // Protect user routes separately
+  if (path.startsWith("/dashboard") || path === "/checkout" || path.startsWith("/checkout/")) {
+    if (!isAuthenticated) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("next", path);
       return NextResponse.redirect(loginUrl);
     }
-    // Guest is allowed to see public routes, /login, /signup, and /admin/login
-    if (isPublicRoute || path === "/login" || path === "/signup" || path === "/admin/login") {
-      return NextResponse.next();
-    }
-    // Fallback for any other path: redirect to login
-    return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // 3. AUTHENTICATED ADMIN FLOW
-  if (isAdmin) {
-    // Admins cannot access login/signup or user space, redirect them to admin dashboard
-    if (path === "/login" || path === "/signup" || path === "/admin/login" || path.startsWith("/dashboard") || path === "/checkout" || path.startsWith("/checkout/")) {
-      return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+  // 3. AUTH LOGGED-IN REDIRECTS (Admins and Users going to login/signup/etc.)
+  if (isAuthenticated) {
+    if (path === "/login" || path === "/signup" || path === "/admin/login") {
+      if (isAdmin) {
+        return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+      } else {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
     }
-    // Redirect /admin to /admin/dashboard
+  }
+
+  // 4. CLIENT / USER ROUTES ALLOWANCE
+  if (path.startsWith("/dashboard") || path === "/checkout" || path.startsWith("/checkout/") || isPublicRoute) {
+    return NextResponse.next();
+  }
+
+  // 5. ADMIN ROUTES ALLOWANCE
+  if (path.startsWith("/admin")) {
     if (path === "/admin") {
       return NextResponse.redirect(new URL("/admin/dashboard", req.url));
     }
-    // Allow access to admin routes and public routes
-    if (path.startsWith("/admin") || isPublicRoute) {
-      return NextResponse.next();
-    }
-    // Fallback for admins: redirect to admin dashboard
-    return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+    return NextResponse.next();
   }
 
-  // 4. AUTHENTICATED USER FLOW
-  if (isUser) {
-    // Users cannot access login/signup or admin space, redirect to dashboard or home
+  // 6. DEFAULT REDIRECTS FOR GUESTS
+  if (!isAuthenticated) {
     if (path === "/login" || path === "/signup" || path === "/admin/login") {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
-    if (path.startsWith("/admin")) {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
-    // Redirect /dashboard/live-trades and /dashboard/performance back to dashboard
-    if (path === "/dashboard/live-trades" || path === "/dashboard/performance") {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
-    // Allow access to dashboard, checkout, and public routes
-    if (path.startsWith("/dashboard") || path === "/checkout" || path.startsWith("/checkout/") || isPublicRoute) {
       return NextResponse.next();
     }
-    // Fallback for users: redirect to user dashboard
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // 5. SECURE FALLBACK
+  // 7. SECURE FALLBACK
   return NextResponse.next();
 }
 

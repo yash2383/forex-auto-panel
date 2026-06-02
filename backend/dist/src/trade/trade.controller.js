@@ -92,7 +92,7 @@ __decorate([
 exports.TradeController = TradeController = __decorate([
     (0, common_1.Controller)('trade'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_guard_1.Roles)('USER'),
+    (0, roles_guard_1.Roles)('USER', 'SUPER_ADMIN', 'MANAGER', 'VIEWER', 'PARTNER'),
     __metadata("design:paramtypes", [trade_service_1.TradeService])
 ], TradeController);
 //# sourceMappingURL=trade.controller.js.map

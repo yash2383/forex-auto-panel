@@ -1,0 +1,1165 @@
+@import "tailwindcss";
+
+@source not "../backup_static";
+@source "./**/*.{js,jsx}";
+
+@theme {
+  --color-brand-gray: var(--color-brand-gray);
+  --font-sans: var(--font-sans);
+}
+
+/* ============================================================
+   DESIGN TOKENS — LIGHT (default :root)
+   ============================================================ */
+:root {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-serif: 'Instrument Serif', serif;
+  --color-brand-gray: #1A1A1A;
+
+  /* Color palette */
+  --primary: #00D09C;
+  --primary-hover: #00B386;
+  --primary-active: #009970;
+
+  /* Backgrounds */
+  --background: #ffffff;
+  --surface: #f4f6f9;
+  --card: #ffffff;
+
+  /* Text */
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+
+  /* Borders */
+  --border: #e5e7eb;
+  --border-subtle: #f0f2f5;
+
+  /* States */
+  --success: #00D09C;
+  --danger: #EF4444;
+
+  /* Elevation — light uses real shadows */
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --card-shadow-hover: 0 4px 8px rgba(0, 0, 0, 0.08), 0 12px 32px rgba(0, 0, 0, 0.08);
+  --glow: 0 0 10px rgba(0, 208, 156, 0.18);
+
+  /* Table */
+  --table-head-bg: #f9fafb;
+  --table-row-hover: rgba(0, 0, 0, 0.025);
+  --table-divider: #f0f2f5;
+}
+
+/* ============================================================
+   DESIGN TOKENS — DARK  (body:not(.light-theme))
+   ============================================================ */
+body:not(.light-theme) {
+  --background: #050505;
+  --surface: #0a0a0a;
+  --card: #111111;
+  --text-primary: #ffffff;
+  --text-secondary: #d1d5db;
+  --text-muted: #6b7280;
+  --border: #1f2937;
+  --border-subtle: #111827;
+
+  --card-shadow: none;
+  --card-shadow-hover: none;
+  --glow: 0 0 30px rgba(0, 208, 156, 0.35);
+
+  --table-head-bg: rgba(255, 255, 255, 0.03);
+  --table-row-hover: rgba(255, 255, 255, 0.03);
+  --table-divider: rgba(255, 255, 255, 0.05);
+}
+
+/* ============================================================
+   BASE STYLES — now driven by tokens
+   ============================================================ */
+body {
+  font-family: var(--font-sans);
+  background-color: var(--background);
+  color: var(--text-primary);
+  overflow-x: hidden;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-geist {
+  font-family: 'Geist', var(--font-sans) !important;
+}
+
+.font-cormorant {
+  font-family: 'Cormorant Garamond', serif !important;
+}
+
+/* ============================================================
+   CUSTOM SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ============================================================
+   BORDER GRADIENT UTILITY
+   ============================================================ */
+.border-gradient {
+  position: relative;
+}
+
+.border-gradient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  background: linear-gradient(225deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.25) 50%,
+      rgba(255, 255, 255, 0.05) 100%);
+  pointer-events: none;
+}
+
+/* Light: use dark-toned gradient border so it's visible */
+body.light-theme .border-gradient::before {
+  background: linear-gradient(225deg,
+      rgba(0, 0, 0, 0.08) 0%,
+      rgba(0, 0, 0, 0.14) 50%,
+      rgba(0, 0, 0, 0.04) 100%);
+}
+
+/* ============================================================
+   GLASS PANEL
+   ============================================================ */
+.glass-panel {
+  background: rgba(10, 10, 10, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+body.light-theme .glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+/* ============================================================
+   TABLES — token-driven
+   ============================================================ */
+thead {
+  background: var(--table-head-bg);
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--table-divider);
+  transition: background 0.15s ease;
+}
+
+tbody tr:hover {
+  background: var(--table-row-hover);
+}
+
+/* ============================================================
+   ANIMATION KEYFRAMES
+   ============================================================ */
+@keyframes animationIn {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes marquee-left {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes loginPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 18px rgba(34, 197, 94, 0.35);
+  }
+
+  50% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.68);
+  }
+}
+
+@keyframes border-spin {
+  to {
+    --gradient-angle: 360deg;
+  }
+}
+
+@property --gradient-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@property --gradient-angle-offset {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@property --gradient-percent {
+  syntax: "<percentage>";
+  initial-value: 20%;
+  inherits: false;
+}
+
+@property --gradient-shine {
+  syntax: "<color>";
+  initial-value: #bbf7d0;
+  inherits: false;
+}
+
+/* ============================================================
+   ANIMATION CLASSES
+   ============================================================ */
+.animate-on-scroll {
+  animation-play-state: paused !important;
+  opacity: 0;
+}
+
+.animate-on-scroll.animate {
+  animation: animationIn 0.8s ease-out forwards;
+  animation-play-state: running !important;
+}
+
+.stagger-delay-1 {
+  animation-delay: 0.1s;
+}
+
+.stagger-delay-2 {
+  animation-delay: 0.2s;
+}
+
+.stagger-delay-3 {
+  animation-delay: 0.3s;
+}
+
+.delay-500 {
+  animation-delay: 0.5s;
+}
+
+.delay-1000 {
+  animation-delay: 1s;
+}
+
+.delay-1500 {
+  animation-delay: 1.5s;
+}
+
+.animate-float-slow {
+  animation: float 8s ease-in-out infinite;
+}
+
+.animate-float-medium {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-fast {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* ============================================================
+   KARAOKE
+   ============================================================ */
+.karaoke-word {
+  transition: color 0.3s ease;
+}
+
+/* ============================================================
+   PERFORMANCE TWEAKS
+   ============================================================ */
+.aura-background-component {
+  display: none !important;
+}
+
+img {
+  content-visibility: auto;
+}
+
+/* ============================================================
+   SHINY CTA BUTTON
+   ============================================================ */
+.shiny-cta {
+  --gradient-angle: 0deg;
+  --gradient-angle-offset: 0deg;
+  --gradient-percent: 20%;
+  --gradient-shine: #bbf7d0;
+  --gradient-border: #22c55e;
+  font-family: inherit;
+  color: #ffffff;
+  background: linear-gradient(#050505, #050505) padding-box,
+    conic-gradient(from calc(var(--gradient-angle) - var(--gradient-angle-offset)),
+      transparent 0%,
+      var(--gradient-border) 5%,
+      var(--gradient-shine) 15%,
+      var(--gradient-border) 30%,
+      transparent 40%,
+      transparent 100%) border-box;
+  border: 1px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.1), 0 0 20px -5px rgba(34, 197, 94, 0.3);
+  animation: border-spin 3s linear infinite;
+}
+
+.shiny-cta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% -20%, rgba(34, 197, 94, 0.4), transparent 60%);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.3s ease;
+}
+
+.shiny-cta:hover::after {
+  opacity: 0.8;
+}
+
+body.light-theme .shiny-cta {
+  color: #fff;
+  background: linear-gradient(var(--primary), var(--primary)) padding-box,
+    conic-gradient(from calc(var(--gradient-angle) - var(--gradient-angle-offset)),
+      transparent 0%,
+      var(--primary-active) 5%,
+      var(--primary) 15%,
+      var(--primary-hover) 30%,
+      transparent 40%,
+      transparent 100%) border-box !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 208, 156, 0.2), 0 0 20px -5px rgba(0, 208, 156, 0.4);
+}
+
+body.light-theme .shiny-cta::after {
+  background: radial-gradient(circle at 50% -20%, rgba(0, 208, 156, 0.28), transparent 60%) !important;
+}
+
+body.light-theme .shiny-cta .text-white,
+body.light-theme .shiny-cta .group-hover\:text-green-100 {
+  color: #ffffff !important;
+}
+
+body.light-theme .shiny-cta svg {
+  color: #00D09C !important;
+}
+
+body.light-theme .shiny-cta:hover svg {
+  color: #ffffff !important;
+}
+
+/* ============================================================
+   THEME TOGGLE WIDGET
+   ============================================================ */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  padding: 0;
+  line-height: 1;
+}
+
+.theme-toggle:hover {
+  background: transparent;
+}
+
+.theme-toggle-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  width: 76px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.theme-toggle-icon {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.7);
+  transition: color 0.2s ease;
+}
+
+.theme-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #111827, #020617);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transition: transform 0.24s ease, background 0.24s ease, box-shadow 0.24s ease;
+}
+
+.theme-toggle[aria-pressed="false"] .moon-side {
+  color: #ffffff;
+}
+
+.theme-toggle[aria-pressed="true"] .sun-side {
+  color: #111827;
+}
+
+/* Light mode toggle state */
+body.light-theme .theme-toggle {
+  color: var(--text-primary);
+}
+
+body.light-theme .theme-toggle-track {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+body.light-theme .theme-toggle-icon {
+  color: var(--text-secondary);
+}
+
+body.light-theme .theme-toggle-thumb {
+  transform: translateX(36px);
+  background: linear-gradient(135deg, #ffffff, #e5e7eb);
+  box-shadow: 0 8px 18px rgba(31, 41, 55, 0.15), inset 0 0 0 1px rgba(31, 41, 55, 0.08);
+}
+
+/* ============================================================
+   NAVBAR — light mode
+   ============================================================ */
+body.light-theme nav.fixed {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 1px 0 rgba(229, 231, 235, 0.9);
+}
+
+body.light-theme nav a:not(.shiny-cta):not([class*="bg-green"]):not([class*="border-green"]) {
+  color: var(--text-secondary);
+}
+
+body.light-theme nav a:hover:not(.shiny-cta):not([class*="bg-green"]) {
+  color: var(--text-primary);
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  border-radius: 9999px;
+}
+
+/* Pill nav container */
+body.light-theme nav .rounded-full.border.border-white\/10 {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+/* Login button pulse — adapt for light */
+body.light-theme nav a[href="/login"] {
+  background: #ffffff !important;
+  color: var(--text-primary) !important;
+  border-color: rgba(0, 208, 156, 0.5) !important;
+  box-shadow: 0 0 22px rgba(0, 208, 156, 0.18) !important;
+}
+
+body.light-theme nav a[href="/login"]:hover {
+  box-shadow: 0 0 30px rgba(0, 208, 156, 0.3) !important;
+}
+
+/* "Start Trading" border-gradient nav button */
+body.light-theme nav a[href="/signup"].border-gradient {
+  color: var(--text-primary) !important;
+}
+
+body.light-theme nav a[href="/signup"].border-gradient:hover {
+  background: var(--surface) !important;
+}
+
+/* Logo SVG/image filter for light */
+body.light-theme nav a span[class*="bg-[url"] {
+  filter: brightness(0) saturate(100%);
+}
+
+/* ============================================================
+   FOOTER — light mode
+   ============================================================ */
+body.light-theme footer {
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+body.light-theme footer a,
+body.light-theme footer span,
+body.light-theme footer p {
+  color: var(--text-secondary) !important;
+}
+
+body.light-theme footer a:hover {
+  color: var(--text-primary) !important;
+}
+
+/* ============================================================
+   ═══════════════════════════════════════════════════════════
+   LIGHT THEME — BROAD STRUCTURAL OVERRIDES
+   Covers all pages without editing each page file.
+   ═══════════════════════════════════════════════════════════
+   ============================================================ */
+
+/* ── 1. PAGE / MAIN BACKGROUNDS ──────────────────────────── */
+body.light-theme main,
+body.light-theme [class*="bg-\[#050505\]"],
+body.light-theme [class*="bg-\[#020505\]"],
+body.light-theme [class*="bg-\[#0A0A0A\]"],
+body.light-theme [class*="bg-\[#020806\]"],
+body.light-theme [class*="bg-\[#050a0f\]"],
+body.light-theme [class*="bg-black"] {
+  background-color: var(--background) !important;
+  color: var(--text-primary) !important;
+}
+
+/* ── 2. CARD / SURFACE BACKGROUNDS ─────────────────────────
+   Keep white for true bg-white elements (buttons etc.)
+   Only remap the dark neutral/black surfaces.            */
+body.light-theme [class*="bg-neutral-900"],
+body.light-theme [class*="bg-neutral-800"],
+body.light-theme [class*="bg-\[#0B1110\]"],
+body.light-theme [class*="bg-\[#07110d\]"],
+body.light-theme [class*="bg-\[#07100d\]"],
+body.light-theme [class*="bg-\[#05100c\]"],
+body.light-theme [class*="bg-\[#071018\]"],
+body.light-theme [class*="bg-\[#0b141b\]"],
+body.light-theme [class*="bg-\[#081118\]"],
+body.light-theme [class*="bg-\[#0E1816\]"],
+body.light-theme [class*="bg-\[#1B1B1B\]"],
+body.light-theme [class*="bg-\[#111111\]"],
+body.light-theme [class*="bg-\[#111\]"] {
+  background-color: var(--card) !important;
+}
+
+/* Specific interactive hover states */
+body.light-theme [class*="bg-\[#0D1614\]"],
+body.light-theme [class*="bg-\[#0D1614\]"]:hover,
+body.light-theme [class*="hover:bg-\[#0D1614\]"]:hover {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Semi-transparent dark panels → light surface */
+body.light-theme [class*="bg-neutral-900\/"],
+body.light-theme [class*="bg-\[#050505\]\/"],
+body.light-theme [class*="bg-\[#0A0A0A\]\/"],
+body.light-theme [class*="bg-\[#020806\]\/"] {
+  background-color: var(--surface) !important;
+}
+
+/* Very light white overlays → use surface token */
+body.light-theme [class*="bg-white\/5"],
+body.light-theme [class*="bg-white\/\[0.03\]"],
+body.light-theme [class*="bg-white\/\[0.04\]"] {
+  background-color: var(--surface) !important;
+}
+
+body.light-theme [class*="bg-white\/10"],
+body.light-theme [class*="bg-white\/\[0.08\]"] {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+/* black/XX overlays */
+body.light-theme [class*="bg-black\/"] {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+/* ── 3. TEXT COLORS ─────────────────────────────────────── */
+body.light-theme .text-white,
+body.light-theme [class*="text-\[#ffffff\]"] {
+  color: var(--text-primary) !important;
+}
+
+body.light-theme .text-neutral-400,
+body.light-theme .text-neutral-300,
+body.light-theme .text-neutral-200 {
+  color: var(--text-secondary) !important;
+}
+
+body.light-theme .text-neutral-500,
+body.light-theme .text-neutral-600 {
+  color: var(--text-muted) !important;
+}
+
+/* Keep green accent text green — just a bit darker for light */
+body.light-theme .text-green-300,
+body.light-theme .text-green-400 {
+  color: var(--primary-active) !important;
+}
+
+body.light-theme .text-green-200 {
+  color: var(--primary-hover) !important;
+}
+
+/* Card-scoped text — cards stay dark, keep their white text */
+body.light-theme .group[class*="bg-neutral-900"] .text-white,
+body.light-theme [class*="bg-neutral-900"] .text-white {
+  color: var(--text-primary) !important;
+}
+
+/* ── 4. BORDERS ─────────────────────────────────────────── */
+body.light-theme [class*="border-white\/5"],
+body.light-theme [class*="border-white\/8"],
+body.light-theme [class*="border-white\/10"],
+body.light-theme [class*="border-white\/15"],
+body.light-theme [class*="border-white\/20"],
+body.light-theme [class*="ring-white\/10"] {
+  border-color: var(--border) !important;
+  --tw-ring-color: var(--border) !important;
+}
+
+body.light-theme [class*="divide-white\/5"]>*+* {
+  border-color: var(--border) !important;
+}
+
+/* ── 5. CARD ELEVATION (replaces glow) ──────────────────── */
+body.light-theme .border-gradient,
+body.light-theme [class*="rounded-2xl"][class*="bg-neutral"],
+body.light-theme [class*="rounded-xl"][class*="bg-neutral"],
+body.light-theme [class*="rounded-2xl"][class*="bg-\[#0"],
+body.light-theme [class*="rounded-xl"][class*="bg-\[#0"] {
+  box-shadow: var(--card-shadow) !important;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+body.light-theme .border-gradient:hover,
+body.light-theme [class*="rounded-2xl"][class*="bg-neutral"]:hover {
+  box-shadow: var(--card-shadow-hover) !important;
+  transform: translateY(-3px);
+}
+
+/* ── 6. SHADOWS / GLOW REPLACEMENT ─────────────────────── */
+body.light-theme [class*="shadow-\[0_0_"],
+body.light-theme [class*="shadow-2xl"],
+body.light-theme [class*="shadow-xl"] {
+  box-shadow: var(--card-shadow) !important;
+}
+
+/* ── 7. GRADIENTS  ──────────────────────────────────────── */
+/* from-neutral-900 → from surface token */
+body.light-theme [class*="from-neutral-900"] {
+  --tw-gradient-from: var(--surface) var(--tw-gradient-from-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
+body.light-theme [class*="to-black"],
+body.light-theme [class*="to-neutral-900"] {
+  --tw-gradient-to: var(--background) var(--tw-gradient-to-position) !important;
+}
+
+body.light-theme [class*="from-white"] {
+  --tw-gradient-from: var(--text-primary) var(--tw-gradient-from-position) !important;
+}
+
+body.light-theme [class*="via-white\/10"] {
+  --tw-gradient-via: rgba(0, 0, 0, 0.1) var(--tw-gradient-via-position) !important;
+}
+
+/* Green hero blur blob — reduce intensity in light */
+body.light-theme [class*="bg-green-900\/"] {
+  opacity: 0.3 !important;
+}
+
+body.light-theme [class*="bg-green-500\/10"] {
+  background-color: rgba(0, 208, 156, 0.08) !important;
+}
+
+/* ── 8. SECTION ALTERNATION ─────────────────────────────── */
+/* Sections with neutral-900 bg → alternate between bg and surface */
+body.light-theme section[class*="bg-neutral-900"] {
+  background-color: var(--surface) !important;
+}
+
+/* ── 9. TABLES ──────────────────────────────────────────── */
+body.light-theme thead {
+  background: var(--table-head-bg) !important;
+}
+
+body.light-theme thead th {
+  color: var(--text-muted) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+body.light-theme tbody tr {
+  border-bottom: 1px solid var(--table-divider) !important;
+}
+
+body.light-theme tbody tr:hover {
+  background: var(--table-row-hover) !important;
+}
+
+body.light-theme tbody td {
+  color: var(--text-secondary) !important;
+}
+
+/* Keep semantic colors in table cells */
+body.light-theme tbody td .text-green-300 {
+  color: #00A67E !important;
+}
+
+body.light-theme tbody td .text-red-300 {
+  color: #dc2626 !important;
+}
+
+body.light-theme tbody td .text-white {
+  color: var(--text-primary) !important;
+}
+
+/* ── 10. FORM INPUTS (auth/login page) ──────────────────── */
+body.light-theme input[class*="bg-\[#1B1B1B\]"] {
+  background-color: var(--surface) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+body.light-theme input[class*="bg-\[#1B1B1B\]"]::placeholder {
+  color: var(--text-muted) !important;
+}
+
+body.light-theme input[class*="bg-\[#1B1B1B\]"]:focus {
+  border-color: var(--primary) !important;
+}
+
+/* ── 11. AUTH PAGE SPECIFICS ────────────────────────────── */
+/* Left panel (hero image side) stays dark/photo */
+body.light-theme section[class*="bg-\[#07110d\]"] {
+  background-color: #07110d !important;
+}
+
+body.light-theme section[class*="bg-\[#07110d\]"] .text-white,
+body.light-theme section[class*="bg-\[#07110d\]"] [class*="text-white/"] {
+  color: #ffffff !important;
+}
+
+body.light-theme section[class*="bg-\[#07110d\]"] [class*="text-white\/60"] {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+body.light-theme section[class*="bg-\[#07110d\]"] [class*="bg-\[#1B1B1B\]"] {
+  background-color: #1B1B1B !important;
+  color: #ffffff !important;
+}
+
+body.light-theme section[class*="bg-\[#07110d\]"] .bg-white {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+body.light-theme section[class*="bg-\[#07110d\]"] .bg-black {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+body.light-theme section[class*="bg-\[#07110d\]"] [class*="bg-white\/"] {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Right panel text */
+body.light-theme .text-neutral-500 {
+  color: var(--text-muted) !important;
+}
+
+/* ── 12. CTA BUTTONS ─────────────────────────────────────── */
+/* bg-white text-black buttons are naturally correct in light mode.
+   Give them a refined card-style appearance with subtle shadow. */
+body.light-theme a.bg-white.text-black,
+body.light-theme button.bg-white.text-black {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid var(--border);
+  box-shadow: var(--card-shadow);
+}
+
+body.light-theme a.bg-white.text-black:hover,
+body.light-theme button.bg-white.text-black:hover {
+  background-color: #f3f4f6 !important;
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-1px);
+}
+
+/* ── 13. QUOTE / KARAOKE WORDS ─────────────────────────── */
+body.light-theme .quote-word {
+  color: var(--text-primary) !important;
+}
+
+/* ── 14. IMAGES ─────────────────────────────────────────── */
+body.light-theme img {
+  opacity: 0.92;
+}
+
+/* ── 15. INTEGRATION ICON BUTTONS ──────────────────────── */
+body.light-theme span[class*="ring-white\/10"][class*="rounded-2xl"] {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  ring: none !important;
+}
+
+body.light-theme span[class*="ring-white\/10"] svg {
+  color: var(--text-secondary) !important;
+}
+
+/* ── 16. SVG CONNECTOR LINES (infrastructure diagram) ──── */
+body.light-theme svg path[stroke="#22c55e"] {
+  stroke: var(--primary-active);
+  opacity: 0.4;
+}
+
+/* ── 17. PRICING: highlighted plan card ─────────────────── */
+body.light-theme [class*="border-green-500\/20"][class*="rounded"] {
+  border-color: rgba(0, 208, 156, 0.35) !important;
+}
+
+/* ── 18. GENERAL HOVER OVERRIDES ─────────────────────────── */
+/* Tailwind hover:bg-white/XX → visible dark tint in light mode */
+body.light-theme .group.border-gradient:hover,
+body.light-theme div.border-gradient:hover {
+  background-color: rgba(0, 0, 0, 0.025) !important;
+  box-shadow: var(--card-shadow-hover) !important;
+  transform: translateY(-2px);
+}
+
+/* Cards with hover:bg-neutral-900/60 → subtle tint */
+body.light-theme [class*="hover\\:bg-neutral-900"]:hover {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+/* hover:bg-white/10, hover:bg-white/[0.08], hover:bg-white/[0.04] → visible */
+body.light-theme [class*="hover\\:bg-white"]:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* hover:shadow with white glow → real shadow */
+body.light-theme [class*="hover\\:shadow-\\[0_0"]:hover {
+  box-shadow: var(--card-shadow-hover) !important;
+}
+
+/* ── 19. EXPLORE PLATFORM BUTTON ─────────────────────────── */
+body.light-theme a[href="#courses"] {
+  border: 1px solid var(--border) !important;
+}
+
+body.light-theme a[href="#courses"]>span:last-child {
+  box-shadow: none !important;
+  color: var(--text-secondary) !important;
+}
+
+body.light-theme a[href="#courses"]:hover>span:last-child {
+  color: var(--text-primary) !important;
+}
+
+/* The spinning conic-gradient border — dim in light */
+body.light-theme a[href="#courses"]>span:first-child {
+  opacity: 0 !important;
+}
+
+/* ── 20. IMAGE CARD OVERLAYS ─────────────────────────────── */
+/* from-black/90 gradient overlays on image cards — softer in light */
+body.light-theme .group[class*="bg-neutral-900"]>div[class*="from-black"] {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.08), transparent) !important;
+}
+
+/* Image card borders */
+body.light-theme .group[class*="bg-neutral-900"][class*="rounded-xl"] {
+  border-color: var(--border) !important;
+}
+
+/* ── 21. IMAGE TAG BADGES ────────────────────────────────── */
+body.light-theme div[class*="bg-black\/50"] {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(8px);
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+
+/* ── 22. BOTTOM CTA "GET STARTED" BUTTON ─────────────────── */
+body.light-theme button[class*="bg-\\[#0A0A0A\\]"] {
+  background-color: var(--text-primary) !important;
+  color: #ffffff !important;
+  border-color: var(--text-primary) !important;
+}
+
+body.light-theme button[class*="bg-\\[#0A0A0A\\]"]:hover {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Bottom CTA green glow → subtle teal shadow */
+body.light-theme button[class*="shadow-\\[0_0_20px_rgba\\(34"] {
+  box-shadow: 0 4px 14px rgba(0, 208, 156, 0.25) !important;
+}
+
+body.light-theme button[class*="shadow-\\[0_0_20px_rgba\\(34"]:hover {
+  box-shadow: 0 8px 24px rgba(0, 208, 156, 0.35) !important;
+}
+
+/* Green underline glow span */
+body.light-theme span[class*="via-green-400"] {
+  opacity: 1 !important;
+}
+
+/* ── 23. DASHBOARD SHELL ─────────────────────────────────── */
+body.light-theme main[class*="bg-\\[#020806\\]"] {
+  background-color: var(--background) !important;
+  color: var(--text-primary) !important;
+}
+
+body.light-theme aside[class*="bg-\\[#05100c\\]"] {
+  background-color: var(--card) !important;
+  border-color: var(--border) !important;
+}
+
+body.light-theme aside[class*="bg-\\[#05100c\\]"] [class*="border-white"],
+body.light-theme aside[class*="bg-\\[#05100c\\]"] [class*="border-b"],
+body.light-theme aside[class*="bg-\\[#05100c\\]"] [class*="border-r"] {
+  border-color: var(--border) !important;
+}
+
+body.light-theme header[class*="bg-\\[#020806\\]"] {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-color: var(--border) !important;
+  backdrop-filter: blur(16px);
+}
+
+/* Dashboard sidebar nav links */
+body.light-theme aside nav a {
+  color: var(--text-secondary) !important;
+}
+
+body.light-theme aside nav a:hover {
+  background-color: var(--surface) !important;
+  color: var(--text-primary) !important;
+}
+
+body.light-theme aside nav a[class*="bg-green-500"] {
+  background-color: rgba(0, 208, 156, 0.12) !important;
+  color: var(--primary-active) !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 208, 156, 0.2);
+}
+
+/* Dashboard sidebar branding */
+body.light-theme aside .text-2xl {
+  color: var(--text-primary) !important;
+}
+
+/* Dashboard header text */
+body.light-theme header h1.text-2xl {
+  color: var(--text-primary) !important;
+}
+
+body.light-theme header p.text-sm {
+  color: var(--text-muted) !important;
+}
+
+/* Dashboard header buttons */
+body.light-theme header button[class*="bg-white"],
+body.light-theme header button[class*="border-white"] {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+}
+
+body.light-theme header button[class*="bg-white"]:hover,
+body.light-theme header button[class*="border-white"]:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Dashboard Visit Website button */
+body.light-theme header a[class*="bg-green-500"] {
+  color: var(--primary-active) !important;
+}
+
+body.light-theme header a[class*="bg-green-500"]:hover {
+  background-color: var(--primary) !important;
+  color: #000000 !important;
+}
+
+/* Dashboard sidebar premium card */
+body.light-theme aside [class*="border-green-500"][class*="bg-green-500"] {
+  background-color: rgba(0, 208, 156, 0.08) !important;
+  border-color: rgba(0, 208, 156, 0.25) !important;
+}
+
+body.light-theme aside [class*="bg-green-400"] {
+  background-color: var(--primary) !important;
+}
+
+/* Dashboard sidebar user avatar */
+body.light-theme aside span.bg-white {
+  background-color: var(--surface) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Dashboard notification badge */
+body.light-theme header span[class*="bg-green-400"] {
+  background-color: var(--primary) !important;
+}
+
+/* ── 24. QUOTE SECTION ───────────────────────────────────── */
+body.light-theme .quoteRevealSection [class*="ring-white"] {
+  --tw-ring-color: var(--border) !important;
+}
+
+/* Quote section background blur */
+body.light-theme .quoteRevealSection div[class*="bg-white"][class*="blur"] {
+  background-color: rgba(0, 208, 156, 0.06) !important;
+}
+
+/* ── 25. PRICING "GET STARTED" GHOST BUTTON ──────────────── */
+body.light-theme a[class*="bg-white"][class*="border-gradient"] {
+  background-color: var(--surface) !important;
+  color: var(--text-primary) !important;
+}
+
+body.light-theme a[class*="bg-white"][class*="border-gradient"]:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* ── 26. CTA BADGE ("Start growing your capital") ────────── */
+body.light-theme span[class*="bg-white"][class*="uppercase"] {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* ── 27. INLINE DATA ROWS (dashboard preview cards) ──────── */
+body.light-theme div[class*="bg-white"][class*="rounded-lg"][class*="border"] {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+/* ── 28. INFRASTRUCTURE CENTER ICON ──────────────────────── */
+body.light-theme span[class*="bg-neutral-900"][class*="ring-green"] {
+  background-color: var(--card) !important;
+  box-shadow: var(--card-shadow);
+}
+
+/* ── 29. VIEW ALL TRADES BUTTON HOVER ────────────────────── */
+body.light-theme a[class*="border-green"][class*="bg-green"]:hover {
+  background-color: var(--primary) !important;
+  color: #000000 !important;
+  border-color: var(--primary) !important;
+}
+
+/* ── 30. GREEN ACCENT COLORS — refined for light mode ────── */
+body.light-theme .text-green-300 {
+  color: var(--primary-active) !important;
+}
+
+body.light-theme .text-green-400 {
+  color: var(--primary-active) !important;
+}
+
+body.light-theme .bg-green-400 {
+  background-color: var(--primary) !important;
+}
+
+body.light-theme .bg-green-500 {
+  background-color: var(--primary) !important;
+}
+
+/* ── 31. GRADIENT LINE SEPARATOR ─────────────────────────── */
+body.light-theme div[class*="via-white\/10"] {
+  background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.08), transparent) !important;
+}
+
+/* ── 32. HOVER TRANSLATE FIX ─────────────────────────────── */
+body.light-theme a[class*="hover\\:-translate-y"]:hover {
+  box-shadow: var(--card-shadow-hover) !important;
+}
+
+/* ══════════════════════════════════════════════════════════ */
+
+/* ============================================================
+   PERFORMANCE
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

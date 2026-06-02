@@ -1,0 +1,434 @@
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+export declare class AdminService {
+    private prisma;
+    constructor(prisma: PrismaService);
+    getData(): Promise<{
+        stats: {
+            totalUsers: string;
+            activeUsers: string;
+            totalRevenue: string;
+            totalUserWalletBalance: string;
+        };
+        users: {
+            id: string;
+            name: string;
+            email: string;
+            deposit: string;
+            rawDeposit: number;
+            plan: string;
+            status: string;
+            partnerId: string;
+            partnerName: string;
+        }[];
+        payments: {
+            id: any;
+            user: any;
+            email: any;
+            initials: any;
+            plan: any;
+            amount: string;
+            rawAmount: number;
+            utr: any;
+            txnHash: any;
+            network: any;
+            screenshot: any;
+            date: any;
+            time: any;
+            dot: string;
+            status: string;
+            paymentType: any;
+            remark: any;
+        }[];
+        trades: {
+            id: any;
+            pair: any;
+            type: any;
+            entry: number;
+            exit: number;
+            stopLoss: number;
+            target: number;
+            profit: number;
+            pnl: number;
+            status: string;
+            userId: any;
+            userName: any;
+        }[];
+        logs: {
+            id: string;
+            actor: string;
+            action: string;
+            module: string;
+            targetId: string;
+            time: string;
+            status: string;
+            ipAddress: string;
+        }[];
+        partners: {
+            id: any;
+            rawId: any;
+            name: any;
+            companyName: any;
+            email: any;
+            profitShare: number;
+            maxAllowedShare: number;
+            domain: any;
+            logo: any;
+            usersCount: number;
+            revenue: number;
+            withdrawn: number;
+            status: string;
+        }[];
+        campaigns: {
+            id: string;
+            name: string;
+            trackingLink: string;
+            users: number;
+            revenue: string;
+            status: string;
+        }[];
+        referrals: {
+            id: string;
+            referrer: string;
+            user: string;
+            deposit: string;
+            reward: string;
+            status: string;
+        }[];
+        admins: {
+            id: string;
+            name: string;
+            email: string;
+            role: string;
+            status: string;
+            permissions: any;
+        }[];
+        transactions: {
+            id: any;
+            userId: any;
+            userName: any;
+            type: string;
+            amount: string;
+            rawAmount: number;
+            method: any;
+            status: string;
+            date: any;
+        }[];
+        settings: {
+            upiId: string;
+            usdt: {
+                network: string;
+                walletAddress: string;
+            };
+            financials: {
+                platformFee: number;
+                referralFee: number;
+            };
+            system: {
+                maintenanceMode: boolean;
+            };
+            paymentModes: {
+                upi: boolean;
+                bank: boolean;
+                usdt: boolean;
+            };
+        };
+        plans: {
+            id: any;
+            name: any;
+            subtitle: any;
+            capitalLabel: any;
+            desc: any;
+            features: any;
+            btnText: any;
+            status: any;
+            isPopular: any;
+        }[];
+    }>;
+    createUser(adminId: string, body: any, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        user?: undefined;
+    } | {
+        success: boolean;
+        user: any;
+        error?: undefined;
+        status?: undefined;
+    }>;
+    updateUser(adminId: string, userId: string, body: any, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        user?: undefined;
+    } | {
+        success: boolean;
+        user: {
+            id: string;
+            name: string;
+            email: string;
+            passwordHash: string;
+            status: import("@prisma/client").$Enums.UserStatus;
+            lastLoginAt: Date | null;
+            lastLoginIP: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            isDeleted: boolean;
+            autoTrading: boolean;
+            riskSetting: string;
+            partnerId: string;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    deleteUser(adminId: string, userId: string, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        message?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        error?: undefined;
+        status?: undefined;
+    }>;
+    createPartner(adminId: string, body: any, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        partner?: undefined;
+    } | {
+        success: boolean;
+        partner: {
+            id: string;
+            slug: string;
+            name: string;
+            companyName: string;
+            email: string;
+            passwordHash: string;
+            profitSharePct: Prisma.Decimal;
+            maxAllowedPct: Prisma.Decimal;
+            domain: string;
+            logo: string | null;
+            status: import("@prisma/client").$Enums.PartnerStatus;
+            lastLoginAt: Date | null;
+            lastLoginIP: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    createPlan(adminId: string, body: any, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        plan?: undefined;
+    } | {
+        success: boolean;
+        plan: {
+            id: string;
+            name: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            subtitle: string;
+            capitalLabel: string;
+            desc: string;
+            features: string[];
+            btnText: string;
+            isPopular: boolean;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    updatePlan(adminId: string, planId: string, body: any, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        plan?: undefined;
+    } | {
+        success: boolean;
+        plan: {
+            id: string;
+            name: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            subtitle: string;
+            capitalLabel: string;
+            desc: string;
+            features: string[];
+            btnText: string;
+            isPopular: boolean;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    deletePlan(adminId: string, planId: string, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        message?: undefined;
+    } | {
+        success: boolean;
+        message: string;
+        error?: undefined;
+        status?: undefined;
+    }>;
+    getSettings(): Promise<{
+        success: boolean;
+        settings: {
+            id: string;
+            updatedAt: Date;
+            partnerId: string | null;
+            upiId: string | null;
+            usdtAddress: string | null;
+            usdtNetwork: string;
+            referralFeePct: Prisma.Decimal;
+            platformFeePct: Prisma.Decimal;
+            maintenance: boolean;
+        } | null;
+    }>;
+    updateSettings(adminId: string, body: any, clientIp: string): Promise<{
+        success: boolean;
+        settings: {
+            id: string;
+            updatedAt: Date;
+            partnerId: string | null;
+            upiId: string | null;
+            usdtAddress: string | null;
+            usdtNetwork: string;
+            referralFeePct: Prisma.Decimal;
+            platformFeePct: Prisma.Decimal;
+            maintenance: boolean;
+        };
+    }>;
+    createTrade(adminId: string, body: any, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        trade?: undefined;
+    } | {
+        success: boolean;
+        trade: {
+            id: string;
+            status: import("@prisma/client").$Enums.TradeStatus;
+            createdAt: Date;
+            partnerId: string;
+            userId: string;
+            type: import("@prisma/client").$Enums.TradeType;
+            ledgerTransactionGroupId: string | null;
+            pair: string;
+            entryPrice: Prisma.Decimal;
+            currentPrice: Prisma.Decimal;
+            quantity: Prisma.Decimal;
+            exitPrice: Prisma.Decimal;
+            stopLoss: Prisma.Decimal;
+            target: Prisma.Decimal;
+            profit: Prisma.Decimal;
+            pnl: Prisma.Decimal;
+            closedAt: Date | null;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    closeTrade(adminId: string, tradeId: string, exitPrice: number | undefined, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+    } | {
+        success: boolean;
+        error?: undefined;
+        status?: undefined;
+    }>;
+    approvePayment(adminId: string, paymentId: string, clientIp: string): Promise<{
+        success: boolean;
+        payment: any;
+    }>;
+    rejectPayment(adminId: string, paymentId: string, remark: string, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        payment?: undefined;
+    } | {
+        success: boolean;
+        payment: {
+            id: string;
+            status: import("@prisma/client").$Enums.PaymentStatus;
+            createdAt: Date;
+            updatedAt: Date;
+            partnerId: string;
+            currency: string;
+            userId: string;
+            planName: string;
+            amount: Prisma.Decimal;
+            paymentType: import("@prisma/client").$Enums.PaymentType;
+            network: string | null;
+            txnHash: string | null;
+            utr: string | null;
+            screenshot: string | null;
+            remark: string | null;
+            ledgerTransactionGroupId: string | null;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    verifyPayment(adminId: string, paymentId: string, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        payment?: undefined;
+    } | {
+        success: boolean;
+        payment: {
+            id: string;
+            status: import("@prisma/client").$Enums.PaymentStatus;
+            createdAt: Date;
+            updatedAt: Date;
+            partnerId: string;
+            currency: string;
+            userId: string;
+            planName: string;
+            amount: Prisma.Decimal;
+            paymentType: import("@prisma/client").$Enums.PaymentType;
+            network: string | null;
+            txnHash: string | null;
+            utr: string | null;
+            screenshot: string | null;
+            remark: string | null;
+            ledgerTransactionGroupId: string | null;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    approveWithdrawal(adminId: string, withdrawalId: string, clientIp: string): Promise<{
+        success: boolean;
+        withdrawal: any;
+    }>;
+    rejectWithdrawal(adminId: string, withdrawalId: string, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        withdrawal?: undefined;
+    } | {
+        success: boolean;
+        withdrawal: {
+            id: string;
+            status: import("@prisma/client").$Enums.WithdrawalStatus;
+            createdAt: Date;
+            updatedAt: Date;
+            partnerId: string;
+            currency: string;
+            userId: string;
+            amount: Prisma.Decimal;
+            ledgerTransactionGroupId: string | null;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    reverseTransaction(adminId: string, transactionGroupId: string, reason: string, clientIp: string): Promise<{
+        success: boolean;
+        reversalGroup: any;
+    }>;
+}

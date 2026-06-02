@@ -1,0 +1,725 @@
+import { apiFetch } from "../lib/apiFetch";
+import { create } from "zustand";
+
+export const rolePermissions = {
+  SUPER_ADMIN: {
+    users: ["view", "create", "edit", "delete"],
+    payments: ["view", "edit"],
+    trades: ["view", "create", "edit", "delete"],
+    partners: ["view", "create", "edit", "delete"],
+    admins: ["view", "create", "edit", "delete"],
+    reports: ["view"],
+    settings: ["view", "edit"],
+    "activity-logs": ["view"],
+    "profit-distribution": ["view", "edit"],
+    "pnl-reports": ["view"],
+    notifications: ["view", "create", "edit", "delete"],
+    campaigns: ["view", "create", "edit", "delete"],
+    referrals: ["view", "create", "edit", "delete"],
+    otp: ["view", "generate", "approve"],
+    plans: ["view", "create", "edit", "delete"]
+  },
+  MANAGER: {
+    users: ["view", "create", "edit"],
+    payments: ["view", "edit"],
+    trades: ["view", "create", "edit"],
+    partners: ["view", "create"],
+    admins: ["view", "edit"],
+    reports: ["view"],
+    settings: ["view"],
+    "activity-logs": ["view"],
+    "profit-distribution": ["view"],
+    "pnl-reports": ["view"],
+    notifications: ["view", "create", "edit"],
+    campaigns: ["view", "create", "edit"],
+    referrals: ["view", "create", "edit"],
+    otp: ["view"],
+    plans: ["view", "edit"]
+  },
+  VIEWER: {
+    users: ["view"],
+    payments: ["view"],
+    trades: ["view"],
+    partners: ["view"],
+    admins: ["view"],
+    reports: ["view"],
+    settings: ["view"],
+    "activity-logs": ["view"],
+    "profit-distribution": ["view"],
+    "pnl-reports": ["view"],
+    notifications: ["view"],
+    campaigns: ["view"],
+    referrals: ["view"],
+    otp: ["view"],
+    plans: ["view"]
+  }
+};
+
+export const useAdminStore = create((set, get) => ({
+  // INITIAL STATE
+  users: [],
+  payments: [],
+  trades: [],
+  partners: [],
+  campaigns: [],
+  referrals: [],
+  admins: [],
+  logs: [],
+  transactions: [],
+  adjustments: [
+    { id: "adj-1", partnerId: "alpha-traders", partnerName: "AlphaTrade", type: "Bonus", amount: 1500, remark: "Performance milestone bonus", date: "May 25, 2026" },
+    { id: "adj-2", partnerId: "beta-markets", partnerName: "BetaMarkets", type: "Correction", amount: -250, remark: "Deduction for duplicate txn logging", date: "May 24, 2026" }
+  ],
+  notifications: [
+    { id: "notif-1", audience: "No Deposit Users", message: "Complete your first deposit", channel: "In-app", status: "Draft" },
+    { id: "notif-2", audience: "Expired Users", message: "Renew your plan today", channel: "Email", status: "Sent" },
+    { id: "notif-3", audience: "Active Users", message: "New trading update added", channel: "In-app", status: "Queued" }
+  ],
+  plans: [
+    { id: "1", name: "Club Plan", subtitle: "Micro Capital", capitalLabel: "$10 - $100", desc: "Ideal plan for new traders starting out with small test capital.", features: ["5% fee on profits", "Beginner-friendly setup", "24/7 automated execution", "Access to core automation"], btnText: "Get Started", status: "Active", isPopular: false },
+    { id: "2", name: "Individual Plan", subtitle: "Advanced / Full Access", capitalLabel: "$1000+", desc: "For advanced traders who require priority execution and higher capital limits.", features: ["Reduced profit fee (5% to 4%)", "Advanced trading access", "Priority low-latency execution API", "Enhanced performance tracking"], btnText: "Start Trading", status: "Active", isPopular: true },
+    { id: "3", name: "Custom Plan", subtitle: "Flexible / Tailored", capitalLabel: "Custom Pricing", desc: "Need a personalized setup? Get a custom trading plan based on your capital, execution preference, and performance goals.", features: ["Customized profit fee structure", "Dedicated execution optimization", "Priority execution & support", "Scalable capital management"], btnText: "Contact Us", status: "Active", isPopular: false }
+  ],
+  settings: {
+    upiId: "",
+    usdt: { network: "TRC20", walletAddress: "" },
+    financials: { platformFee: 30, referralFee: 10 },
+    system: { maintenanceMode: false },
+    paymentModes: { upi: false, bank: false, usdt: true }
+  },
+  wallet: null,
+  stats: {
+    totalProfit: 0,
+    realizedPnL: 0,
+    unrealizedPnL: 0,
+    winRate: 72.91,
+    activeTradesCount: 0
+  },
+  currentUser: null,
+  searchQuery: "",
+  setSearchQuery: (query) => set({ searchQuery: query }),
+
+  // OTP STATE & ACTIONS
+  otpRequests: [
+    {
+      id: "REQ1001",
+      userId: "2",
+      userName: "Rahul",
+      userEmail: "rahul@mail.com",
+      type: "Withdrawal",
+      amount: 15000,
+      status: "pending",
+      otpHash: null,
+      rawOtpForAdmin: null,
+      expiresAt: null,
+      isUsed: false,
+      riskFlag: "MEDIUM",
+      createdAt: Date.now() - 300000,
+      handledBy: null,
+      lastLogin: "May 28, 2026, 11:20 AM",
+      lastTx: "Withdrawal ₹5,000",
+      device: "Windows 11 Chrome"
+    },
+    {
+      id: "REQ1002",
+      userId: "1",
+      userName: "Harsh",
+      userEmail: "harsh@mail.com",
+      type: "Login",
+      amount: 0,
+      status: "pending",
+      otpHash: null,
+      rawOtpForAdmin: null,
+      expiresAt: null,
+      isUsed: false,
+      riskFlag: "LOW",
+      createdAt: Date.now() - 60000,
+      handledBy: null,
+      lastLogin: "May 28, 2026, 03:40 PM",
+      lastTx: "None",
+      device: "iPhone 15 Mobile"
+    }
+  ],
+  adminOtpCounts: {},
+
+  // SYNC ACTION (CONNECTS DATABASE)
+  fetchData: async () => {
+    try {
+      const meRes = await apiFetch("/api/auth/me");
+      if (!meRes.ok) {
+        set({ currentUser: null });
+        return;
+      }
+      const { user } = await meRes.json();
+      set({ currentUser: user });
+
+      if (user.role === "USER") {
+        const dashRes = await apiFetch("/api/dashboard/data");
+        if (dashRes.ok) {
+          const data = await dashRes.json();
+          set({
+            stats: data.stats,
+            wallet: data.wallet,
+            trades: data.trades,
+            payments: data.payments,
+            withdrawals: data.withdrawals,
+          });
+        }
+      } else {
+        const adminRes = await apiFetch("/api/admin/data");
+        if (adminRes.ok) {
+          const data = await adminRes.json();
+          set({
+            stats: data.stats,
+            users: data.users,
+            payments: data.payments,
+            trades: data.trades,
+            logs: data.logs,
+            partners: data.partners,
+            campaigns: data.campaigns,
+            referrals: data.referrals,
+            admins: data.admins,
+            transactions: data.transactions,
+            settings: data.settings,
+            plans: data.plans,
+          });
+        }
+      }
+    } catch (e) {
+      console.error("fetchData error:", e);
+    }
+  },
+
+  fetchPlans: async () => {
+    try {
+      const res = await apiFetch("/api/plans");
+      if (res.ok) {
+        const { plans } = await res.json();
+        set({ plans });
+      }
+    } catch (e) {
+      console.error("fetchPlans error:", e);
+    }
+  },
+
+  setCurrentUserRole: (role) =>
+    set((state) => ({
+      currentUser: state.currentUser ? { ...state.currentUser, role } : null
+    })),
+
+  hasPermission: (module, action) => {
+    const user = get().currentUser;
+    if (!user) return false;
+    return rolePermissions[user.role]?.[module]?.includes(action) || false;
+  },
+
+  // USERS CRUD VIA API
+  addUser: async (user) => {
+    try {
+      const res = await apiFetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: user.name,
+          email: user.email,
+          password: "password123", // default password
+          partnerId: user.partnerId || null,
+          plan: user.plan,
+          deposit: user.deposit,
+        }),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("addUser API error:", e);
+    }
+  },
+
+  editUser: async (id, updatedFields) => {
+    try {
+      const res = await apiFetch(`/api/admin/users/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedFields),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("editUser API error:", e);
+    }
+  },
+
+  deleteUser: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/users/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("deleteUser API error:", e);
+    }
+  },
+
+  blockUser: async (id) => {
+    try {
+      const targetUser = get().users.find((u) => u.id === id);
+      if (!targetUser) return;
+      const nextStatus = targetUser.status === "Blocked" ? "Active" : "Blocked";
+      await get().editUser(id, { status: nextStatus });
+    } catch (e) {
+      console.error("blockUser error:", e);
+    }
+  },
+
+  // PAYMENTS ACTIONS VIA API
+  verifyPayment: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/payments/${id}/verify`, { method: "POST" });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("verifyPayment API error:", e);
+    }
+  },
+
+  approvePayment: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/payments/${id}/approve`, { method: "POST" });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("approvePayment API error:", e);
+    }
+  },
+
+  rejectPayment: async (id, remark) => {
+    try {
+      const res = await apiFetch(`/api/admin/payments/${id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ remark }),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("rejectPayment API error:", e);
+    }
+  },
+
+  addPayment: async (payment) => {
+    try {
+      const cleanAmount = Number(String(payment.amount).replace(/[^\d.-]/g, ""));
+      const res = await apiFetch("/api/dashboard/deposit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planName: payment.plan,
+          amount: cleanAmount,
+          txnHash: payment.txnHash,
+          utr: payment.utr,
+          paymentType: payment.paymentType || "USDT",
+          network: payment.network || "TRC20",
+        }),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("addPayment API error:", e);
+    }
+  },
+
+  // SETTINGS VIA API
+  updateSettings: async (data) => {
+    try {
+      // Format to settings payload shape
+      const payload = {
+        upiId: data.upiId,
+        usdtAddress: data.usdt?.walletAddress,
+        usdtNetwork: data.usdt?.network,
+        platformFee: data.financials?.platformFee,
+        referralFee: data.financials?.referralFee,
+        maintenance: data.system?.maintenanceMode,
+      };
+      const res = await apiFetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("updateSettings API error:", e);
+    }
+  },
+
+  updateUserSettings: async (settings) => {
+    try {
+      const res = await apiFetch("/api/dashboard/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("updateUserSettings API error:", e);
+    }
+  },
+
+  createManualTrade: async (pair, type) => {
+    try {
+      const res = await apiFetch("/api/trade/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pair, type }),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("createManualTrade API error:", e);
+    }
+  },
+
+  closeManualTrade: async (tradeId) => {
+    try {
+      const res = await apiFetch("/api/trade/close", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tradeId }),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("closeManualTrade API error:", e);
+    }
+  },
+
+  // TRADES VIA API
+  addTrade: async (trade) => {
+    try {
+      const res = await apiFetch("/api/admin/trades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: trade.userId,
+          pair: trade.pair,
+          type: trade.type,
+          entry: Number(trade.entry),
+          stopLoss: Number(trade.stopLoss),
+          target: Number(trade.target),
+        }),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("addTrade API error:", e);
+    }
+  },
+
+  closeTrade: async (id, exitPrice) => {
+    try {
+      const res = await apiFetch(`/api/admin/trades/${id}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ exitPrice: Number(exitPrice) }),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("closeTrade API error:", e);
+    }
+  },
+
+  deleteTrade: (id) =>
+    set((state) => ({
+      trades: state.trades.filter((t) => t.id !== id)
+    })),
+
+  // PARTNERS CRUD VIA API
+  addPartner: async (partner) => {
+    try {
+      const res = await apiFetch("/api/admin/partners", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: partner.name,
+          companyName: partner.companyName,
+          email: partner.email,
+          password: "password123", // default password
+          profitShare: Number(partner.profitShare),
+          maxAllowedShare: Number(partner.maxAllowedShare),
+          domain: partner.domain,
+          logo: partner.logo,
+        }),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("addPartner API error:", e);
+    }
+  },
+
+  editPartner: (id, updated) => {
+    set((state) => ({
+      partners: state.partners.map((p) => (p.id === id ? { ...p, ...updated } : p))
+    }));
+  },
+
+  deletePartner: (id) => {
+    set((state) => ({
+      partners: state.partners.map((p) => (p.id === id ? { ...p, status: "Suspended" } : p))
+    }));
+  },
+
+  // WITHDRAWALS ACTIONS VIA API
+  approveWithdrawal: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/withdrawals/${id}/approve`, { method: "POST" });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("approveWithdrawal API error:", e);
+    }
+  },
+
+  rejectWithdrawal: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/withdrawals/${id}/reject`, { method: "POST" });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("rejectWithdrawal API error:", e);
+    }
+  },
+
+  reverseTransaction: async (id, reason) => {
+    try {
+      const res = await apiFetch(`/api/admin/transactions/${id}/reverse`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+      });
+      if (res.ok) {
+        await get().fetchData();
+        return { success: true };
+      } else {
+        const err = await res.json();
+        return { success: false, error: err.message };
+      }
+    } catch (e) {
+      console.error("reverseTransaction API error:", e);
+      return { success: false, error: "Network error occurred" };
+    }
+  },
+
+  // CLIENT SIDE MOCK CRUD FOR MINOR ITEMS
+  addNotification: (notification) =>
+    set((state) => ({
+      notifications: [
+        { id: `notif-${Date.now()}`, status: "Draft", ...notification },
+        ...state.notifications
+      ]
+    })),
+
+  editNotification: (id, updated) =>
+    set((state) => ({
+      notifications: state.notifications.map((n) => (n.id === id ? { ...n, ...updated } : n))
+    })),
+
+  deleteNotification: (id) =>
+    set((state) => ({
+      notifications: state.notifications.filter((n) => n.id !== id)
+    })),
+
+  addCampaign: (campaign) =>
+    set((state) => ({
+      campaigns: [
+        { id: `camp-${Date.now()}`, users: 0, revenue: "₹0", status: "Active", ...campaign },
+        ...state.campaigns
+      ]
+    })),
+
+  editCampaign: (id, updated) =>
+    set((state) => ({
+      campaigns: state.campaigns.map((c) => (c.id === id ? { ...c, ...updated } : c))
+    })),
+
+  deleteCampaign: (id) =>
+    set((state) => ({
+      campaigns: state.campaigns.filter((c) => c.id !== id)
+    })),
+
+  addReferral: (referral) =>
+    set((state) => ({
+      referrals: [
+        { id: `ref-${Date.now()}`, status: "Pending", ...referral },
+        ...state.referrals
+      ]
+    })),
+
+  editReferral: (id, updated) =>
+    set((state) => ({
+      referrals: state.referrals.map((r) => (r.id === id ? { ...r, ...updated } : r))
+    })),
+
+  deleteReferral: (id) =>
+    set((state) => ({
+      referrals: state.referrals.filter((r) => r.id !== id)
+    })),
+
+  addAdjustment: (adj) =>
+    set((state) => ({
+      adjustments: [
+        { id: `adj-${Date.now()}`, date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }), ...adj },
+        ...state.adjustments
+      ]
+    })),
+
+  deleteAdjustment: (id) =>
+    set((state) => ({
+      adjustments: state.adjustments.filter((a) => a.id !== id)
+    })),
+
+  addAdmin: (admin) =>
+    set((state) => ({
+      admins: [
+        { id: `admin-${Date.now()}`, status: "Active", permissions: { partners: ["view"], admins: [], reports: ["view"] }, ...admin },
+        ...state.admins
+      ]
+    })),
+
+  editAdmin: (id, updated) =>
+    set((state) => ({
+      admins: state.admins.map((a) => (a.id === id ? { ...a, ...updated } : a))
+    })),
+
+  deleteAdmin: (id) =>
+    set((state) => ({
+      admins: state.admins.map((a) => (a.id === id ? { ...a, status: "Inactive" } : a))
+    })),
+
+  addPlan: async (plan) => {
+    try {
+      const res = await apiFetch("/api/admin/plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(plan),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("addPlan API error:", e);
+    }
+  },
+
+  editPlan: async (id, updated) => {
+    try {
+      const res = await apiFetch(`/api/admin/plans/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated),
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("editPlan API error:", e);
+    }
+  },
+
+  deletePlan: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/plans/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        await get().fetchData();
+      }
+    } catch (e) {
+      console.error("deletePlan API error:", e);
+    }
+  },
+
+  distributeProfit: () => {},
+
+  createOtpRequest: (req) => {
+    const newReq = {
+      id: `REQ${Math.floor(1000 + Math.random() * 9000)}`,
+      status: "pending",
+      otpHash: null,
+      rawOtpForAdmin: null,
+      expiresAt: null,
+      isUsed: false,
+      riskFlag: "LOW",
+      createdAt: Date.now(),
+      handledBy: null,
+      lastLogin: "May 28, 2026, 03:40 PM",
+      lastTx: req.type?.toLowerCase() === "withdrawal" ? `Withdrawal ₹${req.amount.toLocaleString()}` : "None",
+      device: req.device || "Windows Chrome",
+      ...req
+    };
+    set((state) => ({ otpRequests: [...state.otpRequests, newReq] }));
+    return { success: true };
+  },
+
+  generateOverrideOtp: (id) => {
+    let success = false;
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const otpHash = btoa(String(otp));
+    const expiresAt = Date.now() + 120000;
+    set((state) => {
+      success = true;
+      return {
+        otpRequests: state.otpRequests.map(r => r.id === id ? { 
+          ...r, 
+          status: "generated", 
+          otpHash, 
+          rawOtpForAdmin: otp, 
+          expiresAt, 
+          isUsed: false,
+          handledBy: "Super Admin"
+        } : r)
+      };
+    });
+    return { success };
+  },
+
+  verifyOtpRequest: (id, enteredOtp) => {
+    let success = false;
+    set((state) => {
+      const req = state.otpRequests.find(r => r.id === id);
+      if (!req) return {};
+      const inputHash = btoa(String(enteredOtp));
+      if (inputHash === req.otpHash) {
+        success = true;
+        return {
+          otpRequests: state.otpRequests.map(r => r.id === id ? { ...r, status: "verified", isUsed: true } : r)
+        };
+      }
+      return {};
+    });
+    return { success };
+  },
+
+  rejectOtpRequest: (id) => set((state) => ({
+    otpRequests: state.otpRequests.map(r => r.id === id ? { ...r, status: "rejected" } : r)
+  })),
+}));

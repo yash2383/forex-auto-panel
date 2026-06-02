@@ -1,0 +1,85 @@
+export const partners = [
+  {
+    id: "alpha-traders",
+    logo: "AT",
+    name: "AlphaTrade",
+    email: "ops@alphatraders.com",
+    users: 1200,
+    revenue: "$50,000",
+    commission: "30%",
+    status: "Active",
+    domain: "alpha.com",
+    adminEarnings: "$15,000",
+    partnerEarnings: "$15,000",
+  },
+  {
+    id: "beta-markets",
+    logo: "BM",
+    name: "BetaMarkets",
+    email: "admin@betamarkets.com",
+    users: 800,
+    revenue: "$32,000",
+    commission: "25%",
+    status: "Active",
+    domain: "beta.com",
+    adminEarnings: "$9,600",
+    partnerEarnings: "$8,000",
+  },
+  {
+    id: "gamma-fx",
+    logo: "GF",
+    name: "GammaFX",
+    email: "hello@gammafx.com",
+    users: 600,
+    revenue: "$25,000",
+    commission: "20%",
+    status: "Active",
+    domain: "gamma.com",
+    adminEarnings: "$7,500",
+    partnerEarnings: "$5,000",
+  },
+  {
+    id: "delta-trade",
+    logo: "DT",
+    name: "DeltaTrade",
+    email: "ops@deltatrade.com",
+    users: 450,
+    revenue: "$18,000",
+    commission: "22%",
+    status: "Active",
+    domain: "delta.com",
+    adminEarnings: "$5,400",
+    partnerEarnings: "$3,960",
+  },
+  {
+    id: "zeta-invest",
+    logo: "ZI",
+    name: "ZetaInvest",
+    email: "hello@zetainvest.com",
+    users: 300,
+    revenue: "$12,000",
+    commission: "18%",
+    status: "Inactive",
+    domain: "zeta.com",
+    adminEarnings: "$3,600",
+    partnerEarnings: "$2,160",
+  },
+];
+
+export const partnerUsers = [
+  { user: "Harsh Mehta", plan: "Premium", payment: "Rs 10,000", date: "May 25, 2026" },
+  { user: "Rahul Sharma", plan: "Basic", payment: "Rs 4,900", date: "May 23, 2026" },
+  { user: "Amit Verma", plan: "Premium", payment: "Rs 25,000", date: "May 21, 2026" },
+];
+
+export const transactions = [
+  { amount: "Rs 10,000", adminCut: "Rs 3,000", wlCut: "Rs 3,000", date: "May 25, 2026" },
+  { amount: "Rs 4,900", adminCut: "Rs 1,470", wlCut: "Rs 1,470", date: "May 23, 2026" },
+  { amount: "Rs 25,000", adminCut: "Rs 7,500", wlCut: "Rs 7,500", date: "May 21, 2026" },
+];
+
+export const earningsSummary = [
+  { label: "Total Platform Revenue", value: "$137,000", sub: "Across 5 partners" },
+  { label: "Total WL Earnings", value: "$34,120", sub: "Partner share" },
+  { label: "Total Admin Earnings", value: "$41,100", sub: "Platform share" },
+];

@@ -8,6 +8,8 @@ import { AdminModule } from './admin/admin.module';
 import { ReportsModule } from './reports/reports.module';
 import { UserModule } from './user/user.module';
 import { WalletModule } from './wallet/wallet.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -21,5 +23,7 @@ import { WalletModule } from './wallet/wallet.module';
     UserModule,
     WalletModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}

@@ -431,15 +431,19 @@ model Campaign {
 }
 
 model SystemSettings {
-  id             String   @id @default(uuid())
-  partnerId      String?  @unique // Null for global settings, populated for tenant overrides
-  upiId          String?
-  usdtAddress    String?
-  usdtNetwork    String   @default("TRC20")
-  referralFeePct Decimal  @default(10.00) @db.Decimal(5, 2)
-  platformFeePct Decimal  @default(30.00) @db.Decimal(5, 2)
-  maintenance    Boolean  @default(false)
-  updatedAt      DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  partnerId           String?  @unique // Null for global settings, populated for tenant overrides
+  upiId               String?
+  usdtAddress         String?
+  usdtNetwork         String   @default("TRC20")
+  referralFeePct      Decimal  @default(10.00) @db.Decimal(5, 2)
+  platformFeePct      Decimal  @default(30.00) @db.Decimal(5, 2)
+  maintenance         Boolean  @default(false)
+  individualProfitPct Decimal  @default(5.00) @db.Decimal(5, 2)
+  clubProfitPct       Decimal  @default(7.00) @db.Decimal(5, 2)
+  enableBulkDist      Boolean  @default(true)
+  allowDuplicateDist  Boolean  @default(false)
+  updatedAt           DateTime @updatedAt
 }
 
 model Plan {
@@ -485,11 +489,26 @@ model ProfitDistribution {
   distributionDate DateTime
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  batchId          String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batch ProfitDistributionBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([reference])
+}
+
+model ProfitDistributionBatch {
+  id                  String               @id @default(cuid())
+  createdBy           String
+  totalProcessed      Int
+  successCount        Int
+  failedCount         Int
+  skippedCount        Int
+  totalAmount         Float
+  dryRun              Boolean
+  createdAt           DateTime             @default(now())
+  profitDistributions ProfitDistribution[]
 }
 
 model GeneratedReport {
@@ -505,3 +524,13 @@ model GeneratedReport {
   @@index([userId])
 }
 
+model Inquiry {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  status    String   @default("PENDING") // PENDING, RESPONDED, CLOSED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

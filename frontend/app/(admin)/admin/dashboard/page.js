@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { 
   ArrowRight, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, Eye, FileDown, 
   MessageSquare, MoreVertical, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2, X, AlertTriangle, User, Users,
-  DollarSign, Wallet, TrendingUp, UserCheck
+  DollarSign, Wallet, TrendingUp, UserCheck, CheckCircle
 } from "lucide-react";
 import Link from "next/link";
 import { useAdminStore } from "../../../../hooks/adminStore";
@@ -1153,6 +1153,39 @@ function AdminSectionPage({
   const [usdtEnabled, setUsdtEnabled] = useState(activeSettings.paymentModes.usdt);
   const [maintenanceMode, setMaintenanceMode] = useState(activeSettings.system.maintenanceMode);
 
+  const [individualProfitPct, setIndividualProfitPct] = useState(activeSettings.profitDist?.individualProfitPct ?? 5.00);
+  const [clubProfitPct, setClubProfitPct] = useState(activeSettings.profitDist?.clubProfitPct ?? 7.00);
+  const [enableBulkDist, setEnableBulkDist] = useState(activeSettings.profitDist?.enableBulkDist ?? true);
+  const [allowDuplicateDist, setAllowDuplicateDist] = useState(activeSettings.profitDist?.allowDuplicateDist ?? false);
+
+  const [bulkSummary, setBulkSummary] = useState(null);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
+  const handleBulkDistribute = async (dryRun = false) => {
+    if (!dryRun) {
+      if (!confirm("Are you sure you want to run the weekly profit distribution? This will write to the database and update user wallet balances.")) {
+        return;
+      }
+    }
+    
+    setIsBulkProcessing(true);
+    const requestId = dryRun ? null : `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const store = useAdminStore.getState();
+    const res = await store.bulkDistributeProfit(dryRun, requestId);
+    setIsBulkProcessing(false);
+    
+    if (res.success) {
+      setBulkSummary({
+        ...res.summary,
+        skippedCount: res.summary.skippedCount ?? res.summary.skipped ?? 0,
+        skipped: res.skipped,
+        dryRun
+      });
+    } else {
+      alert(`Error: ${res.error}`);
+    }
+  };
+
   const [refEnabled, setRefEnabled] = useState(activeReferralSettings?.enabled || false);
   const [refCommission, setRefCommission] = useState(activeReferralSettings?.commissionRate || 10);
   const [refMinDeposit, setRefMinDeposit] = useState(activeReferralSettings?.minimumDeposit || 1000);
@@ -1168,6 +1201,10 @@ function AdminSectionPage({
     setBankEnabled(activeSettings.paymentModes.bank);
     setUsdtEnabled(activeSettings.paymentModes.usdt);
     setMaintenanceMode(activeSettings.system.maintenanceMode);
+    setIndividualProfitPct(activeSettings.profitDist?.individualProfitPct ?? 5.00);
+    setClubProfitPct(activeSettings.profitDist?.clubProfitPct ?? 7.00);
+    setEnableBulkDist(activeSettings.profitDist?.enableBulkDist ?? true);
+    setAllowDuplicateDist(activeSettings.profitDist?.allowDuplicateDist ?? false);
   }, [activeSettings]);
 
   useEffect(() => {
@@ -1194,7 +1231,13 @@ function AdminSectionPage({
       paymentModes: { upi: false, bank: false, usdt: true },
       usdt: { network: usdtNetwork, walletAddress: usdtAddress },
       financials: { platformFee: Number(platformFee), referralFee: Number(referralFee) },
-      system: { maintenanceMode: maintenanceMode }
+      system: { maintenanceMode: maintenanceMode },
+      profitDist: {
+        individualProfitPct: Number(individualProfitPct),
+        clubProfitPct: Number(clubProfitPct),
+        enableBulkDist: enableBulkDist,
+        allowDuplicateDist: allowDuplicateDist,
+      }
     });
   };
 
@@ -1898,6 +1941,90 @@ function AdminSectionPage({
             </div>
           </section>
 
+          {/* Profit Distribution Settings */}
+          <section className={`${adminPanel} p-5`}>
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/[0.06] pb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-white">📈 Profit Distribution Configuration</h2>
+                <p className="mt-1 text-sm text-neutral-400">Configure weekly interest/profit percentages and distribution behaviors.</p>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold text-neutral-400">Individual Plan Weekly Profit (%)</span>
+                  <input 
+                    type="number" 
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={individualProfitPct} 
+                    disabled={!canEditSettings}
+                    onChange={(e) => setIndividualProfitPct(e.target.value)} 
+                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" 
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-xs font-semibold text-neutral-400">Club Plan Weekly Profit (%)</span>
+                  <input 
+                    type="number" 
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={clubProfitPct} 
+                    disabled={!canEditSettings}
+                    onChange={(e) => setClubProfitPct(e.target.value)} 
+                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" 
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <label className="flex items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.015] p-4 hover:bg-white/[0.03]">
+                  <div>
+                    <span className="block text-sm font-semibold text-neutral-300">Enable Bulk Distribution</span>
+                    <span className="text-xs text-neutral-500">Allow execution of bulk profit distributions</span>
+                  </div>
+                  <label className="relative inline-flex cursor-pointer items-center">
+                    <input type="checkbox" disabled={!canEditSettings} checked={enableBulkDist} onChange={(e) => setEnableBulkDist(e.target.checked)} className="peer sr-only" />
+                    <span className="h-6 w-11 rounded-full bg-neutral-700 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:bg-green-500 peer-checked:after:translate-x-5"></span>
+                  </label>
+                </label>
+
+                <label className="flex items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.015] p-4 hover:bg-white/[0.03]">
+                  <div>
+                    <span className="block text-sm font-semibold text-neutral-300">Allow Duplicate Weekly Payouts</span>
+                    <span className="text-xs text-neutral-500">Allow users to receive profit multiple times a week</span>
+                  </div>
+                  <label className="relative inline-flex cursor-pointer items-center">
+                    <input type="checkbox" disabled={!canEditSettings} checked={allowDuplicateDist} onChange={(e) => setAllowDuplicateDist(e.target.checked)} className="peer sr-only" />
+                    <span className="h-6 w-11 rounded-full bg-neutral-700 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition peer-checked:bg-green-500 peer-checked:after:translate-x-5"></span>
+                  </label>
+                </label>
+              </div>
+
+              {canEditSettings && (
+                <div className="flex flex-wrap gap-3 pt-2 border-t border-white/[0.05]">
+                  <button 
+                    type="button"
+                    onClick={() => handleBulkDistribute(true)}
+                    className="h-10 rounded-lg border border-blue-500/30 bg-blue-500/10 px-5 text-sm font-bold text-blue-300 hover:bg-blue-500/20 transition"
+                  >
+                    Preview Distribution (Dry Run)
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => handleBulkDistribute(false)}
+                    className="h-10 rounded-lg bg-green-500 px-5 text-sm font-bold text-black hover:bg-green-400 transition"
+                  >
+                    Run Distribution
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+
           {/* System Control */}
           <section className={`${adminPanel} p-5`}>
             <h2 className="text-lg font-semibold text-white mb-4">🔐 System Settings</h2>
@@ -1913,6 +2040,105 @@ function AdminSectionPage({
             </div>
           </section>
         </section>
+      )}
+
+      {/* Detailed Bulk Distribution Summary Modal */}
+      {bulkSummary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-white/[0.1] bg-[#0b141b] shadow-2xl overflow-hidden text-white flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-white/[0.05] p-5 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle className={`h-6 w-6 ${bulkSummary.dryRun ? "text-blue-400" : "text-green-400"}`} />
+                <h3 className="text-lg font-semibold">
+                  {bulkSummary.dryRun ? "Profit Distribution Preview (Dry Run)" : "Profit Distribution Complete"}
+                </h3>
+              </div>
+              <button onClick={() => setBulkSummary(null)} className="rounded-lg p-1.5 text-neutral-400 hover:bg-white/5 hover:text-white font-semibold">✕</button>
+            </div>
+            
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {/* Primary Stats Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 text-center">
+                  <p className="text-xs text-neutral-400 uppercase font-semibold">Total Evaluated</p>
+                  <p className="mt-2 text-2xl font-bold font-mono">{bulkSummary.totalProcessed}</p>
+                </div>
+                <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 text-center">
+                  <p className="text-xs text-neutral-400 uppercase font-semibold">{bulkSummary.dryRun ? "Eligible" : "Successful"}</p>
+                  <p className="mt-2 text-2xl font-bold font-mono text-green-400">{bulkSummary.dryRun ? bulkSummary.eligible : bulkSummary.success}</p>
+                </div>
+                <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 text-center">
+                  <p className="text-xs text-neutral-400 uppercase font-semibold">Skipped</p>
+                  <p className="mt-2 text-2xl font-bold font-mono text-yellow-300">{bulkSummary.skippedCount}</p>
+                </div>
+                <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 text-center">
+                  <p className="text-xs text-neutral-400 uppercase font-semibold">{bulkSummary.dryRun ? "Est. Payout" : "Total Payout"}</p>
+                  <p className="mt-2 text-xl font-bold font-mono text-green-300">
+                    ₹{(bulkSummary.dryRun ? bulkSummary.estimatedAmount : bulkSummary.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+
+              {!bulkSummary.dryRun && bulkSummary.batchId && (
+                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3.5 flex items-center justify-between text-sm">
+                  <span className="text-neutral-400">Created Batch ID:</span>
+                  <span className="font-mono font-bold text-green-300 select-all">{bulkSummary.batchId}</span>
+                </div>
+              )}
+
+              {/* Skipped Details Lists */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-green-300 border-b border-white/[0.05] pb-2">Skipped Users Breakdown</h4>
+                
+                <div className="space-y-3.5">
+                  {[
+                    { label: "Already Paid This Week", list: bulkSummary.skipped?.alreadyPaid, color: "text-yellow-300 bg-yellow-500/10 border-yellow-500/20" },
+                    { label: "No Plan / Invalid Subscription", list: bulkSummary.skipped?.invalidPlan, color: "text-neutral-400 bg-neutral-500/10 border-neutral-500/20" },
+                    { label: "Expired Subscriptions (>365 days)", list: bulkSummary.skipped?.expiredPlan, color: "text-red-400 bg-red-500/10 border-red-500/20" },
+                    { label: "Inactive / Suspended Accounts", list: bulkSummary.skipped?.inactiveUser, color: "text-red-300 bg-red-500/5 border-red-500/10" }
+                  ].map((category) => {
+                    const count = category.list?.length || 0;
+                    return (
+                      <div key={category.label} className="border border-white/[0.06] rounded-xl overflow-hidden bg-black/10">
+                        <div className="flex justify-between items-center p-3 bg-white/[0.02] border-b border-white/[0.04]">
+                          <span className="text-xs font-semibold text-neutral-300">{category.label}</span>
+                          <span className={`px-2 py-0.5 text-[10px] font-black rounded-full border ${category.color}`}>{count}</span>
+                        </div>
+                        {count > 0 ? (
+                          <div className="p-3 max-h-32 overflow-y-auto text-xs font-mono text-neutral-400 space-y-1 divide-y divide-white/5">
+                            {category.list.map((email) => (
+                              <div key={email} className="pt-1 first:pt-0">{email}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-3 text-xs text-neutral-500 italic">No users skipped in this category.</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            
+            <div className="border-t border-white/[0.05] p-5 bg-white/[0.01] shrink-0">
+              <button
+                onClick={() => setBulkSummary(null)}
+                className="w-full h-11 rounded-lg bg-green-500 text-sm font-bold text-black hover:bg-green-400 transition"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading state overlay */}
+      {isBulkProcessing && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md text-white">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-green-500 border-t-transparent mb-4"></div>
+          <p className="text-sm font-medium text-neutral-300">Processing bulk profit distribution...</p>
+          <p className="text-xs text-neutral-500 mt-2">Please do not refresh or close the browser.</p>
+        </div>
       )}
     </section>
   );

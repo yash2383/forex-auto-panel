@@ -193,6 +193,12 @@ let AdminService = class AdminService {
             financials: { platformFee: Number(dbSettings?.platformFeePct || 30), referralFee: Number(dbSettings?.referralFeePct || 10) },
             system: { maintenanceMode: dbSettings?.maintenance || false },
             paymentModes: { upi: !!dbSettings?.upiId, bank: false, usdt: dbSettings ? !!dbSettings.usdtAddress : true },
+            profitDist: {
+                individualProfitPct: Number(dbSettings?.individualProfitPct ?? 5.00),
+                clubProfitPct: Number(dbSettings?.clubProfitPct ?? 7.00),
+                enableBulkDist: dbSettings?.enableBulkDist ?? true,
+                allowDuplicateDist: dbSettings?.allowDuplicateDist ?? false,
+            },
         };
         const profitDistributions = dbProfitDistributions.map((pd) => ({
             id: pd.id,
@@ -419,7 +425,19 @@ let AdminService = class AdminService {
         return { success: true, settings };
     }
     async updateSettings(adminId, body, clientIp) {
-        const { upiId, usdtAddress, usdtNetwork, platformFee, referralFee, maintenance } = body;
+        const { upiId, usdtAddress, usdtNetwork, platformFee, referralFee, maintenance, individualProfitPct, clubProfitPct, enableBulkDist, allowDuplicateDist } = body;
+        if (individualProfitPct !== undefined) {
+            const indVal = Number(individualProfitPct);
+            if (isNaN(indVal) || indVal < 0 || indVal > 100) {
+                return { error: 'Individual Weekly Profit percentage must be between 0 and 100', status: 400 };
+            }
+        }
+        if (clubProfitPct !== undefined) {
+            const clubVal = Number(clubProfitPct);
+            if (isNaN(clubVal) || clubVal < 0 || clubVal > 100) {
+                return { error: 'Club Weekly Profit percentage must be between 0 and 100', status: 400 };
+            }
+        }
         const existing = await this.prisma.systemSettings.findFirst();
         let settings;
         if (existing) {
@@ -432,6 +450,10 @@ let AdminService = class AdminService {
                     platformFeePct: platformFee !== undefined ? Number(platformFee) : existing.platformFeePct,
                     referralFeePct: referralFee !== undefined ? Number(referralFee) : existing.referralFeePct,
                     maintenance: maintenance !== undefined ? Boolean(maintenance) : existing.maintenance,
+                    individualProfitPct: individualProfitPct !== undefined ? Number(individualProfitPct) : existing.individualProfitPct,
+                    clubProfitPct: clubProfitPct !== undefined ? Number(clubProfitPct) : existing.clubProfitPct,
+                    enableBulkDist: enableBulkDist !== undefined ? Boolean(enableBulkDist) : existing.enableBulkDist,
+                    allowDuplicateDist: allowDuplicateDist !== undefined ? Boolean(allowDuplicateDist) : existing.allowDuplicateDist,
                 },
             });
         }
@@ -442,6 +464,10 @@ let AdminService = class AdminService {
                     platformFeePct: platformFee !== undefined ? Number(platformFee) : 30.00,
                     referralFeePct: referralFee !== undefined ? Number(referralFee) : 10.00,
                     maintenance: maintenance !== undefined ? Boolean(maintenance) : false,
+                    individualProfitPct: individualProfitPct !== undefined ? Number(individualProfitPct) : 5.00,
+                    clubProfitPct: clubProfitPct !== undefined ? Number(clubProfitPct) : 7.00,
+                    enableBulkDist: enableBulkDist !== undefined ? Boolean(enableBulkDist) : true,
+                    allowDuplicateDist: allowDuplicateDist !== undefined ? Boolean(allowDuplicateDist) : false,
                 },
             });
         }
@@ -923,6 +949,237 @@ let AdminService = class AdminService {
         });
         return { success: true };
     }
+    isBulkDistributeRunning = false;
+    processedRequestIds = new Set();
+    async bulkDistributeProfit(adminId, clientIp, body) {
+        const dryRun = body.dryRun === true;
+        const requestId = body.requestId;
+        if (requestId) {
+            if (this.processedRequestIds.has(requestId)) {
+                return { error: 'This distribution request has already been executed.', status: 400 };
+            }
+        }
+        if (!dryRun) {
+            if (this.isBulkDistributeRunning) {
+                return { error: 'Bulk profit distribution is already in progress.', status: 409 };
+            }
+        }
+        const settings = await this.prisma.systemSettings.findFirst();
+        const enableBulkDist = settings?.enableBulkDist ?? true;
+        const allowDuplicateDist = settings?.allowDuplicateDist ?? false;
+        if (!enableBulkDist) {
+            return { error: 'Bulk profit distribution is currently disabled in system settings.', status: 400 };
+        }
+        const individualPercent = Number(settings?.individualProfitPct ?? 5.00);
+        const clubPercent = Number(settings?.clubProfitPct ?? 7.00);
+        const now = new Date();
+        const startOfWeek = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+        const day = startOfWeek.getUTCDay();
+        const diff = startOfWeek.getUTCDate() - day + (day === 0 ? -6 : 1);
+        startOfWeek.setUTCDate(diff);
+        startOfWeek.setUTCHours(0, 0, 0, 0);
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setUTCDate(endOfWeek.getUTCDate() + 7);
+        const paidUserIds = new Set();
+        if (!allowDuplicateDist) {
+            const weeklyDistributions = await this.prisma.profitDistribution.findMany({
+                where: {
+                    type: 'Weekly Profit',
+                    distributionDate: {
+                        gte: startOfWeek,
+                        lt: endOfWeek,
+                    },
+                },
+                select: { userId: true },
+            });
+            weeklyDistributions.forEach((d) => paidUserIds.add(d.userId));
+        }
+        const users = await this.prisma.user.findMany({
+            where: { isDeleted: false },
+            include: {
+                payments: {
+                    where: { status: 'APPROVED' },
+                    orderBy: { createdAt: 'desc' },
+                },
+            },
+        });
+        const eligiblePayouts = [];
+        const skipped = {
+            alreadyPaid: [],
+            expiredPlan: [],
+            invalidPlan: [],
+            inactiveUser: [],
+        };
+        for (const user of users) {
+            if (user.status !== 'ACTIVE' && user.status !== 'VIP') {
+                skipped.inactiveUser.push(user.email);
+                continue;
+            }
+            if (!allowDuplicateDist && paidUserIds.has(user.id)) {
+                skipped.alreadyPaid.push(user.email);
+                continue;
+            }
+            const approvedPayment = user.payments[0];
+            if (!approvedPayment) {
+                skipped.invalidPlan.push(user.email);
+                continue;
+            }
+            const approvedDate = new Date(approvedPayment.createdAt);
+            const expiresAt = new Date(approvedDate);
+            expiresAt.setDate(expiresAt.getDate() + 365);
+            if (now.getTime() > expiresAt.getTime()) {
+                skipped.expiredPlan.push(user.email);
+                continue;
+            }
+            let profitRate = 0;
+            const planName = approvedPayment.planName.toLowerCase();
+            if (planName.includes('individual')) {
+                profitRate = individualPercent;
+            }
+            else if (planName.includes('club')) {
+                profitRate = clubPercent;
+            }
+            else {
+                skipped.invalidPlan.push(user.email);
+                continue;
+            }
+            const investment = Number(approvedPayment.amount);
+            const profitAmount = Number(((investment * profitRate) / 100).toFixed(4));
+            eligiblePayouts.push({
+                user,
+                approvedPayment,
+                profitAmount,
+                investment,
+                planName: approvedPayment.planName,
+            });
+        }
+        const totalProcessed = users.length;
+        const successCount = eligiblePayouts.length;
+        const skippedCount = skipped.alreadyPaid.length + skipped.expiredPlan.length + skipped.invalidPlan.length + skipped.inactiveUser.length;
+        const totalAmount = eligiblePayouts.reduce((sum, p) => sum + p.profitAmount, 0);
+        if (dryRun) {
+            return {
+                success: true,
+                summary: {
+                    totalProcessed,
+                    eligible: successCount,
+                    estimatedAmount: Number(totalAmount.toFixed(2)),
+                    successCount,
+                    failedCount: 0,
+                    skippedCount,
+                },
+                skipped,
+            };
+        }
+        if (successCount === 0) {
+            if (requestId)
+                this.processedRequestIds.add(requestId);
+            return {
+                success: true,
+                summary: {
+                    totalProcessed,
+                    success: 0,
+                    failed: 0,
+                    skipped: skippedCount,
+                    totalAmount: 0,
+                },
+                skipped,
+            };
+        }
+        this.isBulkDistributeRunning = true;
+        try {
+            const result = await this.prisma.$transaction(async (tx) => {
+                const batch = await tx.profitDistributionBatch.create({
+                    data: {
+                        createdBy: adminId,
+                        totalProcessed,
+                        successCount,
+                        failedCount: 0,
+                        skippedCount,
+                        totalAmount,
+                        dryRun: false,
+                    },
+                });
+                const datePrefix = `PD-${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}${String(now.getUTCDate()).padStart(2, '0')}`;
+                let idx = 1;
+                for (const payout of eligiblePayouts) {
+                    const seqStr = String(idx++).padStart(3, '0');
+                    const reference = `${datePrefix}-${batch.id.slice(-6).toUpperCase()}-${seqStr}`;
+                    await tx.profitDistribution.create({
+                        data: {
+                            reference,
+                            userId: payout.user.id,
+                            amount: payout.profitAmount,
+                            type: 'Weekly Profit',
+                            status: 'PAID',
+                            note: `Bulk weekly profit distribution | Batch: ${batch.id}`,
+                            distributionDate: now,
+                            batchId: batch.id,
+                        },
+                    });
+                    await (0, ledger_util_1.createTransactionGroup)(tx, {
+                        type: 'TRADE_PROFIT',
+                        description: `Weekly Profit payout | Ref: ${reference}`,
+                        idempotencyKey: `PROFIT_DIST_${reference}`,
+                        entries: [
+                            { accountType: 'SYSTEM', entryType: 'DEBIT', amount: payout.profitAmount, currency: 'INR' },
+                            { userId: payout.user.id, partnerId: payout.user.partnerId, accountType: 'USER', entryType: 'CREDIT', amount: payout.profitAmount, currency: 'INR' },
+                        ],
+                    });
+                }
+                const auditLogDetails = {
+                    event: 'PROFIT_DIST_BULK',
+                    performedBy: adminId,
+                    batchId: batch.id,
+                    totalUsers: totalProcessed,
+                    success: successCount,
+                    skipped: skippedCount,
+                    totalAmount,
+                    timestamp: now.toISOString(),
+                };
+                await tx.securityEvent.create({
+                    data: {
+                        adminId,
+                        action: 'PROFIT_DIST_BULK',
+                        reason: JSON.stringify(auditLogDetails),
+                        ipAddress: clientIp,
+                    },
+                });
+                return batch;
+            });
+            this.isBulkDistributeRunning = false;
+            if (requestId)
+                this.processedRequestIds.add(requestId);
+            return {
+                success: true,
+                summary: {
+                    totalProcessed,
+                    success: successCount,
+                    failed: 0,
+                    skipped: skippedCount,
+                    totalAmount: Number(totalAmount.toFixed(2)),
+                    batchId: result.id,
+                },
+                skipped,
+            };
+        }
+        catch (error) {
+            this.isBulkDistributeRunning = false;
+            console.error('Bulk profit distribution execution error:', error);
+            return {
+                success: false,
+                error: error.message || 'Database transaction error occurred',
+                summary: {
+                    totalProcessed,
+                    success: 0,
+                    failed: successCount,
+                    skipped: skippedCount,
+                    totalAmount: 0,
+                },
+                skipped,
+            };
+        }
+    }
     async getUserDetail(adminId, userId) {
         const user = await this.prisma.user.findUnique({
             where: { id: userId, isDeleted: false },
@@ -1168,6 +1425,26 @@ let AdminService = class AdminService {
             monthlyPnl,
             rows
         };
+    }
+    async getInquiries() {
+        return this.prisma.inquiry.findMany({
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+    async updateInquiryStatus(id, status) {
+        if (!['PENDING', 'RESPONDED', 'CLOSED'].includes(status)) {
+            return { error: 'Invalid status value', status: 400 };
+        }
+        const inquiry = await this.prisma.inquiry.findUnique({
+            where: { id },
+        });
+        if (!inquiry) {
+            return { error: 'Inquiry not found', status: 404 };
+        }
+        return this.prisma.inquiry.update({
+            where: { id },
+            data: { status },
+        });
     }
 };
 exports.AdminService = AdminService;

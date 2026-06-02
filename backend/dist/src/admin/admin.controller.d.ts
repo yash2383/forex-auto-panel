@@ -38,7 +38,12 @@ export declare class AdminController {
     reverseTransaction(id: string, req: Request, body: {
         reason: string;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
+    bulkDistributeProfit(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     createProfitDistribution(body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     updateProfitDistribution(id: string, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     deleteProfitDistribution(id: string, res: Response): Promise<Response<any, Record<string, any>>>;
+    getInquiries(res: Response): Promise<Response<any, Record<string, any>>>;
+    updateInquiryStatus(id: string, body: {
+        status: string;
+    }, res: Response): Promise<Response<any, Record<string, any>>>;
 }

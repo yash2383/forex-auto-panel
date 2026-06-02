@@ -884,14 +884,117 @@ export default function Home() {
                 <span className="text-green-300">Live</span>
               </div>
             </div>
-
           </div>
         </div>
       </section>
 
+      <section id="white-label" className="py-24 border-t border-white/5 bg-neutral-900/30">
+        <div className="sm:px-6 lg:px-8 max-w-7xl mx-auto px-4">
+          
+          {/* Partnerships Badge */}
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex gap-2 text-xs font-semibold text-green-300 bg-green-500/10 border border-green-500/20 rounded-full px-4 py-1.5 backdrop-blur-sm items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-400 mr-0.5"><path d="m11 17 2 2a1 1 0 0 0 1.4 0l4-4a1 1 0 0 0 0-1.4l-2-2"/><path d="m13 11-2-2a1 1 0 0 0-1.4 0l-4 4a1 1 0 0 0 0 1.4l2 2"/><path d="m15 9-3-3a2 2 0 0 0-2.8 0L5 10.2a2 2 0 0 0 0 2.8l3 3"/></svg>
+              Partnerships
+            </div>
+          </div>
 
+          {/* Heading & Subtitle */}
+          <div className="mx-auto max-w-4xl text-center animate-on-scroll">
+            <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight text-white font-geist">
+              White Label <span className="text-green-400">Solutions</span>
+            </h2>
+            <div className="w-16 h-0.5 bg-green-500 mx-auto mt-4"></div>
+            <p className="mt-6 text-base text-neutral-400 max-w-3xl mx-auto font-geist leading-relaxed">
+              Launch your own branded trading platform with our White Label solution.
+              Customize the platform with your logo, domain, branding, and business
+              requirements while leveraging our secure and scalable trading infrastructure.
+            </p>
+          </div>
 
+          {/* 5 Column Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mt-16 max-w-7xl mx-auto animate-on-scroll">
+            {[
+              {
+                title: "Custom Branding",
+                desc: "Fully customize the platform with your logo, themes, and personalized styling.",
+                icon: (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/><path d="m15 5 3 3"/></svg>
+                )
+              },
+              {
+                title: "Dedicated Domain",
+                desc: "Use your own custom domain to establish your brand identity.",
+                icon: (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                )
+              },
+              {
+                title: "Secure Infrastructure",
+                desc: "Leverage our robust and secure trading infrastructure built for high performance.",
+                icon: (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 9.7a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 .76-.97l8-2a1 1 0 0 1 .48 0l8 2A1 1 0 0 1 20 6Z"/><path d="m9 12 2 2 4-4"/></svg>
+                )
+              },
+              {
+                title: "User & Fund Management",
+                desc: "Complete control over users, roles, permissions and fund management.",
+                icon: (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                )
+              },
+              {
+                title: "Technical Support",
+                desc: "24/7 dedicated developers and operations support to grow with your business.",
+                icon: (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3ZM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3Z"/></svg>
+                )
+              }
+            ].map((feature, idx) => (
+              <div
+                key={idx}
+                className="group border border-white/5 border-b-2 border-b-green-500/40 hover:border-b-green-400 relative rounded-2xl bg-neutral-900/40 p-6 pt-8 pb-8 hover:bg-neutral-900/60 transition-all duration-300 flex flex-col justify-between shadow-[0_0_20px_rgba(255,255,255,0.02)] hover:shadow-[0_0_30px_rgba(34,197,94,0.05)] text-center"
+              >
+                <div>
+                  <div className="w-12 h-12 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center mx-auto mb-4 text-green-400 group-hover:scale-110 transition-transform duration-300">
+                    {feature.icon}
+                  </div>
+                  <h4 className="text-sm font-semibold text-white tracking-tight">
+                    {feature.title}
+                  </h4>
+                  <div className="w-8 h-px bg-green-500/30 mx-auto my-3 group-hover:w-12 transition-all duration-300"></div>
+                  <p className="text-[11px] text-neutral-400 leading-relaxed font-normal">
+                    {feature.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
 
+          {/* Banner CTA */}
+          <div className="mt-16 max-w-5xl mx-auto px-4 animate-on-scroll">
+            <div className="bg-[#0A0A0A]/80 border border-white/[0.06] rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_30px_rgba(34,197,94,0.05)]">
+              <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                <div className="w-14 h-14 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400 flex-shrink-0 animate-bounce-slow">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-400"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-white">Ready to build your brand?</h4>
+                  <p className="text-sm text-neutral-400 mt-1">Let's create a powerful trading platform under your brand.</p>
+                </div>
+              </div>
+              <a
+                href="/contact"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 hover:bg-green-500 text-white font-semibold px-8 py-3.5 transition-all active:scale-95 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] flex-shrink-0"
+              >
+                Contact Us
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="ml-1"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </section>
 
       <section className="relative z-10 max-w-7xl mx-auto px-6 pb-20 quoteRevealSection animate-on-scroll"
         style={{ "--reveal": "100%" }}>

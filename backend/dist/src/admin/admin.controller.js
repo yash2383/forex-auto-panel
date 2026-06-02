@@ -378,6 +378,20 @@ let AdminController = class AdminController {
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
         }
     }
+    async bulkDistributeProfit(req, body, res) {
+        try {
+            const user = req.user;
+            const result = await this.adminService.bulkDistributeProfit(user.id, this.getClientIp(req), body);
+            if (!result.success) {
+                return res.status(result.status || 400).json({ message: result.error });
+            }
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Bulk profit distribution error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
     async createProfitDistribution(body, res) {
         try {
             const result = await this.adminService.createProfitDistribution(body);
@@ -409,6 +423,28 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Delete profit distribution error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async getInquiries(res) {
+        try {
+            const result = await this.adminService.getInquiries();
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Get inquiries error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async updateInquiryStatus(id, body, res) {
+        try {
+            const result = await this.adminService.updateInquiryStatus(id, body.status);
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Update inquiry status error:', error);
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
@@ -703,6 +739,16 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "reverseTransaction", null);
 __decorate([
+    (0, common_1.Post)('profit-distributions/bulk'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "bulkDistributeProfit", null);
+__decorate([
     (0, common_1.Post)('profit-distributions'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
     __param(0, (0, common_1.Body)()),
@@ -730,6 +776,24 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "deleteProfitDistribution", null);
+__decorate([
+    (0, common_1.Get)('inquiries'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getInquiries", null);
+__decorate([
+    (0, common_1.Patch)('inquiries/:id/status'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "updateInquiryStatus", null);
 exports.AdminController = AdminController = __decorate([
     (0, common_1.Controller)('admin'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

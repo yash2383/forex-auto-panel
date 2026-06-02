@@ -358,6 +358,7 @@ export default function AdminShell({ children }) {
                   item.href.includes("profit-distribution") ? "profit-distribution" : 
                   item.href.includes("white-label") ? "partners" : 
                   item.href.includes("withdrawals") ? "payments" : 
+                  item.href.includes("inquiries") ? "inquiries" : 
                   "dashboard"
                 );
                 if (permissionKey === "transactions") permissionKey = "payments";

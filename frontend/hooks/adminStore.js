@@ -17,7 +17,8 @@ export const rolePermissions = {
     campaigns: ["view", "create", "edit", "delete"],
     referrals: ["view", "create", "edit", "delete"],
     otp: ["view", "generate", "approve"],
-    plans: ["view", "create", "edit", "delete"]
+    plans: ["view", "create", "edit", "delete"],
+    inquiries: ["view", "edit"]
   },
   MANAGER: {
     users: ["view", "create", "edit"],
@@ -34,7 +35,8 @@ export const rolePermissions = {
     campaigns: ["view", "create", "edit"],
     referrals: ["view", "create", "edit"],
     otp: ["view"],
-    plans: ["view", "edit"]
+    plans: ["view", "edit"],
+    inquiries: ["view", "edit"]
   },
   VIEWER: {
     users: ["view"],
@@ -51,7 +53,8 @@ export const rolePermissions = {
     campaigns: ["view"],
     referrals: ["view"],
     otp: ["view"],
-    plans: ["view"]
+    plans: ["view"],
+    inquiries: ["view"]
   }
 };
 
@@ -376,6 +379,10 @@ export const useAdminStore = create((set, get) => ({
         platformFee: data.financials?.platformFee,
         referralFee: data.financials?.referralFee,
         maintenance: data.system?.maintenanceMode,
+        individualProfitPct: data.profitDist?.individualProfitPct,
+        clubProfitPct: data.profitDist?.clubProfitPct,
+        enableBulkDist: data.profitDist?.enableBulkDist,
+        allowDuplicateDist: data.profitDist?.allowDuplicateDist,
       };
       const res = await apiFetch("/api/admin/settings", {
         method: "POST",
@@ -823,6 +830,28 @@ export const useAdminStore = create((set, get) => ({
       }
     } catch (e) {
       console.error("deleteProfitDistribution API error:", e);
+    }
+  },
+
+  bulkDistributeProfit: async (dryRun = false, requestId = null) => {
+    try {
+      const res = await apiFetch("/api/admin/profit-distributions/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun, requestId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (!dryRun) {
+          await get().fetchData();
+        }
+        return { success: true, summary: data.summary, skipped: data.skipped };
+      } else {
+        return { success: false, error: data.message || data.error || "Failed to execute bulk profit distribution" };
+      }
+    } catch (e) {
+      console.error("bulkDistributeProfit error:", e);
+      return { success: false, error: "Network error occurred. Please try again." };
     }
   },
 

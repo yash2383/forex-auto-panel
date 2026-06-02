@@ -430,6 +430,22 @@ export class AdminController {
 
   // --- Profit Distributions ---
 
+  @Post('profit-distributions/bulk')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async bulkDistributeProfit(@Req() req: Request, @Body() body: any, @Res() res: Response) {
+    try {
+      const user = (req as any).user;
+      const result = await this.adminService.bulkDistributeProfit(user.id, this.getClientIp(req), body);
+      if (!result.success) {
+        return res.status(result.status || 400).json({ message: result.error });
+      }
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Bulk profit distribution error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
   @Post('profit-distributions')
   @Roles('SUPER_ADMIN', 'MANAGER')
   async createProfitDistribution(@Body() body: any, @Res() res: Response) {
@@ -464,6 +480,31 @@ export class AdminController {
       return res.json(result);
     } catch (error: any) {
       console.error('Delete profit distribution error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Get('inquiries')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getInquiries(@Res() res: Response) {
+    try {
+      const result = await this.adminService.getInquiries();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Get inquiries error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Patch('inquiries/:id/status')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async updateInquiryStatus(@Param('id') id: string, @Body() body: { status: string }, @Res() res: Response) {
+    try {
+      const result = await this.adminService.updateInquiryStatus(id, body.status);
+      if ('error' in result) return res.status((result as any).status || 400).json({ message: (result as any).error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Update inquiry status error:', error);
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }

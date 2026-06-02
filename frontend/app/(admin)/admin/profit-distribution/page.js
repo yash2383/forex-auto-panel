@@ -24,7 +24,35 @@ export default function ProfitDistributionPage() {
   const addProfitDistribution = useAdminStore((s) => s.addProfitDistribution);
   const editProfitDistribution = useAdminStore((s) => s.editProfitDistribution);
   const deleteProfitDistribution = useAdminStore((s) => s.deleteProfitDistribution);
+  const bulkDistributeProfit = useAdminStore((s) => s.bulkDistributeProfit);
   const hasPermission = useAdminStore((s) => s.hasPermission);
+
+  const [bulkSummary, setBulkSummary] = useState(null);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
+  const handleBulkDistribute = async (dryRun = false) => {
+    if (!dryRun) {
+      if (!confirm("Are you sure you want to run the weekly profit distribution? This will write to the database and update user wallet balances.")) {
+        return;
+      }
+    }
+    
+    setIsBulkProcessing(true);
+    const requestId = dryRun ? null : `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const res = await bulkDistributeProfit(dryRun, requestId);
+    setIsBulkProcessing(false);
+    
+    if (res.success) {
+      setBulkSummary({
+        ...res.summary,
+        skippedCount: res.summary.skippedCount ?? res.summary.skipped ?? 0,
+        skipped: res.skipped,
+        dryRun
+      });
+    } else {
+      alert(`Error: ${res.error}`);
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -188,13 +216,29 @@ export default function ProfitDistributionPage() {
             </p>
           </div>
           {canEdit && (
-            <button
-              onClick={handleOpenAddModal}
-              className="inline-flex h-11 items-center gap-2 rounded-lg bg-green-500 px-5 text-sm font-bold text-black hover:bg-green-400 transition"
-            >
-              <Plus className="h-4 w-4" />
-              Add Distribution
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => handleBulkDistribute(true)}
+                className="inline-flex h-11 items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 text-sm font-bold text-blue-300 hover:bg-blue-500/20 transition"
+              >
+                Preview Distribution (Dry Run)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleBulkDistribute(false)}
+                className="inline-flex h-11 items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-4 text-sm font-bold text-green-300 hover:bg-green-500/20 transition"
+              >
+                Run Distribution
+              </button>
+              <button
+                onClick={handleOpenAddModal}
+                className="inline-flex h-11 items-center gap-2 rounded-lg bg-green-500 px-4 text-sm font-bold text-black hover:bg-green-400 transition"
+              >
+                <Plus className="h-4 w-4" />
+                Add Distribution
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -534,6 +578,105 @@ export default function ProfitDistributionPage() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Detailed Bulk Distribution Summary Modal */}
+      {bulkSummary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 text-white">
+          <div className="w-full max-w-2xl rounded-2xl border border-white/[0.1] bg-[#0b141b] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-white/[0.05] p-5 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle className={`h-6 w-6 ${bulkSummary.dryRun ? "text-blue-400" : "text-green-400"}`} />
+                <h3 className="text-lg font-semibold">
+                  {bulkSummary.dryRun ? "Profit Distribution Preview (Dry Run)" : "Profit Distribution Complete"}
+                </h3>
+              </div>
+              <button onClick={() => setBulkSummary(null)} className="rounded-lg p-1.5 text-neutral-400 hover:bg-white/5 hover:text-white font-semibold">✕</button>
+            </div>
+            
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {/* Primary Stats Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 text-center">
+                  <p className="text-xs text-neutral-400 uppercase font-semibold">Total Evaluated</p>
+                  <p className="mt-2 text-2xl font-bold font-mono">{bulkSummary.totalProcessed}</p>
+                </div>
+                <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 text-center">
+                  <p className="text-xs text-neutral-400 uppercase font-semibold">{bulkSummary.dryRun ? "Eligible" : "Successful"}</p>
+                  <p className="mt-2 text-2xl font-bold font-mono text-green-400">{bulkSummary.dryRun ? bulkSummary.eligible : bulkSummary.success}</p>
+                </div>
+                <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 text-center">
+                  <p className="text-xs text-neutral-400 uppercase font-semibold">Skipped</p>
+                  <p className="mt-2 text-2xl font-bold font-mono text-yellow-300">{bulkSummary.skippedCount}</p>
+                </div>
+                <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 text-center">
+                  <p className="text-xs text-neutral-400 uppercase font-semibold">{bulkSummary.dryRun ? "Est. Payout" : "Total Payout"}</p>
+                  <p className="mt-2 text-xl font-bold font-mono text-green-300">
+                    ₹{(bulkSummary.dryRun ? bulkSummary.estimatedAmount : bulkSummary.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+
+              {!bulkSummary.dryRun && bulkSummary.batchId && (
+                <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3.5 flex items-center justify-between text-sm">
+                  <span className="text-neutral-400">Created Batch ID:</span>
+                  <span className="font-mono font-bold text-green-300 select-all">{bulkSummary.batchId}</span>
+                </div>
+              )}
+
+              {/* Skipped Details Lists */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-green-300 border-b border-white/[0.05] pb-2">Skipped Users Breakdown</h4>
+                
+                <div className="space-y-3.5">
+                  {[
+                    { label: "Already Paid This Week", list: bulkSummary.skipped?.alreadyPaid, color: "text-yellow-300 bg-yellow-500/10 border-yellow-500/20" },
+                    { label: "No Plan / Invalid Subscription", list: bulkSummary.skipped?.invalidPlan, color: "text-neutral-400 bg-neutral-500/10 border-neutral-500/20" },
+                    { label: "Expired Subscriptions (>365 days)", list: bulkSummary.skipped?.expiredPlan, color: "text-red-400 bg-red-500/10 border-red-500/20" },
+                    { label: "Inactive / Suspended Accounts", list: bulkSummary.skipped?.inactiveUser, color: "text-red-300 bg-red-500/5 border-red-500/10" }
+                  ].map((category) => {
+                    const count = category.list?.length || 0;
+                    return (
+                      <div key={category.label} className="border border-white/[0.06] rounded-xl overflow-hidden bg-black/10 text-left">
+                        <div className="flex justify-between items-center p-3 bg-white/[0.02] border-b border-white/[0.04]">
+                          <span className="text-xs font-semibold text-neutral-300">{category.label}</span>
+                          <span className={`px-2 py-0.5 text-[10px] font-black rounded-full border ${category.color}`}>{count}</span>
+                        </div>
+                        {count > 0 ? (
+                          <div className="p-3 max-h-32 overflow-y-auto text-xs font-mono text-neutral-400 space-y-1 divide-y divide-white/5">
+                            {category.list.map((email) => (
+                              <div key={email} className="pt-1 first:pt-0">{email}</div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-3 text-xs text-neutral-500 italic">No users skipped in this category.</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            
+            <div className="border-t border-white/[0.05] p-5 bg-white/[0.01] shrink-0">
+              <button
+                onClick={() => setBulkSummary(null)}
+                className="w-full h-11 rounded-lg bg-green-500 text-sm font-bold text-black hover:bg-green-400 transition animate-pulse"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading state overlay */}
+      {isBulkProcessing && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md text-white">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-green-500 border-t-transparent mb-4"></div>
+          <p className="text-sm font-medium text-neutral-300">Processing bulk profit distribution...</p>
+          <p className="text-xs text-neutral-500 mt-2">Please do not refresh or close the browser.</p>
         </div>
       )}
     </div>

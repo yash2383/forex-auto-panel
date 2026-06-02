@@ -3,4 +3,19 @@ export declare class AppController {
     private readonly appService;
     constructor(appService: AppService);
     getHello(): string;
+    submitInquiry(body: {
+        name: string;
+        email: string;
+        subject: string;
+        message: string;
+    }): Promise<{
+        id: string;
+        name: string;
+        email: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+        subject: string;
+        message: string;
+    }>;
 }

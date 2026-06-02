@@ -40,6 +40,7 @@ export const adminNavGroups = [
       { icon: Bell, label: "Notifications", href: "/admin/dashboard?section=notifications", badge: "18" },
       { icon: Megaphone, label: "Campaigns", href: "/admin/dashboard?section=campaigns" },
       { icon: PieChart, label: "Referrals", href: "/admin/dashboard?section=referrals" },
+      { icon: ClipboardList, label: "Inquiries", href: "/admin/inquiries" },
     ],
   },
   {
@@ -119,6 +120,13 @@ export const adminPermissionMatrix = {
     permissions: { view: "Yes", add: "Auto", edit: "Settings only", delete: "No" },
     actions: ["Change referral percentage", "View referral logs", "Audit payouts"],
     safety: "Referral records are generated automatically.",
+  },
+  inquiries: {
+    module: "Inquiries",
+    scope: "Manage user inquiries, contact form entries and update status.",
+    permissions: { view: "Yes", add: "No", edit: "Yes (Status)", delete: "No" },
+    actions: ["View user inquiries", "Update status (PENDING / RESPONDED / CLOSED)"],
+    safety: "Inquiries are stored persistently and cannot be deleted.",
   },
   "all-partners": {
     module: "All Partners",

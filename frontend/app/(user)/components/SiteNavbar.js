@@ -57,12 +57,12 @@ export default function SiteNavbar() {
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-white/5 bg-[#050505]/85 backdrop-blur-md">
-      <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="group flex min-w-0 shrink-0 items-center gap-2">
           <span className="h-[32px] w-[118px] bg-[url('/forex.png')] bg-contain bg-center bg-no-repeat text-sm font-semibold tracking-tight text-white sm:h-[40px] sm:w-[142px]"></span>
         </Link>
  
-        <div className="hidden h-12 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-1.5 text-sm font-semibold text-neutral-400 lg:flex">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden h-12 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-1.5 text-sm font-semibold text-neutral-400 lg:flex">
           <Link href="/infrastructure" className="inline-flex h-10 items-center rounded-full px-4 transition-colors hover:bg-white/10 hover:text-white">
             Infrastructure
           </Link>
@@ -97,12 +97,26 @@ export default function SiteNavbar() {
           </button>
           {currentUser ? (
             <>
-              <button
-                onClick={handleLogout}
-                className="group hidden h-12 items-center justify-center gap-2 rounded-full border border-red-500/20 bg-red-500/10 px-5 text-sm font-bold text-red-200 transition-all duration-300 hover:-translate-y-0.5 hover:bg-red-500 hover:text-black sm:inline-flex"
-              >
-                Logout
-              </button>
+              <div className="relative group hidden sm:inline-flex">
+                <button className="h-12 items-center justify-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-5 text-sm font-bold text-white transition-colors hover:bg-white/10 inline-flex">
+                  My Account <span className="text-[9px] text-neutral-500 ml-0.5">▼</span>
+                </button>
+
+                <div className="absolute right-0 top-full mt-1 hidden group-hover:block w-40 rounded-xl border border-white/10 bg-[#0B1110] p-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.6)] z-50">
+                  <Link
+                    href="/profile"
+                    className="block px-4 py-2 text-sm text-neutral-300 hover:text-white hover:bg-white/5 rounded-lg transition font-medium"
+                  >
+                    Profile
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition font-semibold"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
               <Link
                 href="/dashboard"
                 className="border-gradient relative inline-flex h-12 items-center whitespace-nowrap rounded-full bg-transparent px-5 text-sm font-bold text-white transition-colors hover:bg-white/10"
@@ -122,10 +136,10 @@ export default function SiteNavbar() {
                 Login
               </Link>
               <Link
-                href="/dashboard"
+                href="/signup"
                 className="border-gradient relative inline-flex h-12 items-center whitespace-nowrap rounded-full bg-transparent px-5 text-sm font-bold text-white transition-colors hover:bg-white/10"
               >
-                Dashboard
+                Sign Up
               </Link>
             </>
           )}

@@ -28,7 +28,7 @@ export const adminNavGroups = [
       { icon: Users, label: "Users", href: "/admin/dashboard?section=users" },
       { icon: CreditCard, label: "Payments", href: "/admin/dashboard?section=payments" },
       { icon: History, label: "All Transactions", href: "/admin/dashboard?section=transactions&filter=All" },
-      { icon: WalletIcon, label: "Withdraw Requests", href: "/admin/dashboard?section=transactions&filter=Withdrawal" },
+      { icon: WalletIcon, label: "Withdraw Requests", href: "/admin/dashboard?section=withdrawals" },
       { icon: Bot, label: "Trades", href: "/admin/dashboard?section=trades" },
       { icon: LineChart, label: "PnL Reports", href: "/admin/dashboard?section=pnl-reports" },
       { icon: DollarSign, label: "Profit Distribution", href: "/admin/profit-distribution" },

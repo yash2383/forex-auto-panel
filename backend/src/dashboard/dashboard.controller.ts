@@ -77,4 +77,17 @@ export class DashboardController {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
+
+  @Get('my-payment-status')
+  @Roles('USER')
+  async getMyPaymentStatus(@Req() req: Request, @Res() res: Response) {
+    try {
+      const user = (req as any).user;
+      const result = await this.dashboardService.getMyPaymentStatus(user.id);
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Payment status check error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
 }

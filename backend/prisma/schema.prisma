@@ -74,6 +74,7 @@ enum PaymentStatus {
 
 enum WithdrawalStatus {
   PENDING
+  PROCESSING
   APPROVED
   REJECTED
   FAILED
@@ -194,6 +195,10 @@ model Wallet {
   userId             String     @unique
   realizedBalance    Decimal    @default(0.0000) @db.Decimal(18, 4) // Cash available for withdrawal
   unrealizedBalance  Decimal    @default(0.0000) @db.Decimal(18, 4) // Escrow/floating trades margin
+  currentEquity      Decimal    @default(0.0000) @db.Decimal(18, 4) // current_equity
+  availableBalance   Decimal    @default(0.0000) @db.Decimal(18, 4) // available_balance
+  pendingWithdrawals Decimal    @default(0.0000) @db.Decimal(18, 4) // pending_withdrawals
+  totalWithdrawn     Decimal    @default(0.0000) @db.Decimal(18, 4) // total_withdrawn
   currency           String     @default("INR")
   version            Int        @default(1) // Version field for optimistic concurrency locking
   updatedAt          DateTime   @updatedAt
@@ -303,12 +308,18 @@ model Payment {
 
 model Withdrawal {
   id                       String           @id @default(uuid())
+  withdrawalId             String           @unique // human readable reference e.g. WD-001001
   userId                   String
   partnerId                String           // Tenant isolation anchor
   amount                   Decimal          @db.Decimal(18, 4)
   currency                 String           @default("INR")
   status                   WithdrawalStatus @default(PENDING)
   ledgerTransactionGroupId String?          @unique // Links to Ledger after APPROVAL status
+  method                   String?
+  accountDetails           String?          // Stores serialized account info/bank details
+  notes                    String?          // Optional user remarks
+  processedAt              DateTime?
+  processedBy              String?          // operator/admin responsible
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
 

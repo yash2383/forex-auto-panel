@@ -74,6 +74,19 @@ let AdminController = class AdminController {
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
+    async getUserDetail(id, req, res) {
+        try {
+            const user = req.user;
+            const result = await this.adminService.getUserDetail(user.id, id);
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Get user detail error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
     async createPartner(req, body, res) {
         try {
             const user = req.user;
@@ -254,10 +267,32 @@ let AdminController = class AdminController {
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
+    async listWithdrawals(res) {
+        try {
+            const result = await this.adminService.listWithdrawals();
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('List withdrawals error:', error.message);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
+        }
+    }
+    async getWithdrawalDetail(id, res) {
+        try {
+            const result = await this.adminService.getWithdrawalDetail(id);
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Get withdrawal details error:', error.message);
+            return res.status(common_1.HttpStatus.NOT_FOUND).json({ message: error.message || 'Withdrawal not found' });
+        }
+    }
     async approveWithdrawal(id, req, res) {
         try {
             const user = req.user;
             const result = await this.adminService.approveWithdrawal(user.id, id, this.getClientIp(req));
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
             return res.json(result);
         }
         catch (error) {
@@ -364,6 +399,16 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "deleteUser", null);
+__decorate([
+    (0, common_1.Get)('users/:id'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getUserDetail", null);
 __decorate([
     (0, common_1.Post)('partners'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN'),
@@ -509,7 +554,25 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "verifyPayment", null);
 __decorate([
+    (0, common_1.Get)('withdrawals'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "listWithdrawals", null);
+__decorate([
+    (0, common_1.Get)('withdrawals/:id'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getWithdrawalDetail", null);
+__decorate([
     (0, common_1.Post)('withdrawals/:id/approve'),
+    (0, common_1.Patch)('withdrawals/:id/approve'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Req)()),
@@ -520,6 +583,7 @@ __decorate([
 ], AdminController.prototype, "approveWithdrawal", null);
 __decorate([
     (0, common_1.Post)('withdrawals/:id/reject'),
+    (0, common_1.Patch)('withdrawals/:id/reject'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Req)()),

@@ -78,6 +78,17 @@ let DashboardController = class DashboardController {
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
+    async getMyPaymentStatus(req, res) {
+        try {
+            const user = req.user;
+            const result = await this.dashboardService.getMyPaymentStatus(user.id);
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Payment status check error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
 };
 exports.DashboardController = DashboardController;
 __decorate([
@@ -115,6 +126,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], DashboardController.prototype, "settings", null);
+__decorate([
+    (0, common_1.Get)('my-payment-status'),
+    (0, roles_guard_1.Roles)('USER'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], DashboardController.prototype, "getMyPaymentStatus", null);
 exports.DashboardController = DashboardController = __decorate([
     (0, common_1.Controller)('dashboard'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

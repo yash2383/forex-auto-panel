@@ -31,7 +31,7 @@ let AdminService = class AdminService {
             this.prisma.campaign.findMany({ orderBy: { createdAt: 'desc' } }),
             this.prisma.referral.findMany({ orderBy: { createdAt: 'desc' } }),
             this.prisma.admin.findMany({ orderBy: { createdAt: 'desc' } }),
-            this.prisma.withdrawal.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
+            this.prisma.withdrawal.findMany({ include: { user: { include: { wallet: true } } }, orderBy: { createdAt: 'desc' } }),
             this.prisma.plan.findMany({ orderBy: { createdAt: 'asc' } }),
             this.prisma.profitDistribution.findMany({ include: { user: true }, orderBy: { distributionDate: 'desc' } }),
         ]);
@@ -141,18 +141,39 @@ let AdminService = class AdminService {
             permissions: typeof a.permissions === 'string' ? JSON.parse(a.permissions) : a.permissions,
         }));
         const transactions = [
-            ...dbWithdrawals.map((w) => ({
-                id: w.id, userId: w.userId, userName: w.user?.name || 'Unknown User',
-                type: 'Withdrawal', amount: `₹${Number(w.amount).toLocaleString('en-IN')}`, rawAmount: Number(w.amount),
-                method: 'Bank Transfer',
-                status: w.status === 'PENDING' ? 'Pending' : w.status === 'APPROVED' ? 'Approved' : 'Rejected',
+            ...dbWithdrawals.filter((w) => w.status === 'APPROVED').map((w) => ({
+                id: w.id,
+                withdrawalId: w.withdrawalId,
+                userId: w.userId,
+                userName: w.user?.name || 'Unknown User',
+                userEmail: w.user?.email || 'N/A',
+                type: 'Withdrawal',
+                amount: Number(w.amount),
+                rawAmount: Number(w.amount),
+                method: w.method || 'Bank Transfer',
+                accountDetails: w.accountDetails || '',
+                notes: w.notes || '',
+                status: 'Approved',
+                currentEquity: w.user?.wallet ? Number(w.user.wallet.currentEquity) : 0,
+                availableBalance: w.user?.wallet ? Number(w.user.wallet.availableBalance) : 0,
+                pendingWithdrawals: w.user?.wallet ? Number(w.user.wallet.pendingWithdrawals) : 0,
+                requestedAt: w.createdAt,
+                processedAt: w.processedAt,
                 date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                time: w.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
             })),
             ...dbPayments.filter((p) => p.status === 'APPROVED').map((p) => ({
-                id: p.id, userId: p.userId, userName: p.user?.name || 'Unknown User',
-                type: 'Deposit', amount: `₹${Number(p.amount).toLocaleString('en-IN')}`, rawAmount: Number(p.amount),
-                method: p.paymentType, status: 'Approved',
+                id: p.id,
+                userId: p.userId,
+                userName: p.user?.name || 'Unknown User',
+                userEmail: p.user?.email || 'N/A',
+                type: 'Deposit',
+                amount: Number(p.amount),
+                rawAmount: Number(p.amount),
+                method: p.paymentType,
+                status: 'Approved',
                 date: p.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                time: p.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
             })),
         ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         const totalUsers = dbUsers.length;
@@ -185,9 +206,29 @@ let AdminService = class AdminService {
             distributionDate: pd.distributionDate,
             createdAt: pd.createdAt,
         }));
+        const withdrawals = dbWithdrawals.map((w) => ({
+            id: w.id,
+            withdrawalId: w.withdrawalId,
+            userId: w.userId,
+            userName: w.user?.name || 'Unknown User',
+            userEmail: w.user?.email || 'N/A',
+            amount: Number(w.amount),
+            rawAmount: Number(w.amount),
+            method: w.method || 'Bank Transfer',
+            accountDetails: w.accountDetails || '',
+            notes: w.notes || '',
+            status: w.status === 'PENDING' ? 'Pending' : w.status === 'APPROVED' ? 'Approved' : 'Rejected',
+            currentEquity: w.user?.wallet ? Number(w.user.wallet.currentEquity) : 0,
+            availableBalance: w.user?.wallet ? Number(w.user.wallet.availableBalance) : 0,
+            pendingWithdrawals: w.user?.wallet ? Number(w.user.wallet.pendingWithdrawals) : 0,
+            requestedAt: w.createdAt,
+            processedAt: w.processedAt,
+            date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            time: w.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        }));
         return {
             stats: platformStats, users, payments, trades, logs, partners, campaigns,
-            referrals, admins, transactions, settings, profitDistributions,
+            referrals, admins, transactions, settings, profitDistributions, withdrawals,
             plans: dbPlans.map((p) => ({
                 id: p.id, name: p.name, subtitle: p.subtitle, capitalLabel: p.capitalLabel,
                 desc: p.desc, features: p.features, btnText: p.btnText, status: p.status, isPopular: p.isPopular,
@@ -225,7 +266,16 @@ let AdminService = class AdminService {
                 data: { partnerId: targetPartnerId, name, email: email.toLowerCase().trim(), passwordHash: (0, crypto_util_1.hashPassword)(password), status: userStatus },
             });
             await tx.wallet.create({
-                data: { userId: u.id, realizedBalance: isNaN(cleanDeposit) ? 0 : cleanDeposit, unrealizedBalance: 0, currency: 'INR' },
+                data: {
+                    userId: u.id,
+                    realizedBalance: isNaN(cleanDeposit) ? 0 : cleanDeposit,
+                    unrealizedBalance: 0,
+                    currentEquity: isNaN(cleanDeposit) ? 0 : cleanDeposit,
+                    availableBalance: isNaN(cleanDeposit) ? 0 : cleanDeposit,
+                    pendingWithdrawals: 0,
+                    totalWithdrawn: 0,
+                    currency: 'INR',
+                },
             });
             return u;
         });
@@ -589,42 +639,96 @@ let AdminService = class AdminService {
         return { success: true, payment: updatedPayment };
     }
     async approveWithdrawal(adminId, withdrawalId, clientIp) {
-        const result = await this.prisma.$transaction(async (tx) => {
-            const withdrawal = await tx.withdrawal.findUnique({ where: { id: withdrawalId } });
-            if (!withdrawal)
-                throw new Error('Withdrawal record not found');
-            if (withdrawal.status !== 'PENDING')
-                throw new Error('Withdrawal has already been processed');
-            const amountVal = Number(withdrawal.amount);
-            const idempotencyKey = `WITHDRAWAL_APPROVAL_${withdrawal.id}`;
-            const ledgerGroup = await (0, ledger_util_1.createTransactionGroup)(tx, {
-                type: 'WITHDRAWAL', description: `Manual approval of withdrawal request ${withdrawal.id}`, idempotencyKey,
-                entries: [
-                    { userId: withdrawal.userId, partnerId: withdrawal.partnerId, accountType: 'USER', entryType: 'DEBIT', amount: amountVal, currency: withdrawal.currency },
-                    { accountType: 'SYSTEM', entryType: 'CREDIT', amount: amountVal, currency: withdrawal.currency },
-                ],
+        try {
+            const result = await this.prisma.$transaction(async (tx) => {
+                const withdrawal = await tx.withdrawal.findUnique({ where: { id: withdrawalId } });
+                if (!withdrawal)
+                    throw new Error('Withdrawal record not found');
+                if (withdrawal.status !== 'PENDING')
+                    throw new Error('Withdrawal has already been processed');
+                const wallet = await tx.wallet.findUnique({ where: { userId: withdrawal.userId } });
+                if (!wallet)
+                    throw new Error('Wallet not found');
+                const amountVal = Number(withdrawal.amount);
+                if (Number(wallet.pendingWithdrawals) < amountVal) {
+                    throw new Error('Reserved withdrawal balance mismatch');
+                }
+                const nextPending = Number(wallet.pendingWithdrawals) - amountVal;
+                const nextTotalWithdrawn = Number(wallet.totalWithdrawn) + amountVal;
+                await tx.wallet.update({
+                    where: { id: wallet.id },
+                    data: {
+                        pendingWithdrawals: nextPending,
+                        totalWithdrawn: nextTotalWithdrawn,
+                    },
+                });
+                const idempotencyKey = `WITHDRAWAL_APPROVAL_${withdrawal.id}`;
+                const ledgerGroup = await (0, ledger_util_1.createTransactionGroup)(tx, {
+                    type: 'WITHDRAWAL', description: `Manual approval of withdrawal request ${withdrawal.id}`, idempotencyKey,
+                    entries: [
+                        { userId: withdrawal.userId, partnerId: withdrawal.partnerId, accountType: 'USER', entryType: 'DEBIT', amount: amountVal, currency: withdrawal.currency },
+                        { accountType: 'SYSTEM', entryType: 'CREDIT', amount: amountVal, currency: withdrawal.currency },
+                    ],
+                });
+                const updatedWithdrawal = await tx.withdrawal.update({
+                    where: { id: withdrawalId },
+                    data: {
+                        status: 'APPROVED',
+                        ledgerTransactionGroupId: ledgerGroup.id,
+                        processedAt: new Date(),
+                        processedBy: adminId,
+                    },
+                });
+                await tx.securityEvent.create({
+                    data: { adminId, userId: withdrawal.userId, partnerId: withdrawal.partnerId, action: 'WITHDRAWAL_APPROVED', reason: `Approved withdrawal ${withdrawal.id} for amount ${amountVal}`, ipAddress: clientIp },
+                });
+                return updatedWithdrawal;
             });
-            const updatedWithdrawal = await tx.withdrawal.update({
-                where: { id: withdrawalId }, data: { status: 'APPROVED', ledgerTransactionGroupId: ledgerGroup.id },
-            });
-            await tx.securityEvent.create({
-                data: { adminId, userId: withdrawal.userId, partnerId: withdrawal.partnerId, action: 'WITHDRAWAL_APPROVED', reason: `Approved withdrawal ${withdrawal.id} for amount ${amountVal}`, ipAddress: clientIp },
-            });
-            return updatedWithdrawal;
-        });
-        return { success: true, withdrawal: result };
+            return { success: true, withdrawal: result };
+        }
+        catch (e) {
+            return { error: e.message || 'Approval failed', status: 400 };
+        }
     }
     async rejectWithdrawal(adminId, withdrawalId, clientIp) {
-        const withdrawal = await this.prisma.withdrawal.findUnique({ where: { id: withdrawalId } });
-        if (!withdrawal)
-            return { error: 'Withdrawal record not found', status: 404 };
-        if (withdrawal.status !== 'PENDING')
-            return { error: 'Only pending withdrawals can be rejected', status: 400 };
-        const updatedWithdrawal = await this.prisma.withdrawal.update({ where: { id: withdrawalId }, data: { status: 'REJECTED' } });
-        await this.prisma.securityEvent.create({
-            data: { adminId, userId: withdrawal.userId, partnerId: withdrawal.partnerId, action: 'WITHDRAWAL_REJECTED', reason: `Rejected withdrawal request ${withdrawal.id}`, ipAddress: clientIp },
-        });
-        return { success: true, withdrawal: updatedWithdrawal };
+        try {
+            const result = await this.prisma.$transaction(async (tx) => {
+                const withdrawal = await tx.withdrawal.findUnique({ where: { id: withdrawalId } });
+                if (!withdrawal)
+                    throw new Error('Withdrawal record not found');
+                if (withdrawal.status !== 'PENDING')
+                    throw new Error('Only pending withdrawals can be rejected');
+                const wallet = await tx.wallet.findUnique({ where: { userId: withdrawal.userId } });
+                if (!wallet)
+                    throw new Error('Wallet not found');
+                const amountVal = Number(withdrawal.amount);
+                const nextAvailable = Number(wallet.availableBalance) + amountVal;
+                const nextPending = Math.max(0, Number(wallet.pendingWithdrawals) - amountVal);
+                await tx.wallet.update({
+                    where: { id: wallet.id },
+                    data: {
+                        availableBalance: nextAvailable,
+                        pendingWithdrawals: nextPending,
+                    },
+                });
+                const updatedWithdrawal = await tx.withdrawal.update({
+                    where: { id: withdrawalId },
+                    data: {
+                        status: 'REJECTED',
+                        processedAt: new Date(),
+                        processedBy: adminId,
+                    },
+                });
+                await tx.securityEvent.create({
+                    data: { adminId, userId: withdrawal.userId, partnerId: withdrawal.partnerId, action: 'WITHDRAWAL_REJECTED', reason: `Rejected withdrawal request ${withdrawal.id}`, ipAddress: clientIp },
+                });
+                return updatedWithdrawal;
+            });
+            return { success: true, withdrawal: result };
+        }
+        catch (e) {
+            return { error: e.message || 'Rejection failed', status: 400 };
+        }
     }
     async reverseTransaction(adminId, transactionGroupId, reason, clientIp) {
         const result = await this.prisma.$transaction(async (tx) => {
@@ -712,6 +816,181 @@ let AdminService = class AdminService {
             where: { id },
         });
         return { success: true };
+    }
+    async getUserDetail(adminId, userId) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId, isDeleted: false },
+            include: {
+                wallet: true,
+                payments: { orderBy: { createdAt: 'desc' } },
+                withdrawals: { orderBy: { createdAt: 'desc' } },
+                trades: { orderBy: { createdAt: 'desc' } },
+                securityEvents: { orderBy: { createdAt: 'desc' }, take: 50 },
+                generatedReports: { orderBy: { createdAt: 'desc' } },
+                partner: true,
+            },
+        });
+        if (!user) {
+            return { error: 'User not found', status: 404 };
+        }
+        const walletBalance = user.wallet ? Number(user.wallet.realizedBalance) : 0;
+        const unrealizedBalance = user.wallet ? Number(user.wallet.unrealizedBalance) : 0;
+        const currentEquity = walletBalance + unrealizedBalance;
+        const totalDeposits = user.payments
+            .filter((p) => p.status === 'APPROVED')
+            .reduce((sum, p) => sum + Number(p.amount), 0);
+        const totalWithdrawals = user.withdrawals
+            .filter((w) => w.status === 'APPROVED')
+            .reduce((sum, w) => sum + Number(w.amount), 0);
+        const totalTrades = user.trades.length;
+        const winningTrades = user.trades.filter((t) => Number(t.pnl) > 0).length;
+        const losingTrades = user.trades.filter((t) => Number(t.pnl) <= 0).length;
+        const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
+        const latestApprovedPayment = user.payments.find((p) => p.status === 'APPROVED');
+        let subscription = null;
+        if (latestApprovedPayment) {
+            const approvedDate = new Date(latestApprovedPayment.createdAt);
+            const expiresAt = new Date(approvedDate);
+            expiresAt.setDate(expiresAt.getDate() + 365);
+            const now = new Date();
+            const daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+            const isActive = daysRemaining > 0;
+            subscription = {
+                planName: latestApprovedPayment.planName,
+                status: isActive ? 'Active' : 'Expired',
+                paidAt: latestApprovedPayment.createdAt,
+                expiresAt: expiresAt.toISOString(),
+                daysRemaining,
+            };
+        }
+        return {
+            success: true,
+            profile: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                status: user.status,
+                createdAt: user.createdAt,
+                lastLoginAt: user.lastLoginAt,
+                lastLoginIP: user.lastLoginIP,
+                partnerName: user.partner?.name || 'N/A',
+            },
+            subscription,
+            wallet: {
+                balance: walletBalance,
+                unrealizedBalance,
+                equity: currentEquity,
+                totalDeposits,
+                totalWithdrawals,
+            },
+            trading: {
+                totalTrades,
+                winningTrades,
+                losingTrades,
+                winRate,
+            },
+            payments: user.payments.map((p) => ({
+                id: p.id,
+                planName: p.planName,
+                amount: Number(p.amount),
+                currency: p.currency,
+                paymentType: p.paymentType,
+                txnHash: p.txnHash || p.utr || p.id.slice(0, 12).toUpperCase(),
+                status: p.status,
+                createdAt: p.createdAt,
+            })),
+            trades: user.trades.map((t) => ({
+                id: t.id,
+                pair: t.pair,
+                type: t.type,
+                entryPrice: Number(t.entryPrice),
+                currentPrice: Number(t.currentPrice),
+                quantity: Number(t.quantity),
+                exitPrice: Number(t.exitPrice),
+                stopLoss: Number(t.stopLoss),
+                target: Number(t.target),
+                profit: Number(t.profit),
+                pnl: Number(t.pnl),
+                status: t.status,
+                createdAt: t.createdAt,
+                closedAt: t.closedAt,
+            })),
+            reports: user.generatedReports.map((r) => ({
+                id: r.id,
+                fileName: r.fileName,
+                reportType: r.reportType,
+                fileUrl: r.fileUrl,
+                createdAt: r.createdAt,
+            })),
+            security: {
+                lastLoginAt: user.lastLoginAt,
+                lastLoginIP: user.lastLoginIP,
+                emailVerified: true,
+                twoFactorEnabled: false,
+                events: user.securityEvents.map((e) => ({
+                    id: e.id,
+                    action: e.action,
+                    reason: e.reason,
+                    ipAddress: e.ipAddress,
+                    createdAt: e.createdAt,
+                })),
+            },
+        };
+    }
+    async listWithdrawals() {
+        const list = await this.prisma.withdrawal.findMany({
+            include: { user: { include: { wallet: true } } },
+            orderBy: { createdAt: 'desc' },
+        });
+        return list.map((w) => ({
+            id: w.id,
+            withdrawalId: w.withdrawalId,
+            userId: w.userId,
+            userName: w.user?.name || 'Unknown User',
+            userEmail: w.user?.email || 'N/A',
+            amount: Number(w.amount),
+            status: w.status === 'PENDING' ? 'Pending' : w.status === 'APPROVED' ? 'Approved' : 'Rejected',
+            method: w.method || 'Bank Transfer',
+            accountDetails: w.accountDetails || '',
+            notes: w.notes || '',
+            currentEquity: w.user?.wallet ? Number(w.user.wallet.currentEquity) : 0,
+            availableBalance: w.user?.wallet ? Number(w.user.wallet.availableBalance) : 0,
+            pendingWithdrawals: w.user?.wallet ? Number(w.user.wallet.pendingWithdrawals) : 0,
+            requestedAt: w.createdAt,
+            processedAt: w.processedAt,
+            date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        }));
+    }
+    async getWithdrawalDetail(id) {
+        const w = await this.prisma.withdrawal.findFirst({
+            where: {
+                OR: [
+                    { id },
+                    { withdrawalId: id }
+                ]
+            },
+            include: { user: { include: { wallet: true } } },
+        });
+        if (!w)
+            throw new Error('Withdrawal request not found');
+        return {
+            id: w.id,
+            withdrawalId: w.withdrawalId,
+            userId: w.userId,
+            userName: w.user?.name || 'Unknown User',
+            userEmail: w.user?.email || 'N/A',
+            amount: Number(w.amount),
+            status: w.status === 'PENDING' ? 'Pending' : w.status === 'APPROVED' ? 'Approved' : 'Rejected',
+            method: w.method || 'Bank Transfer',
+            accountDetails: w.accountDetails || '',
+            notes: w.notes || '',
+            currentEquity: w.user?.wallet ? Number(w.user.wallet.currentEquity) : 0,
+            availableBalance: w.user?.wallet ? Number(w.user.wallet.availableBalance) : 0,
+            pendingWithdrawals: w.user?.wallet ? Number(w.user.wallet.pendingWithdrawals) : 0,
+            requestedAt: w.createdAt,
+            processedAt: w.processedAt,
+            date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        };
     }
 };
 exports.AdminService = AdminService;

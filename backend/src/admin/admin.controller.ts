@@ -69,6 +69,20 @@ export class AdminController {
     }
   }
 
+  @Get('users/:id')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getUserDetail(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
+    try {
+      const user = (req as any).user;
+      const result = await this.adminService.getUserDetail(user.id, id);
+      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Get user detail error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
   // --- Partners ---
 
   @Post('partners')
@@ -280,12 +294,38 @@ export class AdminController {
 
   // --- Withdrawals ---
 
+  @Get('withdrawals')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async listWithdrawals(@Res() res: Response) {
+    try {
+      const result = await this.adminService.listWithdrawals();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('List withdrawals error:', error.message);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
+    }
+  }
+
+  @Get('withdrawals/:id')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getWithdrawalDetail(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const result = await this.adminService.getWithdrawalDetail(id);
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Get withdrawal details error:', error.message);
+      return res.status(HttpStatus.NOT_FOUND).json({ message: error.message || 'Withdrawal not found' });
+    }
+  }
+
   @Post('withdrawals/:id/approve')
+  @Patch('withdrawals/:id/approve')
   @Roles('SUPER_ADMIN', 'MANAGER')
   async approveWithdrawal(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
     try {
       const user = (req as any).user;
       const result = await this.adminService.approveWithdrawal(user.id, id, this.getClientIp(req));
+      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
       return res.json(result);
     } catch (error: any) {
       console.error('Approve withdrawal error:', error.message);
@@ -294,6 +334,7 @@ export class AdminController {
   }
 
   @Post('withdrawals/:id/reject')
+  @Patch('withdrawals/:id/reject')
   @Roles('SUPER_ADMIN', 'MANAGER')
   async rejectWithdrawal(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
     try {

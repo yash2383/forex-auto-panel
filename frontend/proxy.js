@@ -55,7 +55,7 @@ export function proxy(req) {
   }
 
   // Protect user routes separately
-  if (path.startsWith("/dashboard") || path === "/checkout" || path.startsWith("/checkout/")) {
+  if (path.startsWith("/dashboard") || path.startsWith("/profile") || path === "/checkout" || path.startsWith("/checkout/")) {
     if (!isAuthenticated) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("next", path);
@@ -75,7 +75,7 @@ export function proxy(req) {
   }
 
   // 4. CLIENT / USER ROUTES ALLOWANCE
-  if (path.startsWith("/dashboard") || path === "/checkout" || path.startsWith("/checkout/") || isPublicRoute) {
+  if (path.startsWith("/dashboard") || path.startsWith("/profile") || path === "/checkout" || path.startsWith("/checkout/") || isPublicRoute) {
     return NextResponse.next();
   }
 

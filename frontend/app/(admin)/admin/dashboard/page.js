@@ -206,6 +206,14 @@ const sectionContent = {
     metrics: [["Total Plans", "3"], ["Active Plans", "3"], ["Micro Capital", "1"], ["Premium Plans", "2"]],
     headers: ["Plan Name", "Subtitle", "Capital Limit", "Features", "Status"],
   },
+  withdrawals: {
+    permissionKey: "payments",
+    title: "Withdrawal Requests",
+    description: "Manage system-wide withdrawal requests. Reserve balances immediately and audit them.",
+    metrics: [["Total Requests", "0"], ["Pending", "0"], ["Approved", "0"], ["Rejected", "0"]],
+    filters: ["Pending", "Approved", "Rejected"],
+    headers: ["Request ID", "User", "Amount", "Method", "Status", "Date"],
+  },
 };
 
 
@@ -289,10 +297,10 @@ function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, o
     const status = itemRow[4];
     return (
       <div className="flex gap-2">
+        <CrudButton icon={Eye} label="View" tone="view" onClick={() => onView(itemId)} />
         {canEdit && <CrudButton icon={Pencil} label="Edit" tone="edit" onClick={() => onEdit(itemId)} />}
         {canEdit && <CrudButton icon={Ban} label={status === "Blocked" ? "Unblock" : "Block"} tone="warn" onClick={() => onBlock(itemId)} />}
         {canDelete && <CrudButton icon={Trash2} label="Delete" tone="delete" onClick={() => onDelete(itemId)} />}
-        {!canEdit && !canDelete && <span className="text-xs text-neutral-500">Read-Only</span>}
       </div>
     );
   }
@@ -348,6 +356,27 @@ function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, o
     return <span className="text-xs text-neutral-500 capitalize">{status}</span>;
   }
 
+  if (sectionTitle === "Withdrawal Requests") {
+    const status = itemRow[4];
+    const canApprove = hasPermission("payments", "edit");
+    return (
+      <div className="flex gap-2 justify-end items-center">
+        <CrudButton icon={Eye} label="View" tone="view" onClick={() => onView(itemId)} />
+        {status === "Pending" && canApprove && (
+          <>
+            <CrudButton icon={Check} label="Approve" tone="approve" onClick={() => onApprove(itemId)} />
+            <CrudButton icon={X} label="Reject" tone="reject" onClick={() => onReject(itemId)} />
+          </>
+        )}
+        {status !== "Pending" && (
+          <span className={`text-xs font-bold ${
+            status === "Approved" ? "text-green-300" : "text-red-300"
+          }`}>{status}</span>
+        )}
+      </div>
+    );
+  }
+
   if (permissionKey === "plans") {
     return (
       <div className="flex justify-end gap-2">
@@ -362,17 +391,29 @@ function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, o
     const type = itemRow[2];
     const status = itemRow[6];
     const canApprove = hasPermission("payments", "edit");
-    if (type === "Withdrawal" && status === "Pending") {
-      return (
-        <div className="flex gap-2 justify-end">
-          {canApprove && <CrudButton icon={Check} label="Approve" tone="approve" onClick={() => onApprove(itemId)} />}
-          {canApprove && <CrudButton icon={X} label="Reject" tone="reject" onClick={() => onReject(itemId)} />}
-          {!canApprove && <span className="text-xs text-neutral-500">Read-Only</span>}
-        </div>
-      );
-    }
-    const statusColor = status === "Completed" ? "text-green-300" : status === "Rejected" ? "text-red-300" : status === "Failed" ? "text-red-400" : "text-yellow-300";
-    return <span className={`text-xs font-bold ${statusColor}`}>{status}</span>;
+    const isWithdrawal = type === "Withdrawal" || type === "↑ Withdrawal";
+    
+    return (
+      <div className="flex gap-2 justify-end items-center">
+        {isWithdrawal && (
+          <CrudButton icon={Eye} label="View" tone="view" onClick={() => onView(itemId)} />
+        )}
+        {isWithdrawal && status === "Pending" && canApprove && (
+          <>
+            <CrudButton icon={Check} label="Approve" tone="approve" onClick={() => onApprove(itemId)} />
+            <CrudButton icon={X} label="Reject" tone="reject" onClick={() => onReject(itemId)} />
+          </>
+        )}
+        {(!isWithdrawal || status !== "Pending") && (
+          <span className={`text-xs font-bold ${
+            status === "Completed" || status === "Approved" ? "text-green-300" :
+            status === "Rejected" ? "text-red-300" :
+            status === "Failed" ? "text-red-400" :
+            "text-yellow-300"
+          }`}>{status}</span>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -784,8 +825,8 @@ function AdminSectionPage({
 }) {
   const [selectedTrades, setSelectedTrades] = useState([]);
   
-  const showFilterTabs = section.permissionKey === "users" || section.title === "Transaction History" || section.permissionKey === "trades";
-  const filterBaseUrl = section.title === "Transaction History" ? "/admin/dashboard?section=transactions" : section.permissionKey === "trades" ? "/admin/dashboard?section=trades" : "/admin/dashboard?section=users";
+  const showFilterTabs = section.permissionKey === "users" || section.title === "Transaction History" || section.permissionKey === "trades" || section.title === "Withdrawal Requests";
+  const filterBaseUrl = section.title === "Transaction History" ? "/admin/dashboard?section=transactions" : section.permissionKey === "trades" ? "/admin/dashboard?section=trades" : section.title === "Withdrawal Requests" ? "/admin/dashboard?section=withdrawals" : "/admin/dashboard?section=users";
 
   useEffect(() => {
     setSelectedTrades([]);
@@ -804,6 +845,7 @@ function AdminSectionPage({
   const otpRequests = useAdminStore((s) => s.otpRequests || []);
   const transactions = useAdminStore((s) => s.transactions || []);
   const plans = useAdminStore((s) => s.plans || []);
+  const withdrawals = useAdminStore((s) => s.withdrawals || []);
   const hasPermission = useAdminStore((s) => s.hasPermission);
   const canEditSettings = hasPermission("settings", "edit");
   const searchQuery = useAdminStore((s) => s.searchQuery || "");
@@ -825,6 +867,13 @@ function AdminSectionPage({
           const wins = trades.filter((t) => t.profitLoss > 0).length;
           return trades.length > 0 ? `${((wins / trades.length) * 100).toFixed(1)}%` : "0.0%";
         })()],
+      ]
+    : section.title === "Withdrawal Requests"
+    ? [
+        ["Total Requests", withdrawals.length.toString()],
+        ["Pending", withdrawals.filter((w) => w.status === "Pending").length.toString()],
+        ["Approved", withdrawals.filter((w) => w.status === "Approved").length.toString()],
+        ["Rejected", withdrawals.filter((w) => w.status === "Rejected").length.toString()],
       ]
     : section.metrics;
 
@@ -995,6 +1044,31 @@ function AdminSectionPage({
       r.status,
       new Date(r.createdAt).toLocaleString(),
       r.id
+    ]);
+  } else if (section.title === "Withdrawal Requests") {
+    let list = withdrawals;
+    if (activeFilter === "Pending") list = list.filter(w => w.status === "Pending");
+    else if (activeFilter === "Approved") list = list.filter(w => w.status === "Approved");
+    else if (activeFilter === "Rejected") list = list.filter(w => w.status === "Rejected");
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(w =>
+        w.withdrawalId.toLowerCase().includes(q) ||
+        w.userName.toLowerCase().includes(q) ||
+        w.userEmail.toLowerCase().includes(q) ||
+        w.method.toLowerCase().includes(q) ||
+        w.status.toLowerCase().includes(q)
+      );
+    }
+    rows = list.map(w => [
+      w.withdrawalId,
+      w.userName,
+      `₹${w.amount.toLocaleString()}`,
+      w.method,
+      w.status,
+      w.date,
+      w.id
     ]);
   } else if (section.title === "Transaction History") {
     let list = transactions;
@@ -1297,7 +1371,7 @@ function AdminSectionPage({
                         </td>
                       )}
                       {cells.map((cell, idx) => {
-                        if (section.permissionKey === "payments" && section.title !== "Transaction History") {
+                        if (section.permissionKey === "payments" && section.title === "Payment Management") {
                           const paymentItem = payments.find(p => p.id === itemId);
                           if (paymentItem) {
                             if (idx === 1) {
@@ -1355,6 +1429,39 @@ function AdminSectionPage({
                                   {paymentItem.remark && (
                                     <span className="block text-[10px] text-red-400 mt-1">Remark: {paymentItem.remark}</span>
                                   )}
+                                </td>
+                              );
+                            }
+                          }
+                        }
+
+                        if (section.title === "Withdrawal Requests") {
+                          const wItem = withdrawals.find(w => w.id === itemId);
+                          if (wItem) {
+                            if (idx === 1) {
+                              const initials = (wItem.userName || 'U').split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+                              return (
+                                <td key={idx} className="px-4 py-4">
+                                  <div className="flex items-center gap-3">
+                                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cyan-100 text-xs font-black text-slate-800">{initials}</span>
+                                    <div>
+                                      <p className="font-semibold text-white">{wItem.userName}</p>
+                                      <p className="text-xs text-neutral-500">{wItem.userEmail}</p>
+                                    </div>
+                                  </div>
+                                </td>
+                              );
+                            }
+                            if (idx === 4) {
+                              return (
+                                <td key={idx} className="px-4 py-4">
+                                  <span className={`rounded-full px-3 py-1 text-xs font-bold border ${
+                                    wItem.status === "Approved" ? "bg-green-500/10 text-green-300 border-green-500/20" :
+                                    wItem.status === "Rejected" ? "bg-red-500/10 text-red-300 border-red-500/20" :
+                                    "bg-yellow-500/10 text-yellow-300 border-yellow-500/20"
+                                  }`}>
+                                    {wItem.status}
+                                  </span>
                                 </td>
                               );
                             }
@@ -1751,6 +1858,8 @@ export default function DashboardPage() {
   const rejectOtpRequest = useAdminStore((s) => s.rejectOtpRequest);
   const generateOverrideOtp = useAdminStore((s) => s.generateOverrideOtp);
   const otpRequestsAll = useAdminStore((s) => s.otpRequests || []);
+  const transactions = useAdminStore((s) => s.transactions || []);
+  const withdrawals = useAdminStore((s) => s.withdrawals || []);
 
   // Load Transaction History state actions
   const approveWithdrawal = useAdminStore((s) => s.approveWithdrawal);
@@ -2220,11 +2329,15 @@ export default function DashboardPage() {
           onView={(id) => {
             if (["notifications", "campaigns", "referrals"].includes(section.permissionKey)) {
               openRecordModal(section.permissionKey, "view", id);
+            } else if (section.permissionKey === "users") {
+              window.location.href = `/admin/users/${id}`;
+            } else if (section.title === "Transaction History" || section.title === "Withdrawal Requests") {
+              openRecordModal("withdrawals", "view", id);
             }
           }}
           onVerify={(id) => { verifyPayment(id); showToast("Payment verified details"); }}
           onApprove={(id) => {
-            if (section.title === "Transaction History") {
+            if (section.title === "Transaction History" || section.title === "Withdrawal Requests") {
               approveWithdrawal(id);
               showToast("Withdrawal approved successfully");
             } else {
@@ -2233,7 +2346,7 @@ export default function DashboardPage() {
             }
           }}
           onReject={(id) => {
-            if (section.title === "Transaction History") {
+            if (section.title === "Transaction History" || section.title === "Withdrawal Requests") {
               rejectWithdrawal(id);
               showToast("Withdrawal request rejected");
             } else {
@@ -2801,16 +2914,158 @@ export default function DashboardPage() {
               </>
             )}
 
-            <div className="flex gap-3 pt-2">
-              <button type="button" onClick={closeRecordModal} className="flex-1 h-11 rounded-lg border border-white/[0.08] bg-white/[0.025] text-neutral-300 font-bold text-sm hover:bg-white/[0.08] transition">
-                {recordModal.mode === "view" ? "Close" : "Cancel"}
-              </button>
-              {recordModal.mode !== "view" && (
-                <button type="submit" className="flex-1 h-11 rounded-lg bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition">
-                  {recordModal.mode === "edit" ? "Save" : "Add"}
+            {recordModal.type === "withdrawals" && (() => {
+              const withdrawal = withdrawals.find(w => w.id === recordModal.id) || transactions.find(t => t.id === recordModal.id);
+              if (!withdrawal) return <p className="text-neutral-400">Withdrawal details not found.</p>;
+              
+              let detailsStr = "";
+              if (withdrawal.accountDetails) {
+                if (typeof withdrawal.accountDetails === "object") {
+                  detailsStr = Object.entries(withdrawal.accountDetails)
+                    .map(([k, v]) => `${k}: ${v}`)
+                    .join("\n");
+                } else {
+                  try {
+                    const parsed = JSON.parse(withdrawal.accountDetails);
+                    detailsStr = Object.entries(parsed)
+                      .map(([k, v]) => `${k}: ${v}`)
+                      .join("\n");
+                  } catch {
+                    detailsStr = String(withdrawal.accountDetails);
+                  }
+                }
+              }
+
+              return (
+                <div className="space-y-5 text-sm text-neutral-300">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Withdrawal ID</p>
+                      <p className="font-mono text-base font-bold text-white mt-1">{withdrawal.withdrawalId || withdrawal.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Status</p>
+                      <span className={`inline-block rounded px-2.5 py-0.5 text-xs font-bold mt-1.5 ${
+                        withdrawal.status === "Approved" || withdrawal.status === "Completed" ? "bg-green-500/10 text-green-300 border border-green-500/20" :
+                        withdrawal.status === "Pending" ? "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20" :
+                        withdrawal.status === "Processing" ? "bg-blue-500/10 text-blue-300 border border-blue-500/20" :
+                        "bg-red-500/10 text-red-300 border border-red-500/20"
+                      }`}>
+                        {withdrawal.status.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 border-t border-white/[0.06] pt-3">
+                    <div>
+                      <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">User Name</p>
+                      <p className="font-semibold text-white mt-1">{withdrawal.userName}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">User Email</p>
+                      <p className="font-semibold text-white mt-1">{withdrawal.userEmail}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-3">
+                    <div>
+                      <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Current Equity</p>
+                      <p className="font-mono text-white mt-1">₹{Number(withdrawal.currentEquity || 0).toLocaleString("en-IN")}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Available Balance</p>
+                      <p className="font-mono text-white mt-1">₹{Number(withdrawal.availableBalance || 0).toLocaleString("en-IN")}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Pending Reserved</p>
+                      <p className="font-mono text-white mt-1">₹{Number(withdrawal.pendingWithdrawals || 0).toLocaleString("en-IN")}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 border-t border-white/[0.06] pt-3">
+                    <div>
+                      <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Requested Amount</p>
+                      <p className="font-mono text-lg font-bold text-red-300 mt-1">₹{Number(withdrawal.rawAmount || 0).toLocaleString("en-IN")}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Method</p>
+                      <p className="text-white font-medium mt-1">{withdrawal.method}</p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-white/[0.06] pt-3 space-y-3">
+                    <div>
+                      <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Account Details</p>
+                      <p className="bg-black/20 p-3 rounded-lg font-mono text-white text-xs mt-1.5 border border-white/[0.06] break-all leading-relaxed whitespace-pre-wrap">{detailsStr || "N/A"}</p>
+                    </div>
+                    {withdrawal.notes && (
+                      <div>
+                        <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Notes</p>
+                        <p className="bg-black/20 p-3 rounded-lg text-white text-xs mt-1.5 border border-white/[0.06]">{withdrawal.notes}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 border-t border-white/[0.06] pt-3 text-xs text-neutral-500">
+                    <div>
+                      <p className="font-semibold uppercase tracking-wider">Requested At</p>
+                      <p className="mt-1">{withdrawal.requestedAt ? new Date(withdrawal.requestedAt).toLocaleString() : withdrawal.date}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold uppercase tracking-wider">Processed At</p>
+                      <p className="mt-1">{withdrawal.processedAt ? new Date(withdrawal.processedAt).toLocaleString() : "Pending review"}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 border-t border-white/[0.08] pt-4 mt-6">
+                    <button
+                      type="button"
+                      onClick={closeRecordModal}
+                      className="flex-1 h-11 rounded-lg border border-white/[0.08] bg-white/[0.025] text-neutral-300 font-bold text-sm hover:bg-white/[0.08] transition"
+                    >
+                      Close Details
+                    </button>
+                    {withdrawal.status === "Pending" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await approveWithdrawal(withdrawal.id);
+                            closeRecordModal();
+                          }}
+                          className="flex-1 h-11 rounded-lg bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition"
+                        >
+                          Approve Withdrawal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await rejectWithdrawal(withdrawal.id);
+                            closeRecordModal();
+                          }}
+                          className="flex-1 h-11 rounded-lg bg-red-500 text-white font-bold text-sm hover:bg-red-400 transition"
+                        >
+                          Reject Withdrawal
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {recordModal.type !== "withdrawals" && (
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={closeRecordModal} className="flex-1 h-11 rounded-lg border border-white/[0.08] bg-white/[0.025] text-neutral-300 font-bold text-sm hover:bg-white/[0.08] transition">
+                  {recordModal.mode === "view" ? "Close" : "Cancel"}
                 </button>
-              )}
-            </div>
+                {recordModal.mode !== "view" && (
+                  <button type="submit" className="flex-1 h-11 rounded-lg bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition">
+                    {recordModal.mode === "edit" ? "Save" : "Add"}
+                  </button>
+                )}
+              </div>
+            )}
           </form>
         </div>
       )}

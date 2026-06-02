@@ -26,6 +26,10 @@ export declare class DashboardService {
             updatedAt: Date;
             realizedBalance: import("@prisma/client/runtime/library").Decimal;
             unrealizedBalance: import("@prisma/client/runtime/library").Decimal;
+            currentEquity: import("@prisma/client/runtime/library").Decimal;
+            availableBalance: import("@prisma/client/runtime/library").Decimal;
+            pendingWithdrawals: import("@prisma/client/runtime/library").Decimal;
+            totalWithdrawn: import("@prisma/client/runtime/library").Decimal;
             currency: string;
             version: number;
             userId: string;
@@ -120,25 +124,15 @@ export declare class DashboardService {
         status?: undefined;
     }>;
     withdraw(userId: string, partnerId: string, amount: number): Promise<{
-        error: string;
+        success: boolean;
+        withdrawal: any;
+        error?: undefined;
+        status?: undefined;
+    } | {
+        error: any;
         status: number;
         success?: undefined;
         withdrawal?: undefined;
-    } | {
-        success: boolean;
-        withdrawal: {
-            id: string;
-            status: import("@prisma/client").$Enums.WithdrawalStatus;
-            createdAt: Date;
-            updatedAt: Date;
-            partnerId: string;
-            currency: string;
-            userId: string;
-            amount: import("@prisma/client/runtime/library").Decimal;
-            ledgerTransactionGroupId: string | null;
-        };
-        error?: undefined;
-        status?: undefined;
     }>;
     updateSettings(userId: string, body: {
         autoTrading?: boolean;
@@ -159,5 +153,24 @@ export declare class DashboardService {
         };
         error?: undefined;
         status?: undefined;
+    }>;
+    getMyPaymentStatus(userId: string): Promise<{
+        found: boolean;
+        status: null;
+        planName?: undefined;
+        amount?: undefined;
+        remark?: undefined;
+        adminNote?: undefined;
+        createdAt?: undefined;
+        updatedAt?: undefined;
+    } | {
+        found: boolean;
+        status: import("@prisma/client").$Enums.PaymentStatus;
+        planName: string;
+        amount: number;
+        remark: string | null;
+        adminNote: string | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
 }

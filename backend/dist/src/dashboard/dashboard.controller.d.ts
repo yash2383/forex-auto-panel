@@ -12,4 +12,5 @@ export declare class DashboardController {
         autoTrading?: boolean;
         riskSetting?: string;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
+    getMyPaymentStatus(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
 }

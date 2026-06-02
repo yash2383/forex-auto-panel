@@ -39,7 +39,12 @@ async function createTransactionGroup(tx, data) {
                 throw new Error(`Wallet for user ${entry.userId} not found`);
             }
             const multiplier = entry.entryType === 'CREDIT' ? 1 : -1;
-            const nextBalance = Number(wallet.realizedBalance) + Number(entry.amount) * multiplier;
+            const amountChange = Number(entry.amount) * multiplier;
+            const nextBalance = Number(wallet.realizedBalance) + amountChange;
+            const nextEquity = Number(wallet.currentEquity) + amountChange;
+            const nextAvailable = data.type === 'WITHDRAWAL'
+                ? Number(wallet.availableBalance)
+                : Number(wallet.availableBalance) + amountChange;
             if (nextBalance < 0) {
                 throw new Error(`Insufficient realized funds for user ${entry.userId}`);
             }
@@ -50,6 +55,8 @@ async function createTransactionGroup(tx, data) {
                 },
                 data: {
                     realizedBalance: nextBalance,
+                    currentEquity: nextEquity,
+                    availableBalance: nextAvailable,
                     version: { increment: 1 },
                 },
             });

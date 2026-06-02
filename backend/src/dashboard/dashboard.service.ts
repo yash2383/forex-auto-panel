@@ -174,42 +174,55 @@ export class DashboardService {
       return { error: 'A valid positive withdrawal amount is required', status: 400 };
     }
 
-    // 1. Get Wallet balance and verify
-    const wallet = await this.prisma.wallet.findUnique({
-      where: { userId },
-    });
+    try {
+      const result = await this.prisma.$transaction(async (tx: any) => {
+        // 1. Get Wallet balance and verify
+        const wallet = await tx.wallet.findUnique({
+          where: { userId },
+        });
 
-    if (!wallet) {
-      return { error: 'Wallet not found', status: 404 };
+        if (!wallet) {
+          throw new Error('Wallet not found');
+        }
+
+        const available = Number(wallet.availableBalance);
+
+        if (available < requestAmount) {
+          throw new Error(`Insufficient funds. Available: ₹${available.toLocaleString('en-IN')}`);
+        }
+
+        const sequence = await tx.withdrawal.count();
+        const withdrawalId = `WD-${String(sequence + 1001).padStart(6, '0')}`;
+
+        // Create pending withdrawal record
+        const withdrawal = await tx.withdrawal.create({
+          data: {
+            withdrawalId,
+            userId,
+            partnerId,
+            amount: requestAmount,
+            currency: 'INR',
+            status: 'PENDING',
+            method: 'Bank Transfer',
+          },
+        });
+
+        // Update wallet atomically
+        await tx.wallet.update({
+          where: { id: wallet.id },
+          data: {
+            availableBalance: available - requestAmount,
+            pendingWithdrawals: Number(wallet.pendingWithdrawals) + requestAmount,
+          },
+        });
+
+        return withdrawal;
+      });
+
+      return { success: true, withdrawal: result };
+    } catch (error: any) {
+      return { error: error.message || 'Withdrawal failed', status: 400 };
     }
-
-    // 2. Sum pending withdrawals to prevent double-spending
-    const pendingWithdrawals = await this.prisma.withdrawal.findMany({
-      where: { userId, status: 'PENDING' },
-    });
-
-    const totalPending = pendingWithdrawals.reduce((sum: number, w: any) => sum + Number(w.amount), 0);
-    const availableBalance = Number(wallet.realizedBalance) - totalPending;
-
-    if (availableBalance < requestAmount) {
-      return {
-        error: `Insufficient funds. Available: ₹${availableBalance.toLocaleString('en-IN')} (Realized: ₹${Number(wallet.realizedBalance).toLocaleString('en-IN')}, Pending: ₹${totalPending.toLocaleString('en-IN')})`,
-        status: 400,
-      };
-    }
-
-    // 3. Create pending withdrawal record
-    const withdrawal = await this.prisma.withdrawal.create({
-      data: {
-        userId,
-        partnerId,
-        amount: requestAmount,
-        currency: 'INR',
-        status: 'PENDING',
-      },
-    });
-
-    return { success: true, withdrawal };
   }
 
   async updateSettings(userId: string, body: { autoTrading?: boolean; riskSetting?: string }) {
@@ -239,6 +252,28 @@ export class DashboardService {
         autoTrading: updatedUser.autoTrading,
         riskSetting: updatedUser.riskSetting,
       },
+    };
+  }
+
+  async getMyPaymentStatus(userId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!payment) {
+      return { found: false, status: null };
+    }
+
+    return {
+      found: true,
+      status: payment.status,
+      planName: payment.planName,
+      amount: Number(payment.amount),
+      remark: payment.remark || null,
+      adminNote: payment.remark || null,
+      createdAt: payment.createdAt,
+      updatedAt: payment.updatedAt,
     };
   }
 }

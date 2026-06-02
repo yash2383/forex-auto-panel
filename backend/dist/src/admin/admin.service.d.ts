@@ -105,12 +105,14 @@ export declare class AdminService {
             id: any;
             userId: any;
             userName: any;
+            userEmail: any;
             type: string;
-            amount: string;
+            amount: number;
             rawAmount: number;
             method: any;
             status: string;
             date: any;
+            time: any;
         }[];
         settings: {
             upiId: string;
@@ -143,6 +145,26 @@ export declare class AdminService {
             note: any;
             distributionDate: any;
             createdAt: any;
+        }[];
+        withdrawals: {
+            id: any;
+            withdrawalId: any;
+            userId: any;
+            userName: any;
+            userEmail: any;
+            amount: number;
+            rawAmount: number;
+            method: any;
+            accountDetails: any;
+            notes: any;
+            status: string;
+            currentEquity: number;
+            availableBalance: number;
+            pendingWithdrawals: number;
+            requestedAt: any;
+            processedAt: any;
+            date: any;
+            time: any;
         }[];
         plans: {
             id: any;
@@ -362,10 +384,10 @@ export declare class AdminService {
         pair: string;
         entryPrice: number;
         exitPrice: number;
+        notes: string | null;
         side: string;
         profitLoss: number;
         tradeDate: Date;
-        notes: string | null;
     }[]>;
     createTradeRecord(body: any): Promise<{
         error: string;
@@ -383,10 +405,10 @@ export declare class AdminService {
             pair: string;
             entryPrice: number;
             exitPrice: number;
+            notes: string | null;
             side: string;
             profitLoss: number;
             tradeDate: Date;
-            notes: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -407,10 +429,10 @@ export declare class AdminService {
             pair: string;
             entryPrice: number;
             exitPrice: number;
+            notes: string | null;
             side: string;
             profitLoss: number;
             tradeDate: Date;
-            notes: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -442,10 +464,10 @@ export declare class AdminService {
             pair: string;
             entryPrice: number;
             exitPrice: number;
+            notes: string | null;
             side: string;
             profitLoss: number;
             tradeDate: Date;
-            notes: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -513,27 +535,24 @@ export declare class AdminService {
     approveWithdrawal(adminId: string, withdrawalId: string, clientIp: string): Promise<{
         success: boolean;
         withdrawal: any;
-    }>;
-    rejectWithdrawal(adminId: string, withdrawalId: string, clientIp: string): Promise<{
-        error: string;
+        error?: undefined;
+        status?: undefined;
+    } | {
+        error: any;
         status: number;
         success?: undefined;
         withdrawal?: undefined;
-    } | {
+    }>;
+    rejectWithdrawal(adminId: string, withdrawalId: string, clientIp: string): Promise<{
         success: boolean;
-        withdrawal: {
-            id: string;
-            status: import("@prisma/client").$Enums.WithdrawalStatus;
-            createdAt: Date;
-            updatedAt: Date;
-            partnerId: string;
-            currency: string;
-            userId: string;
-            amount: Prisma.Decimal;
-            ledgerTransactionGroupId: string | null;
-        };
+        withdrawal: any;
         error?: undefined;
         status?: undefined;
+    } | {
+        error: any;
+        status: number;
+        success?: undefined;
+        withdrawal?: undefined;
     }>;
     reverseTransaction(adminId: string, transactionGroupId: string, reason: string, clientIp: string): Promise<{
         success: boolean;
@@ -611,5 +630,128 @@ export declare class AdminService {
     }>;
     deleteProfitDistribution(id: string): Promise<{
         success: boolean;
+    }>;
+    getUserDetail(adminId: string, userId: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        profile?: undefined;
+        subscription?: undefined;
+        wallet?: undefined;
+        trading?: undefined;
+        payments?: undefined;
+        trades?: undefined;
+        reports?: undefined;
+        security?: undefined;
+    } | {
+        success: boolean;
+        profile: {
+            id: string;
+            name: string;
+            email: string;
+            status: import("@prisma/client").$Enums.UserStatus;
+            createdAt: Date;
+            lastLoginAt: Date | null;
+            lastLoginIP: string | null;
+            partnerName: string;
+        };
+        subscription: any;
+        wallet: {
+            balance: number;
+            unrealizedBalance: number;
+            equity: number;
+            totalDeposits: number;
+            totalWithdrawals: number;
+        };
+        trading: {
+            totalTrades: number;
+            winningTrades: number;
+            losingTrades: number;
+            winRate: number;
+        };
+        payments: {
+            id: string;
+            planName: string;
+            amount: number;
+            currency: string;
+            paymentType: import("@prisma/client").$Enums.PaymentType;
+            txnHash: string;
+            status: import("@prisma/client").$Enums.PaymentStatus;
+            createdAt: Date;
+        }[];
+        trades: {
+            id: string;
+            pair: string;
+            type: import("@prisma/client").$Enums.TradeType;
+            entryPrice: number;
+            currentPrice: number;
+            quantity: number;
+            exitPrice: number;
+            stopLoss: number;
+            target: number;
+            profit: number;
+            pnl: number;
+            status: import("@prisma/client").$Enums.TradeStatus;
+            createdAt: Date;
+            closedAt: Date | null;
+        }[];
+        reports: {
+            id: string;
+            fileName: string;
+            reportType: string;
+            fileUrl: string;
+            createdAt: Date;
+        }[];
+        security: {
+            lastLoginAt: Date | null;
+            lastLoginIP: string | null;
+            emailVerified: boolean;
+            twoFactorEnabled: boolean;
+            events: {
+                id: string;
+                action: string;
+                reason: string;
+                ipAddress: string | null;
+                createdAt: Date;
+            }[];
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    listWithdrawals(): Promise<{
+        id: any;
+        withdrawalId: any;
+        userId: any;
+        userName: any;
+        userEmail: any;
+        amount: number;
+        status: string;
+        method: any;
+        accountDetails: any;
+        notes: any;
+        currentEquity: number;
+        availableBalance: number;
+        pendingWithdrawals: number;
+        requestedAt: any;
+        processedAt: any;
+        date: any;
+    }[]>;
+    getWithdrawalDetail(id: string): Promise<{
+        id: string;
+        withdrawalId: string;
+        userId: string;
+        userName: string;
+        userEmail: string;
+        amount: number;
+        status: string;
+        method: string;
+        accountDetails: string;
+        notes: string;
+        currentEquity: number;
+        availableBalance: number;
+        pendingWithdrawals: number;
+        requestedAt: Date;
+        processedAt: Date | null;
+        date: string;
     }>;
 }

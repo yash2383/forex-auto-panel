@@ -59,6 +59,7 @@ export const useAdminStore = create((set, get) => ({
   // INITIAL STATE
   users: [],
   payments: [],
+  withdrawals: [],
   trades: [],
   profitDistributions: [],
   profitSummary: { totalProfit: 0, pendingProfit: 0, monthlyProfit: 0, lastDistribution: null },
@@ -177,6 +178,7 @@ export const useAdminStore = create((set, get) => ({
             stats: data.stats,
             users: data.users,
             payments: data.payments,
+            withdrawals: data.withdrawals || [],
             trades: data.trades,
             logs: data.logs,
             partners: data.partners,
@@ -334,10 +336,17 @@ export const useAdminStore = create((set, get) => ({
         }),
       });
       if (res.ok) {
-        await get().fetchData();
+        get().fetchData().catch((e) => {
+          console.error("post-payment refresh error:", e);
+        });
+        return true;
       }
+      const errorBody = await res.json().catch(() => null);
+      console.error("addPayment API failed:", errorBody?.message || res.statusText);
+      return false;
     } catch (e) {
       console.error("addPayment API error:", e);
+      return false;
     }
   },
 

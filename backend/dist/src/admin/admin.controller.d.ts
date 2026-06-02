@@ -8,6 +8,7 @@ export declare class AdminController {
     createUser(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     updateUser(id: string, req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     deleteUser(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    getUserDetail(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     createPartner(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     createPlan(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     updatePlan(id: string, req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
@@ -25,6 +26,8 @@ export declare class AdminController {
         remark?: string;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
     verifyPayment(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    listWithdrawals(res: Response): Promise<Response<any, Record<string, any>>>;
+    getWithdrawalDetail(id: string, res: Response): Promise<Response<any, Record<string, any>>>;
     approveWithdrawal(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     rejectWithdrawal(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     reverseTransaction(id: string, req: Request, body: {

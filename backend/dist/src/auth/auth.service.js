@@ -158,6 +158,10 @@ let AuthService = class AuthService {
                     userId: u.id,
                     realizedBalance: 0,
                     unrealizedBalance: 0,
+                    currentEquity: 0,
+                    availableBalance: 0,
+                    pendingWithdrawals: 0,
+                    totalWithdrawn: 0,
                     currency: 'INR',
                 },
             });

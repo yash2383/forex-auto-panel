@@ -106,6 +106,8 @@ export class TradeService {
         where: { id: user.wallet!.id },
         data: {
           realizedBalance: balance.minus(tradeAmount),
+          currentEquity: new Prisma.Decimal(Number(user.wallet!.currentEquity) - amount),
+          availableBalance: new Prisma.Decimal(Number(user.wallet!.availableBalance) - amount),
         },
       });
 
@@ -171,10 +173,15 @@ export class TradeService {
         const returnAmount = originalMargin.add(pnl);
         const nextBalance = trade.user.wallet.realizedBalance.add(returnAmount);
 
+        const nextEquity = Number(trade.user.wallet.currentEquity) + Number(returnAmount);
+        const nextAvailable = Number(trade.user.wallet.availableBalance) + Number(returnAmount);
+
         await tx.wallet.update({
           where: { id: trade.user.wallet.id },
           data: {
             realizedBalance: nextBalance,
+            currentEquity: new Prisma.Decimal(nextEquity),
+            availableBalance: new Prisma.Decimal(nextAvailable),
           },
         });
 

@@ -15,6 +15,8 @@ const trade_module_1 = require("./trade/trade.module");
 const plans_module_1 = require("./plans/plans.module");
 const admin_module_1 = require("./admin/admin.module");
 const reports_module_1 = require("./reports/reports.module");
+const user_module_1 = require("./user/user.module");
+const wallet_module_1 = require("./wallet/wallet.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -28,6 +30,8 @@ exports.AppModule = AppModule = __decorate([
             plans_module_1.PlansModule,
             admin_module_1.AdminModule,
             reports_module_1.ReportsModule,
+            user_module_1.UserModule,
+            wallet_module_1.WalletModule,
         ],
     })
 ], AppModule);

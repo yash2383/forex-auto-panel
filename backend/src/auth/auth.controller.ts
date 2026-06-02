@@ -31,16 +31,16 @@ export class AuthController {
 
   @Post('signup')
   async signup(
-    @Body() body: { email: string; password: string; firstName?: string; lastName?: string; partnerSlug?: string },
+    @Body() body: { email: string; password: string; firstName?: string; lastName?: string; partnerSlug?: string; referralCode?: string },
     @Res() res: Response,
   ) {
     try {
-      const { email, password, firstName, lastName, partnerSlug } = body;
+      const { email, password, firstName, lastName, partnerSlug, referralCode } = body;
       if (!email || !password) {
         return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Email and password are required' });
       }
 
-      const result = await this.authService.signup(email, password, firstName, lastName, partnerSlug);
+      const result = await this.authService.signup(email, password, firstName, lastName, partnerSlug, referralCode);
 
       if ('error' in result) {
         return res.status(result.status || 400).json({ message: result.error });

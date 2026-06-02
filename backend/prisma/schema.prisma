@@ -144,6 +144,8 @@ model Partner {
   // Relations
   users             User[]
   ledgerEntries     LedgerEntry[]
+  investmentPlans   InvestmentPlan[]
+  userInvestments   UserInvestment[]
 
   @@index([domain])
 }
@@ -178,6 +180,7 @@ model User {
   securityEvents SecurityEvent[]
   otpRequests    OtpRequest[]
   profitDistributions ProfitDistribution[]
+  investments    UserInvestment[]
   generatedReports GeneratedReport[]
 
   // Simulation settings
@@ -533,4 +536,51 @@ model Inquiry {
   status    String   @default("PENDING") // PENDING, RESPONDED, CLOSED
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum InvestmentStatus {
+  ACTIVE
+  COMPLETED
+}
+
+model InvestmentPlan {
+  id            String           @id @default(uuid())
+  partnerId     String
+  name          String
+  description   String?
+  image         String?          @db.VarChar(500)
+  minAmount     Decimal          @db.Decimal(18, 4)
+  maxAmount     Decimal          @db.Decimal(18, 4)
+  weeklyProfit  Decimal          @db.Decimal(5, 2)
+  lockPeriod    Int              // Days
+  referralBonus Decimal          @db.Decimal(5, 2)
+  status        Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  partner       Partner          @relation(fields: [partnerId], references: [id])
+  userInvestments UserInvestment[]
+
+  @@index([partnerId])
+}
+
+model UserInvestment {
+  id             String           @id @default(uuid())
+  partnerId      String
+  userId         String
+  planId         String
+  amount         Decimal          @db.Decimal(18, 4)
+  profitRate     Decimal          @db.Decimal(5, 2)
+  startDate      DateTime         @default(now())
+  nextProfitDate DateTime
+  status         InvestmentStatus @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  partner        Partner          @relation(fields: [partnerId], references: [id])
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan           InvestmentPlan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+  @@index([userId])
 }

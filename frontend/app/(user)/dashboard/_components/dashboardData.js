@@ -12,11 +12,15 @@ import {
   Wallet as WalletIcon,
   HelpCircle,
   DollarSign,
+  Landmark,
+  Coins,
 } from "lucide-react";
 import { pastTrades } from "../../data/pastTrades";
 
 export const userNavItems = [
   { icon: Home, label: "Dashboard", href: "/dashboard" },
+  { icon: Landmark, label: "Investment Plans", href: "/dashboard/investments" },
+  { icon: Coins, label: "My Investments", href: "/dashboard/my-investments" },
   { icon: DollarSign, label: "Profit History", href: "/dashboard/profit-history" },
   // { icon: Bot, label: "Live Trades", href: "/dashboard/live-trades" },
   { icon: History, label: "Past Trades", href: "/dashboard/past-trades" },

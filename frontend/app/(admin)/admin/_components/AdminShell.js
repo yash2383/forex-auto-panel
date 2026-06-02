@@ -354,13 +354,16 @@ export default function AdminShell({ children }) {
               const allowedItems = group.items.filter((item) => {
                 const itemSectionRaw = item.href.includes("?section=") ? item.href.split("?section=").at(-1) : "";
                 const itemSection = itemSectionRaw.includes("&filter=") ? itemSectionRaw.split("&filter=")[0] : itemSectionRaw;
+
                 let permissionKey = itemSection || (
+                  item.href.includes("investment-plans") ? "plans" : 
                   item.href.includes("profit-distribution") ? "profit-distribution" : 
                   item.href.includes("white-label") ? "partners" : 
                   item.href.includes("withdrawals") ? "payments" : 
                   item.href.includes("inquiries") ? "inquiries" : 
                   "dashboard"
                 );
+
                 if (permissionKey === "transactions") permissionKey = "payments";
                 if (item.label === "Dashboard") return true;
                 if (item.label === "Create Partner") {

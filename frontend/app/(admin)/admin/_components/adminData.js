@@ -35,6 +35,12 @@ export const adminNavGroups = [
     ],
   },
   {
+    title: "Investments",
+    items: [
+      { icon: LineChart, label: "Investment Plans", href: "/admin/investment-plans" },
+    ],
+  },
+  {
     title: "Communication",
     items: [
       { icon: Bell, label: "Notifications", href: "/admin/dashboard?section=notifications", badge: "18" },

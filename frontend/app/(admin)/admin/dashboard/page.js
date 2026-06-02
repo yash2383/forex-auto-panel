@@ -2360,7 +2360,7 @@ export default function DashboardPage() {
   // NOTIFICATIONS / CAMPAIGNS / REFERRALS MODAL STATE
   const [recordModal, setRecordModal] = useState({ type: null, mode: "add", id: "" });
   const [notificationForm, setNotificationForm] = useState({ audience: "", message: "", channel: "In-app", status: "Draft" });
-  const [campaignForm, setCampaignForm] = useState({ name: "", trackingLink: "", users: "0", revenue: "$0", status: "Active" });
+  const [campaignForm, setCampaignForm] = useState({ name: "", source: "", code: "", budget: "", startDate: "", endDate: "", status: "Active", trackingLink: "", users: 0, deposits: "₹0", revenue: "₹0" });
   const [referralForm, setReferralForm] = useState({ referrer: "", user: "", deposit: "$0", reward: "$0", status: "Pending" });
 
   const handleAddUserSubmit = (e) => {
@@ -2576,7 +2576,7 @@ export default function DashboardPage() {
 
   const resetRecordForms = () => {
     setNotificationForm({ audience: "", message: "", channel: "In-app", status: "Draft" });
-    setCampaignForm({ name: "", trackingLink: "", users: "0", revenue: "$0", status: "Active" });
+    setCampaignForm({ name: "", source: "", code: "", budget: "", startDate: "", endDate: "", status: "Active", trackingLink: "", users: 0, deposits: "₹0", revenue: "₹0" });
     setReferralForm({ referrer: "", user: "", deposit: "$0", reward: "$0", status: "Pending" });
   };
 
@@ -2588,7 +2588,29 @@ export default function DashboardPage() {
     }
     if (type === "campaigns") {
       const item = campaigns.find((c) => c.id === id);
-      setCampaignForm(item ? { ...item, users: String(item.users) } : { name: "", trackingLink: "", users: "0", revenue: "$0", status: "Active" });
+      setCampaignForm(item ? {
+        ...item,
+        users: item.users ?? 0,
+        revenue: item.revenue ?? "₹0",
+        deposits: item.deposits ?? "₹0",
+        source: item.source ?? "",
+        code: item.code ?? item.slug ?? "",
+        budget: item.budget ?? "",
+        startDate: item.startDate ? new Date(item.startDate).toISOString().split('T')[0] : "",
+        endDate: item.endDate ? new Date(item.endDate).toISOString().split('T')[0] : ""
+      } : {
+        name: "",
+        source: "",
+        code: "",
+        budget: "",
+        startDate: "",
+        endDate: "",
+        status: "Active",
+        trackingLink: "",
+        users: 0,
+        deposits: "₹0",
+        revenue: "₹0"
+      });
     }
     if (type === "referrals") {
       const item = referrals.find((r) => r.id === id);
@@ -2611,7 +2633,7 @@ export default function DashboardPage() {
       showToast(mode === "edit" ? "Notification updated" : "Notification added");
     }
     if (type === "campaigns") {
-      if (!campaignForm.name || !campaignForm.trackingLink) return;
+      if (!campaignForm.name || !campaignForm.source) return;
       const payload = { ...campaignForm, users: Number(campaignForm.users || 0) };
       if (mode === "edit") editCampaign(id, payload);
       else addCampaign(payload);
@@ -3201,31 +3223,117 @@ export default function DashboardPage() {
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block">
-                    <span className="block text-xs font-semibold text-neutral-400 mb-2">Campaign</span>
-                    <input type="text" required disabled={recordModal.mode === "view"} value={campaignForm.name} onChange={(e) => setCampaignForm({ ...campaignForm, name: e.target.value })} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:text-neutral-500" />
+                    <span className="block text-xs font-semibold text-neutral-400 mb-2">Campaign Name *</span>
+                    <input
+                      type="text"
+                      required
+                      disabled={recordModal.mode === "view"}
+                      value={campaignForm.name}
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        const trackingLink = `/register?campaign=${name.toUpperCase().replace(/\s+/g, "_")}`;
+                        setCampaignForm({ ...campaignForm, name, trackingLink });
+                      }}
+                      placeholder="e.g. Google Ads"
+                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:text-neutral-500"
+                    />
                   </label>
                   <label className="block">
+                    <span className="block text-xs font-semibold text-neutral-400 mb-2">Source *</span>
+                    <input
+                      type="text"
+                      required
+                      disabled={recordModal.mode === "view"}
+                      value={campaignForm.source}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, source: e.target.value })}
+                      placeholder="e.g. Google, Facebook"
+                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:text-neutral-500"
+                    />
+                  </label>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-neutral-400 mb-2">Campaign Code</span>
+                    <input
+                      type="text"
+                      disabled={recordModal.mode === "view"}
+                      value={campaignForm.code}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, code: e.target.value })}
+                      placeholder="e.g. GOOGLE_ADS"
+                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:text-neutral-500"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-neutral-400 mb-2">Budget</span>
+                    <input
+                      type="number"
+                      disabled={recordModal.mode === "view"}
+                      value={campaignForm.budget}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, budget: e.target.value })}
+                      placeholder="e.g. 5000"
+                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:text-neutral-500"
+                    />
+                  </label>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-neutral-400 mb-2">Start Date</span>
+                    <input
+                      type="date"
+                      disabled={recordModal.mode === "view"}
+                      value={campaignForm.startDate}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, startDate: e.target.value })}
+                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:text-neutral-500"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-neutral-400 mb-2">End Date</span>
+                    <input
+                      type="date"
+                      disabled={recordModal.mode === "view"}
+                      value={campaignForm.endDate}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, endDate: e.target.value })}
+                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:text-neutral-500"
+                    />
+                  </label>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block">
                     <span className="block text-xs font-semibold text-neutral-400 mb-2">Status</span>
-                    <select disabled={recordModal.mode === "view"} value={campaignForm.status} onChange={(e) => setCampaignForm({ ...campaignForm, status: e.target.value })} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:text-neutral-500">
+                    <select
+                      disabled={recordModal.mode === "view"}
+                      value={campaignForm.status}
+                      onChange={(e) => setCampaignForm({ ...campaignForm, status: e.target.value })}
+                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-[#12px] text-sm text-white outline-none focus:border-green-500/50 disabled:text-neutral-500"
+                    >
                       <option value="Active">Active</option>
                       <option value="Paused">Paused</option>
                       <option value="Archived">Archived</option>
                     </select>
                   </label>
+                  <label className="block">
+                    <span className="block text-xs font-semibold text-neutral-400 mb-2">Tracking Link (Auto Generated)</span>
+                    <input
+                      type="text"
+                      disabled
+                      value={campaignForm.trackingLink}
+                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/20 px-3 text-sm text-neutral-500 outline-none"
+                    />
+                  </label>
                 </div>
-                <label className="block">
-                  <span className="block text-xs font-semibold text-neutral-400 mb-2">Tracking Link</span>
-                  <input type="text" required disabled={recordModal.mode === "view"} value={campaignForm.trackingLink} onChange={(e) => setCampaignForm({ ...campaignForm, trackingLink: e.target.value })} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:text-neutral-500" />
-                </label>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="block text-xs font-semibold text-neutral-400 mb-2">Users</span>
-                    <input type="number" disabled={recordModal.mode === "view"} value={campaignForm.users} onChange={(e) => setCampaignForm({ ...campaignForm, users: e.target.value })} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:text-neutral-500" />
-                  </label>
-                  <label className="block">
-                    <span className="block text-xs font-semibold text-neutral-400 mb-2">Revenue</span>
-                    <input type="text" disabled={recordModal.mode === "view"} value={campaignForm.revenue} onChange={(e) => setCampaignForm({ ...campaignForm, revenue: e.target.value })} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:text-neutral-500" />
-                  </label>
+                <div className="border-t border-white/5 pt-4 grid gap-4 grid-cols-3 text-center">
+                  <div className="bg-black/25 p-3 rounded-xl border border-white/5">
+                    <span className="block text-xs text-neutral-500 uppercase font-semibold">Users</span>
+                    <span className="block mt-1 text-sm font-bold text-white">{campaignForm.users || 0}</span>
+                  </div>
+                  <div className="bg-black/25 p-3 rounded-xl border border-white/5">
+                    <span className="block text-xs text-neutral-500 uppercase font-semibold">Deposits</span>
+                    <span className="block mt-1 text-sm font-bold text-white">{campaignForm.deposits || "₹0"}</span>
+                  </div>
+                  <div className="bg-black/25 p-3 rounded-xl border border-white/5">
+                    <span className="block text-xs text-neutral-500 uppercase font-semibold">Revenue</span>
+                    <span className="block mt-1 text-sm font-bold text-white">{campaignForm.revenue || "₹0"}</span>
+                  </div>
                 </div>
               </>
             )}

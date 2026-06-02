@@ -137,6 +137,7 @@ export class AuthService {
     firstName?: string,
     lastName?: string,
     partnerSlug?: string,
+    referralCode?: string,
   ) {
     const name = `${firstName || ''} ${lastName || ''}`.trim() || email.split('@')[0];
     const normalizedEmail = email.toLowerCase().trim();
@@ -165,7 +166,22 @@ export class AuthService {
       return { error: 'Email is already registered under this platform', status: 400 };
     }
 
-    // 3. Create User and Wallet in transaction
+    // Resolve referrer if code is provided
+    let referrerId: string | null = null;
+    if (referralCode) {
+      const referrerUser = await this.prisma.user.findUnique({
+        where: { referralCode: referralCode.trim().toUpperCase() },
+      });
+      if (!referrerUser) {
+        return { error: 'Invalid referral code. Please check and try again.', status: 400 };
+      }
+      referrerId = referrerUser.id;
+    }
+
+    // Generate unique referral code for the new user
+    const userReferralCode = "REF" + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    // 3. Create User, Wallet, and Referral record in transaction
     const newUser = await this.prisma.$transaction(async (tx: any) => {
       const u = await tx.user.create({
         data: {
@@ -174,6 +190,8 @@ export class AuthService {
           email: normalizedEmail,
           passwordHash: hashPassword(password),
           status: 'NEW',
+          referralCode: userReferralCode,
+          referredBy: referrerId,
         },
       });
 
@@ -189,6 +207,17 @@ export class AuthService {
           currency: 'INR',
         },
       });
+
+      if (referrerId) {
+        await tx.referral.create({
+          data: {
+            partnerId: partner.id,
+            referrerId,
+            referredId: u.id,
+            status: 'PENDING',
+          },
+        });
+      }
 
       return u;
     });

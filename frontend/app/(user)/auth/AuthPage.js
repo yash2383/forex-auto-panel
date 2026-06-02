@@ -9,7 +9,7 @@ import { useAdminStore } from "../../../hooks/adminStore";
 
 const steps = ["Register your identity", "Configure Tradebot", "Activate your profile"];
 
-const AuthInput = ({ label, placeholder, type = "text", name }) => (
+const AuthInput = ({ label, placeholder, type = "text", name, value, onChange }) => (
   <label className="block">
     <span className="mb-2 block text-sm font-semibold text-white">{label}</span>
     <span className="relative block">
@@ -17,6 +17,8 @@ const AuthInput = ({ label, placeholder, type = "text", name }) => (
         name={name}
         type={type}
         placeholder={placeholder}
+        value={value}
+        onChange={onChange}
         className="h-12 w-full rounded-xl border border-transparent bg-[#1B1B1B] px-4 text-sm text-white outline-none transition placeholder:text-neutral-600 focus:border-green-500/40 focus:ring-2 focus:ring-green-500/10"
       />
       {type === "password" && (
@@ -41,6 +43,7 @@ const StepItem = ({ index, text, active }) => (
 export default function AuthPage({ mode }) {
   const isSignup = mode === "signup";
   const router = useRouter();
+  const [refCode, setRefCode] = useState("");
   const [nextTarget, setNextTarget] = useState("");
   const [error, setError] = useState("");
 
@@ -50,21 +53,26 @@ export default function AuthPage({ mode }) {
     if (next && next.startsWith("/")) {
       queueMicrotask(() => setNextTarget(next));
     }
+    const ref = params.get("ref");
+    if (ref) {
+      setRefCode(ref);
+    }
   }, []);
 
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
     setError("");
     const formData = new FormData(event.currentTarget);
-    const email = String(formData.get("email") || "").trim();
-    const password = String(formData.get("password") || "");
     const firstName = String(formData.get("firstName") || "").trim();
     const lastName = String(formData.get("lastName") || "").trim();
+    const email = String(formData.get("email") || "").trim();
+    const password = String(formData.get("password") || "");
+    const referralCode = String(formData.get("referralCode") || "").trim();
 
     try {
       const endpoint = isSignup ? "/api/auth/signup" : "/api/auth/login";
       const body = isSignup 
-        ? { email, password, firstName, lastName } 
+        ? { email, password, firstName, lastName, referralCode: referralCode || null } 
         : { email, password };
 
       const res = await apiFetch(endpoint, {
@@ -167,6 +175,20 @@ export default function AuthPage({ mode }) {
                 </div>
               )}
               <AuthInput name="email" label="Email" placeholder="john@doe.com" type="email" />
+              {isSignup && (
+                <div>
+                  <AuthInput 
+                    name="referralCode" 
+                    label="Referral Code (Optional)" 
+                    placeholder="Enter referral code" 
+                    value={refCode} 
+                    onChange={(e) => setRefCode(e.target.value)} 
+                  />
+                  <span className="mt-1.5 block text-xs text-neutral-500">
+                    Have a referral code? Enter it to receive referral benefits.
+                  </span>
+                </div>
+              )}
               <AuthInput name="password" label="Password" placeholder="********" type="password" />
 
               {!isSignup && (

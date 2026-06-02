@@ -38,7 +38,8 @@ export function proxy(req) {
     "/pricing",
     "/past-trades",
     "/profit-simulator",
-    "/infrastructure"
+    "/infrastructure",
+    "/contact"
   ];
   
   const isPublicRoute = publicRoutes.some(

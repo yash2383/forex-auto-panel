@@ -8,6 +8,7 @@ import { AdminModule } from './admin/admin.module';
 import { ReportsModule } from './reports/reports.module';
 import { UserModule } from './user/user.module';
 import { WalletModule } from './wallet/wallet.module';
+import { InvestmentModule } from './investment/investment.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -22,6 +23,7 @@ import { AppService } from './app.service';
     ReportsModule,
     UserModule,
     WalletModule,
+    InvestmentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

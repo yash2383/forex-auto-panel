@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowRight, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, Eye, FileDown,
@@ -508,20 +508,56 @@ function RevenueChart() {
 }
 
 function SubscriptionStatus() {
+  const users = useAdminStore((s) => s.users);
+
+  const counts = useMemo(() => {
+    const active = users.filter((u) => u.status === "Active").length;
+    const vip    = users.filter((u) => u.status === "VIP").length;
+    const expired = users.filter((u) => u.status === "Expired").length;
+    const newUsers = users.filter((u) => u.status === "New").length;
+    const blocked = users.filter((u) => u.status === "Blocked").length;
+    const total = users.length || 1;
+    return { active, vip, expired, newUsers, blocked, total };
+  }, [users]);
+
+  const activeTotal = counts.active + counts.vip;
+  const t = counts.total;
+  const activePct  = ((activeTotal / t) * 100).toFixed(1);
+  const expiredPct = ((counts.expired / t) * 100).toFixed(1);
+  const newPct     = ((counts.newUsers / t) * 100).toFixed(1);
+  const blockedPct = ((counts.blocked / t) * 100).toFixed(1);
+
+  // Build conic-gradient segments
+  const segments = [
+    { pct: +activePct,  color: "#22c55e" },
+    { pct: +expiredPct, color: "#ef4444" },
+    { pct: +newPct,     color: "#facc15" },
+    { pct: +blockedPct, color: "#cbd5e1" },
+  ];
+  let cumulative = 0;
+  const gradientStops = segments.map(({ pct, color }) => {
+    const start = cumulative;
+    cumulative += pct;
+    return `${color} ${start}% ${cumulative}%`;
+  }).join(",");
+
   const rows = [
-    ["Active", "4,250 (72.1%)", "bg-green-400"],
-    ["Expired", "1,012 (17.2%)", "bg-red-400"],
-    ["Pending", "492 (8.4%)", "bg-yellow-300"],
-    ["Cancelled", "138 (2.3%)", "bg-slate-300"],
+    ["Active / VIP", `${activeTotal.toLocaleString()} (${activePct}%)`, "bg-green-400"],
+    ["Expired",      `${counts.expired.toLocaleString()} (${expiredPct}%)`, "bg-red-400"],
+    ["New (No Plan)",`${counts.newUsers.toLocaleString()} (${newPct}%)`, "bg-yellow-300"],
+    ["Blocked",      `${counts.blocked.toLocaleString()} (${blockedPct}%)`, "bg-slate-300"],
   ];
 
   return (
     <section className={`${adminPanel} p-5 xl:col-span-3`}>
       <h2 className="text-lg font-semibold text-white">Subscription Status</h2>
       <div className="mt-8 grid items-center gap-8 sm:grid-cols-[190px_1fr] xl:grid-cols-1 2xl:grid-cols-[190px_1fr]">
-        <div className="relative mx-auto h-44 w-44 rounded-full bg-[conic-gradient(#22c55e_0_72%,#ef4444_72%_89%,#facc15_89%_97%,#cbd5e1_97%_100%)]">
+        <div
+          className="relative mx-auto h-44 w-44 rounded-full"
+          style={{ background: `conic-gradient(${gradientStops})` }}
+        >
           <div className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-[#081118]">
-            <p className="text-3xl font-semibold text-white">5,892</p>
+            <p className="text-3xl font-semibold text-white">{(counts.total - 1).toLocaleString()}</p>
             <p className="mt-1 text-sm text-neutral-400">Total</p>
           </div>
         </div>
@@ -778,24 +814,26 @@ function QuickActionCard({ item }) {
   );
 }
 
+// Single source of truth for user status classification
+const isActiveUser = (u) => u.status === "Active" || u.status === "VIP";
+const isVipUser = (u) => u.status === "VIP";
+const isExpiredUser = (u) => u.status === "Expired";
+const isNoDepositUser = (u) => u.plan === "None" || u.rawDeposit === 0;
+
 function PlatformOverview({ onVerify, onApprove, onReject }) {
-  const users = useAdminStore((s) => s.users);
-  const totalUserWalletBalance = users.reduce((sum, user) => {
-    const amount = Number(String(user.deposit).replace(/[^0-9.-]+/g, ""));
-    return sum + (Number.isFinite(amount) ? amount : 0);
-  }, 0);
+  const stats = useAdminStore((s) => s.stats);
 
   return (
     <>
       <section className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
         {[
-          { icon: Users, label: "Total Users", value: "12,648", sub: "18.6% this week", tone: "green" },
-          { icon: UserCheck, label: "Active Users", value: "5,892", sub: "14.3% this week", tone: "violet" },
-          { icon: DollarSign, label: "Total Revenue", value: "$248,250.75", sub: "23.8% this week", tone: "blue" },
-          { icon: Wallet, label: "Total Capital", value: "$1,842,500.00", sub: "12.4% this week", tone: "amber" },
-          { icon: Wallet, label: "Total User Wallet Balance", value: `$${totalUserWalletBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, sub: "Current sum of user deposits", tone: "cyan" },
-          { icon: Wallet, label: "Active Wallet Balance", value: "$927,340.00", sub: "9.8% this week", tone: "purple" },
-          { icon: TrendingUp, label: "Total Profit", value: "$356,780.45", sub: "31.2% this week", tone: "green" },
+          { icon: Users, label: "Total Users", value: stats.totalUsers ?? "—", sub: "Registered on platform", tone: "green" },
+          { icon: UserCheck, label: "Active Users", value: stats.activeUsers ?? "—", sub: "Active + VIP subscribers", tone: "violet" },
+          { icon: DollarSign, label: "Total Revenue", value: stats.totalRevenue ?? "—", sub: "All approved deposits", tone: "blue" },
+          { icon: Wallet, label: "Total Capital", value: stats.totalCapital ?? "—", sub: "Sum of user equity", tone: "amber" },
+          { icon: Wallet, label: "Total User Wallet Balance", value: stats.totalUserWalletBalance ?? "—", sub: "Realized balance sum", tone: "cyan" },
+          { icon: Wallet, label: "Active Wallet Balance", value: stats.activeWalletBalance ?? "—", sub: "Active + VIP users only", tone: "purple" },
+          { icon: TrendingUp, label: "Total Profit Paid", value: stats.totalProfit ?? "—", sub: "Paid profit distributions", tone: "green" },
         ].map((item) => (
           <MetricCard key={item.label} item={item} />
         ))}
@@ -875,38 +913,179 @@ function AdminSectionPage({
 
   // Search/Filters for Activity Logs section
   const [logModuleFilter, setLogModuleFilter] = useState("all");
-  const sectionMetrics = section.permissionKey === "trades"
-    ? [
-      ["Total Records", trades.length.toLocaleString()],
-      ["Published", trades.filter((trade) => trade.status === "published").length.toLocaleString()],
-      ["Drafts", trades.filter((trade) => trade.status === "draft").length.toLocaleString()],
-      ["Win Rate", (() => {
-        const wins = trades.filter((t) => t.profitLoss > 0).length;
-        return trades.length > 0 ? `${((wins / trades.length) * 100).toFixed(1)}%` : "0.0%";
-      })()],
-    ]
-    : section.permissionKey === "reports"
-      ? [
-        ["Total Exports", generatedReports.length.toString()],
-        ["Trading Reports", generatedReports.filter(r => r.reportType === "TRADING").length.toString()],
-        ["Profit Reports", generatedReports.filter(r => r.reportType === "PROFIT").length.toString()],
-        ["Wallet Statements", generatedReports.filter(r => r.reportType === "WALLET").length.toString()],
-      ]
-      : section.title === "Withdrawal Requests"
-        ? [
-          ["Total Requests", withdrawals.length.toString()],
-          ["Pending", withdrawals.filter((w) => w.status === "Pending").length.toString()],
-          ["Approved", withdrawals.filter((w) => w.status === "Approved").length.toString()],
-          ["Rejected", withdrawals.filter((w) => w.status === "Rejected").length.toString()],
-        ]
-        : section.permissionKey === "pnl-reports" && pnlReports
-            ? [
-              ["Total PnL", `$${pnlReports.overview.totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
-              ["User-wise Avg", pnlReports.overview.winningTrades > 0 ? `$${pnlReports.overview.averageWin}` : "$0"],
-              ["Profit Factor", pnlReports.overview.profitFactor],
-              ["Win Rate", `${pnlReports.overview.winRate}%`],
-            ]
-            : section.metrics;
+  const sectionMetrics = useMemo(() => {
+    const pk = section.permissionKey;
+    const ttl = section.title;
+
+    if (pk === "trades") {
+      const closed = trades.filter((t) => t.result && (t.result === "WIN" || t.result === "LOSS"));
+      const winRate = closed.length > 0
+        ? `${((closed.filter((t) => t.result === "WIN").length / closed.length) * 100).toFixed(1)}%`
+        : "0.0%";
+      return [
+        ["Total Records",  trades.length.toLocaleString()],
+        ["Published",      trades.filter((t) => t.status === "published").length.toLocaleString()],
+        ["Drafts",         trades.filter((t) => t.status === "draft").length.toLocaleString()],
+        ["Win Rate",       winRate],
+      ];
+    }
+
+    if (pk === "reports") return [
+      ["Total Exports",    generatedReports.length.toLocaleString()],
+      ["Trading Reports",  generatedReports.filter((r) => r.reportType === "TRADING").length.toLocaleString()],
+      ["Profit Reports",   generatedReports.filter((r) => r.reportType === "PROFIT").length.toLocaleString()],
+      ["Wallet Statements",generatedReports.filter((r) => r.reportType === "WALLET").length.toLocaleString()],
+    ];
+
+    if (ttl === "Withdrawal Requests") return [
+      ["Total Requests", withdrawals.length.toLocaleString()],
+      ["Pending",        withdrawals.filter((w) => w.status === "Pending").length.toLocaleString()],
+      ["Approved",       withdrawals.filter((w) => w.status === "Approved").length.toLocaleString()],
+      ["Rejected",       withdrawals.filter((w) => w.status === "Rejected").length.toLocaleString()],
+    ];
+
+    if (pk === "pnl-reports" && pnlReports) return [
+      ["Total PnL",    `₹${pnlReports.overview.totalPnl.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
+      ["User-wise Avg",pnlReports.overview.winningTrades > 0 ? `₹${pnlReports.overview.averageWin}` : "₹0"],
+      ["Profit Factor",pnlReports.overview.profitFactor],
+      ["Win Rate",     `${pnlReports.overview.winRate}%`],
+    ];
+
+    if (pk === "users") {
+      const noDeposit = users.filter(isNoDepositUser).length;
+      const active    = users.filter(isActiveUser).length;
+      const vip       = users.filter(isVipUser).length;
+      return [
+        ["Total Users",    users.length.toLocaleString()],
+        ["No Deposit",     noDeposit.toLocaleString()],
+        ["Active Users",   active.toLocaleString()],
+        ["VIP Users",      vip.toLocaleString()],
+      ];
+    }
+
+    if (pk === "payments" && ttl !== "Transaction History") {
+      const pending  = payments.filter((p) => p.status === "Pending").length;
+      const approved = payments.filter((p) => p.status === "Approved").length;
+      const rejected = payments.filter((p) => p.status === "Rejected").length;
+      const revenue  = payments
+        .filter((p) => p.status === "Approved")
+        .reduce((sum, p) => sum + (p.rawAmount || 0), 0);
+      return [
+        ["Pending",  pending.toLocaleString()],
+        ["Approved", approved.toLocaleString()],
+        ["Rejected", rejected.toLocaleString()],
+        ["Revenue",  `₹${revenue.toLocaleString("en-IN")}`],
+      ];
+    }
+
+    if (ttl === "Transaction History") {
+      const deposits    = transactions.filter((t) => t.type === "Deposit");
+      const withdrawalsTx = transactions.filter((t) => t.type === "Withdrawal");
+      const pending     = transactions.filter((t) => t.status === "Pending").length;
+      const volume      = transactions.reduce((sum, t) => sum + (t.rawAmount || t.amount || 0), 0);
+      return [
+        ["Total Volume",       `₹${volume.toLocaleString("en-IN")}`],
+        ["Deposits",           deposits.length.toLocaleString()],
+        ["Withdrawals",        withdrawalsTx.length.toLocaleString()],
+        ["Pending Withdrawals",pending.toLocaleString()],
+      ];
+    }
+
+    if (pk === "notifications") {
+      const draft   = notifications.filter((n) => n.status === "Draft").length;
+      const sent    = notifications.filter((n) => n.status === "Sent").length;
+      const queued  = notifications.filter((n) => n.status === "Queued").length;
+      return [
+        ["Total",   notifications.length.toLocaleString()],
+        ["Sent",    sent.toLocaleString()],
+        ["Queued",  queued.toLocaleString()],
+        ["Draft",   draft.toLocaleString()],
+      ];
+    }
+
+    if (pk === "campaigns") {
+      const active   = campaigns.filter((c) => c.status === "Active").length;
+      const inactive = campaigns.filter((c) => c.status === "Inactive").length;
+      const totalUsers = campaigns.reduce((sum, c) => sum + (Number(c.users) || 0), 0);
+      return [
+        ["Total Campaigns",  campaigns.length.toLocaleString()],
+        ["Active",           active.toLocaleString()],
+        ["Completed",        inactive.toLocaleString()],
+        ["Recipients",       totalUsers.toLocaleString()],
+      ];
+    }
+
+    if (pk === "referrals") {
+      const paid    = referrals.filter((r) => r.status === "Paid").length;
+      const pending = referrals.filter((r) => r.status === "Pending").length;
+      const totalCommission = referrals.reduce((sum, r) => {
+        const val = parseFloat(String(r.reward).replace(/[^0-9.-]/g, ""));
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+      return [
+        ["Total Referrals", referrals.length.toLocaleString()],
+        ["Paid",            paid.toLocaleString()],
+        ["Pending",         pending.toLocaleString()],
+        ["Payouts",         `₹${totalCommission.toLocaleString("en-IN")}`],
+      ];
+    }
+
+    if (pk === "admins") {
+      const superAdmins = admins.filter((a) => a.role === "Super Admin").length;
+      const managers    = admins.filter((a) => a.role === "Manager").length;
+      const viewers     = admins.filter((a) => a.role === "Viewer").length;
+      return [
+        ["Total Admins",  admins.length.toLocaleString()],
+        ["Super Admins",  superAdmins.toLocaleString()],
+        ["Managers",      managers.toLocaleString()],
+        ["Viewers",       viewers.toLocaleString()],
+      ];
+    }
+
+    if (pk === "plans") {
+      const active   = plans.filter((p) => p.status === "Active").length;
+      const hidden   = plans.filter((p) => p.status === "Hidden").length;
+      const popular  = plans.filter((p) => p.isPopular).length;
+      return [
+        ["Total Plans",  plans.length.toLocaleString()],
+        ["Active",       active.toLocaleString()],
+        ["Hidden",       hidden.toLocaleString()],
+        ["Popular",      popular.toLocaleString()],
+      ];
+    }
+
+    if (pk === "activity-logs") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayLogs   = logs.filter((l) => new Date(l.time) >= today).length;
+      const adminLogs   = logs.filter((l) => l.actor && !l.actor.includes("@")).length;
+      const userLogs    = logs.length - adminLogs;
+      const alertLogs   = logs.filter((l) => l.action && l.action.toLowerCase().includes("block")).length;
+      return [
+        ["Logs Today",    todayLogs.toLocaleString()],
+        ["Admin Actions", adminLogs.toLocaleString()],
+        ["User Actions",  userLogs.toLocaleString()],
+        ["Alerts",        alertLogs.toLocaleString()],
+      ];
+    }
+
+    if (pk === "settings") {
+      const referralPct  = settings?.financials?.referralFee ?? "—";
+      const platformFee  = settings?.financials?.platformFee ?? "—";
+      const paymentQR    = settings?.paymentModes?.usdt ? "Active" : "Inactive";
+      return [
+        ["Referral %",   `${referralPct}%`],
+        ["Platform Fee", `${platformFee}%`],
+        ["Payment QR",   paymentQR],
+        ["Configs",      "16"],
+      ];
+    }
+
+    // Fallback to static metrics defined in sectionContent
+    return section.metrics ?? [];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section, trades, generatedReports, withdrawals, pnlReports, users, payments,
+      transactions, notifications, campaigns, referrals, admins, plans, logs, settings]);
 
   let rows = [];
   if (section.permissionKey === "users") {

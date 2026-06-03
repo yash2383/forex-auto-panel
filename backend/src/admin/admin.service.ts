@@ -178,12 +178,24 @@ export class AdminService {
     const activeUsers = dbUsers.filter((u) => u.status === 'ACTIVE' || u.status === 'VIP').length;
     const totalRevenue = dbPayments.filter((p: any) => p.status === 'APPROVED').reduce((sum, p) => sum + Number(p.amount), 0);
     const totalUserWalletBalance = dbUsers.reduce((sum, u) => sum + (u.wallet ? Number(u.wallet.realizedBalance) : 0), 0);
+    const pendingPayments = dbPayments.filter((p: any) => p.status === 'PENDING').length;
+    const totalCapital = dbUsers.reduce((sum, u) => sum + (u.wallet ? Number(u.wallet.currentEquity) : 0), 0);
+    const activeWalletBalance = dbUsers
+      .filter((u) => u.status === 'ACTIVE' || u.status === 'VIP')
+      .reduce((sum, u) => sum + (u.wallet ? Number(u.wallet.availableBalance) : 0), 0);
+    const totalProfit = dbProfitDistributions
+      .filter((pd: any) => pd.status === 'PAID')
+      .reduce((sum, pd) => sum + Number(pd.amount), 0);
 
     const platformStats = {
       totalUsers: totalUsers.toLocaleString(),
       activeUsers: activeUsers.toLocaleString(),
       totalRevenue: `₹${totalRevenue.toLocaleString('en-IN')}`,
       totalUserWalletBalance: `₹${totalUserWalletBalance.toLocaleString('en-IN')}`,
+      totalCapital: `₹${totalCapital.toLocaleString('en-IN')}`,
+      activeWalletBalance: `₹${activeWalletBalance.toLocaleString('en-IN')}`,
+      pendingPayments: pendingPayments.toLocaleString(),
+      totalProfit: `₹${totalProfit.toLocaleString('en-IN')}`,
     };
 
     const settings = {

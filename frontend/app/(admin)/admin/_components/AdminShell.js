@@ -361,6 +361,7 @@ export default function AdminShell({ children }) {
                   item.href.includes("withdrawals") ? "payments" : 
                   item.href.includes("initiated-payments") ? "payments" : 
                   item.href.includes("inquiries") ? "inquiries" : 
+                  item.href.includes("notifications") ? "notifications" : 
                   "dashboard"
                 );
 

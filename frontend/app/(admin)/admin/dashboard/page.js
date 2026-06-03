@@ -790,7 +790,7 @@ function PendingPaymentsTable({ onVerify, onApprove, onReject }) {
 function QuickActionCard({ item }) {
   const Icon = item.icon;
   const url = item.title === "Users" ? "/admin/dashboard?section=users" :
-    item.title === "Send Notification" ? "/admin/dashboard?section=notifications" :
+    item.title === "Notification Center" ? "/admin/notifications" :
       item.title === "Create Campaign" ? "/admin/dashboard?section=campaigns" :
         item.title === "Referral Settings" ? "/admin/dashboard?section=referrals" :
           item.title === "White Label" ? "/admin/white-label" : "/admin/dashboard?section=reports";

@@ -38,7 +38,7 @@ export const adminNavGroups = [
   {
     title: "Communication",
     items: [
-      { icon: Bell, label: "Notifications", href: "/admin/notifications", badge: "18" },
+      { icon: Bell, label: "Notification Management", href: "/admin/notifications" },
       { icon: Megaphone, label: "Campaigns", href: "/admin/dashboard?section=campaigns" },
       { icon: PieChart, label: "Referrals", href: "/admin/dashboard?section=referrals" },
       { icon: ClipboardList, label: "Inquiries", href: "/admin/inquiries" },
@@ -213,7 +213,7 @@ export const recentActivity = [
 
 export const quickActions = [
   { icon: Users, title: "Users", text: "Manage all users", action: "View all", tone: "green" },
-  { icon: Bell, title: "Send Notification", text: "Send to targeted users", action: "Send now", tone: "violet" },
+  { icon: Bell, title: "Notification Center", text: "Broadcasts, analytics & delivery logs", action: "Open", tone: "violet" },
   { icon: Megaphone, title: "Create Campaign", text: "Track users & performance", action: "Create now", tone: "amber" },
   { icon: PieChart, title: "Referral Settings", text: "Manage referral system", action: "Configure", tone: "blue" },
   { icon: ClipboardList, title: "White Label", text: "Manage clients & branding", action: "Manage", tone: "pink" },

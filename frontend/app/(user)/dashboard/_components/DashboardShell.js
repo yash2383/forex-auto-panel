@@ -13,7 +13,10 @@ export default function DashboardShell({ children }) {
   const [theme, setTheme] = useState("dark");
   
   const currentUser = useAdminStore((s) => s.currentUser);
+  const payments = useAdminStore((s) => s.payments || []);
   const fetchData = useAdminStore((s) => s.fetchData);
+
+  const hasActivePlan = payments.some(p => p.status === "Approved");
 
   const handleLogout = async () => {
     try {
@@ -83,16 +86,29 @@ export default function DashboardShell({ children }) {
           </nav>
 
           <div className="space-y-5 border-t border-white/10 px-5 py-6">
-            <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/15 text-green-300">
-                <Crown className="h-5 w-5" />
-              </span>
-              <h3 className="mt-4 text-sm font-bold text-white">Unlock Premium</h3>
-              <p className="mt-2 text-sm leading-relaxed text-neutral-400">Get full access to all features and insights.</p>
-              <Link href="/pricing" className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-green-400 text-sm font-bold text-black">
-                Upgrade Now
-              </Link>
-            </div>
+            {hasActivePlan ? (
+              <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/15 text-green-300">
+                  <Crown className="h-5 w-5" />
+                </span>
+                <h3 className="mt-4 text-sm font-bold text-white">Active Subscription</h3>
+                <p className="mt-2 text-sm leading-relaxed text-neutral-400">You have full access to all premium features.</p>
+                <Link href="/dashboard/subscription" className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-white/[0.08] text-sm font-bold text-white hover:bg-white/[0.12] transition">
+                  Manage Plan
+                </Link>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/15 text-green-300">
+                  <Crown className="h-5 w-5" />
+                </span>
+                <h3 className="mt-4 text-sm font-bold text-white">Unlock Premium</h3>
+                <p className="mt-2 text-sm leading-relaxed text-neutral-400">Get full access to all features and insights.</p>
+                <Link href="/pricing" className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-green-400 text-sm font-bold text-black hover:bg-green-300 transition">
+                  Upgrade Now
+                </Link>
+              </div>
+            )}
 
             <div className="flex items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-sm font-bold text-black">
@@ -101,13 +117,7 @@ export default function DashboardShell({ children }) {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-white truncate">{currentUser?.name || "User"}</p>
                 <p className="text-xs font-semibold text-green-300">
-                  {currentUser?.status === "VIP" 
-                    ? "Premium Plan" 
-                    : currentUser?.status === "ACTIVE" 
-                      ? "Basic Plan" 
-                      : currentUser?.status === "EXPIRED" 
-                        ? "Expired Plan" 
-                        : "No Active Plan"}
+                  {hasActivePlan ? "Premium Active" : "No Active Plan"}
                 </p>
               </div>
               <button

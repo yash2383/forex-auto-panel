@@ -28,7 +28,6 @@ export const userNavItems = [
   { icon: FileText, label: "Reports", href: "/dashboard/reports" },
   { icon: List, label: "Subscription", href: "/dashboard/subscription" },
   { icon: WalletIcon, label: "Wallet", href: "/dashboard/wallet" },
-  { icon: Settings, label: "Settings", href: "/dashboard/settings" },
   { icon: HelpCircle, label: "Support", href: "/dashboard/support" },
 ];
 

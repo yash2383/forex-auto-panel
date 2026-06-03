@@ -980,52 +980,115 @@ export class AdminService {
     const distDate = new Date(distributionDate);
     const reference = await this.generateProfitDistributionReference(distDate);
 
-    const profitDist = await this.prisma.profitDistribution.create({
-      data: {
-        reference,
-        userId,
-        amount: Number(amount),
-        type,
-        status: status || 'PAID',
-        note: note || '',
-        distributionDate: distDate,
-      },
-      include: {
-        user: true,
-      },
-    });
+    try {
+      const result = await this.prisma.$transaction(async (tx: any) => {
+        const profitDist = await tx.profitDistribution.create({
+          data: {
+            reference,
+            userId,
+            amount: Number(amount),
+            type,
+            status: status || 'PAID',
+            note: note || '',
+            distributionDate: distDate,
+          },
+          include: {
+            user: true,
+          },
+        });
 
-    return { success: true, profitDistribution: profitDist };
+        if (profitDist.status === 'PAID') {
+          await createTransactionGroup(tx, {
+            type: 'TRADE_PROFIT',
+            description: `Manual Profit payout | Ref: ${reference}`,
+            idempotencyKey: `PROFIT_DIST_${reference}`,
+            entries: [
+              { accountType: 'SYSTEM', entryType: 'DEBIT', amount: profitDist.amount, currency: 'INR' },
+              { userId: profitDist.userId, partnerId: profitDist.user.partnerId, accountType: 'USER', entryType: 'CREDIT', amount: profitDist.amount, currency: 'INR' },
+            ],
+          });
+        }
+
+        return profitDist;
+      });
+
+      return { success: true, profitDistribution: result };
+    } catch (e: any) {
+      console.error('Manual profit dist error:', e);
+      return { error: e.message || 'Database error', status: 500 };
+    }
   }
 
   async updateProfitDistribution(id: string, body: any) {
     const { amount, type, status, note, distributionDate } = body;
 
-    const dataToUpdate: any = {};
-    if (amount !== undefined) dataToUpdate.amount = Number(amount);
-    if (type !== undefined) dataToUpdate.type = type;
-    if (status !== undefined) dataToUpdate.status = status;
-    if (note !== undefined) dataToUpdate.note = note;
-    if (distributionDate !== undefined) {
-      dataToUpdate.distributionDate = new Date(distributionDate);
+    try {
+      const result = await this.prisma.$transaction(async (tx: any) => {
+        const currentDist = await tx.profitDistribution.findUnique({ where: { id }, include: { user: true } });
+        if (!currentDist) throw new Error('Profit distribution not found');
+
+        if (currentDist.status === 'PAID' && status === 'PENDING') {
+          throw new Error('Cannot revert a PAID profit distribution back to PENDING. This would require a ledger reversal.');
+        }
+
+        const dataToUpdate: any = {};
+        if (amount !== undefined) dataToUpdate.amount = Number(amount);
+        if (type !== undefined) dataToUpdate.type = type;
+        if (status !== undefined) dataToUpdate.status = status;
+        if (note !== undefined) dataToUpdate.note = note;
+        if (distributionDate !== undefined) {
+          dataToUpdate.distributionDate = new Date(distributionDate);
+        }
+
+        const updated = await tx.profitDistribution.update({
+          where: { id },
+          data: dataToUpdate,
+          include: {
+            user: true,
+          },
+        });
+
+        // Trigger ledger if status transitions from PENDING to PAID
+        if (currentDist.status === 'PENDING' && updated.status === 'PAID') {
+          await createTransactionGroup(tx, {
+            type: 'TRADE_PROFIT',
+            description: `Manual Profit payout | Ref: ${updated.reference}`,
+            idempotencyKey: `PROFIT_DIST_${updated.reference}`,
+            entries: [
+              { accountType: 'SYSTEM', entryType: 'DEBIT', amount: updated.amount, currency: 'INR' },
+              { userId: updated.userId, partnerId: updated.user.partnerId, accountType: 'USER', entryType: 'CREDIT', amount: updated.amount, currency: 'INR' },
+            ],
+          });
+        }
+
+        return updated;
+      });
+
+      return { success: true, profitDistribution: result };
+    } catch (e: any) {
+      console.error('Update profit dist error:', e);
+      return { error: e.message || 'Database error', status: 400 };
     }
-
-    const updated = await this.prisma.profitDistribution.update({
-      where: { id },
-      data: dataToUpdate,
-      include: {
-        user: true,
-      },
-    });
-
-    return { success: true, profitDistribution: updated };
   }
 
   async deleteProfitDistribution(id: string) {
-    await this.prisma.profitDistribution.delete({
-      where: { id },
-    });
-    return { success: true };
+    try {
+      await this.prisma.$transaction(async (tx: any) => {
+        const currentDist = await tx.profitDistribution.findUnique({ where: { id } });
+        if (!currentDist) throw new Error('Profit distribution not found');
+        
+        if (currentDist.status === 'PAID') {
+          throw new Error('Cannot delete a PAID profit distribution because it is tied to an active ledger transaction. Please create a manual adjustment instead.');
+        }
+
+        await tx.profitDistribution.delete({
+          where: { id },
+        });
+      });
+      return { success: true };
+    } catch (e: any) {
+      return { error: e.message, status: 400 };
+    }
   }
 
   // Bulk Profit Distribution Lock & Idempotency Cache
@@ -1100,6 +1163,8 @@ export class AdminService {
       },
     });
 
+    const activePlans = await this.prisma.plan.findMany({ where: { isActive: true } });
+
     const eligiblePayouts: Array<{
       user: typeof users[0];
       approvedPayment: typeof users[0]['payments'][0];
@@ -1150,13 +1215,19 @@ export class AdminService {
       // Determine profit rate based on plan name matching
       let profitRate = 0;
       const planName = approvedPayment.planName.toLowerCase();
-      if (planName.includes('individual')) {
-        profitRate = individualPercent;
-      } else if (planName.includes('club')) {
-        profitRate = clubPercent;
+      
+      const matchedPlan = activePlans.find(p => p.name.toLowerCase() === planName);
+      if (matchedPlan) {
+        profitRate = Number(matchedPlan.weeklyProfit);
       } else {
-        skipped.invalidPlan.push(user.email);
-        continue;
+        if (planName.includes('individual')) {
+          profitRate = individualPercent;
+        } else if (planName.includes('club')) {
+          profitRate = clubPercent;
+        } else {
+          skipped.invalidPlan.push(user.email);
+          continue;
+        }
       }
 
       const investment = Number(approvedPayment.amount);

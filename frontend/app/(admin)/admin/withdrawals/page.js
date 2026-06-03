@@ -33,18 +33,19 @@ export default function WithdrawalsPage() {
 
   const withdrawals = useAdminStore((s) => s.withdrawals || []);
   const hasPermission = useAdminStore((s) => s.hasPermission);
-  const updateWithdrawalStatus = useAdminStore((s) => s.updateWithdrawalStatus);
+  const approveWithdrawal = useAdminStore((s) => s.approveWithdrawal);
+  const rejectWithdrawal = useAdminStore((s) => s.rejectWithdrawal);
   const canApprove = hasPermission("payments", "edit");
 
   const handleApprove = (id) => {
     if (confirm("Are you sure you want to approve this withdrawal?")) {
-      updateWithdrawalStatus(id, "Approved");
+      approveWithdrawal(id);
     }
   };
 
   const handleReject = (id) => {
     if (confirm("Are you sure you want to reject this withdrawal?")) {
-      updateWithdrawalStatus(id, "Rejected");
+      rejectWithdrawal(id);
     }
   };
 

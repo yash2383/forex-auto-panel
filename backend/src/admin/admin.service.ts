@@ -11,7 +11,8 @@ export class AdminService {
   async getData() {
     const [
       dbUsers, dbPayments, dbTrades, dbLogs, dbPartners, dbSettings,
-      dbCampaigns, dbReferrals, dbAdmins, dbWithdrawals, dbPlans, dbProfitDistributions, dbReferralSettings
+      dbCampaigns, dbReferrals, dbAdmins, dbWithdrawals, dbPlans, dbProfitDistributions, dbReferralSettings,
+      dbGeneratedReports
     ] = await Promise.all([
       this.prisma.user.findMany({ where: { isDeleted: false }, include: { wallet: true, partner: true }, orderBy: { createdAt: 'desc' } }),
       this.prisma.payment.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
@@ -26,6 +27,7 @@ export class AdminService {
       this.prisma.plan.findMany({ orderBy: { createdAt: 'asc' } }),
       this.prisma.profitDistribution.findMany({ include: { user: true }, orderBy: { distributionDate: 'desc' } }),
       this.prisma.referralSettings.findFirst(),
+      this.prisma.generatedReport.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
     ]);
 
     const users = dbUsers.map((u) => {
@@ -48,7 +50,6 @@ export class AdminService {
         plan, status: statusLabel, partnerId: u.partnerId,
         partnerName: u.partner?.name || 'N/A',
         isVerified: u.isVerified,
-        otpCode: u.otpCode,
       };
     });
 
@@ -230,6 +231,18 @@ export class AdminService {
       time: w.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
     }));
 
+    const generatedReports = dbGeneratedReports.map((gr: any) => ({
+      id: gr.id,
+      userId: gr.userId,
+      userName: gr.user?.name || 'Unknown User',
+      userEmail: gr.user?.email || 'N/A',
+      partnerId: gr.user?.partnerId || '',
+      fileName: gr.fileName,
+      reportType: gr.reportType,
+      fileUrl: gr.fileUrl,
+      createdAt: gr.createdAt,
+    }));
+
     return {
       stats: platformStats, users, payments, trades, logs, partners, campaigns,
       referrals, admins, transactions, settings, profitDistributions, withdrawals,
@@ -238,6 +251,7 @@ export class AdminService {
         desc: p.desc, features: p.features, btnText: p.btnText, status: p.status, isPopular: p.isPopular,
       })),
       referralSettings: dbReferralSettings,
+      generatedReports,
     };
   }
 

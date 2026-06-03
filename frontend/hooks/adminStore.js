@@ -61,6 +61,7 @@ export const rolePermissions = {
 export const useAdminStore = create((set, get) => ({
   // INITIAL STATE
   users: [],
+  generatedReports: [],
   payments: [],
   withdrawals: [],
   trades: [],
@@ -157,6 +158,7 @@ export const useAdminStore = create((set, get) => ({
             plans: data.plans,
             profitDistributions: data.profitDistributions || [],
             referralSettings: data.referralSettings || null,
+            generatedReports: data.generatedReports || [],
           });
         }
       }
@@ -358,35 +360,7 @@ export const useAdminStore = create((set, get) => ({
     }
   },
 
-  approveUserVerification: async (id) => {
-    try {
-      const res = await apiFetch(`/api/admin/users/${id}/approve-verification`, { method: "POST" });
-      if (res.ok) {
-        await get().fetchData();
-        return { success: true };
-      }
-      const data = await res.json().catch(() => ({}));
-      return { success: false, error: data.message || "Failed to approve verification" };
-    } catch (e) {
-      console.error("approveUserVerification API error:", e);
-      return { success: false, error: e.message };
-    }
-  },
 
-  retryUserOtp: async (id) => {
-    try {
-      const res = await apiFetch(`/api/admin/users/${id}/retry-otp`, { method: "POST" });
-      if (res.ok) {
-        await get().fetchData();
-        return { success: true };
-      }
-      const data = await res.json().catch(() => ({}));
-      return { success: false, error: data.message || "Failed to retry OTP" };
-    } catch (e) {
-      console.error("retryUserOtp API error:", e);
-      return { success: false, error: e.message };
-    }
-  },
 
 
   // PAYMENTS ACTIONS VIA API

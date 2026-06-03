@@ -258,6 +258,29 @@ export default function ReportsPage() {
     }
   };
 
+  // ── Re-download a historical report ─────────────────────────────────────
+  const [historyDownloading, setHistoryDownloading] = useState({});
+  const handleHistoryDownload = async (reportId, fallbackName) => {
+    setHistoryDownloading((h) => ({ ...h, [reportId]: true }));
+    try {
+      const res = await apiFetch(`/api/reports/download/${reportId}`);
+      if (!res.ok) { setToast("Download failed. Try again."); return; }
+      const disposition = res.headers.get("content-disposition") || "";
+      const nameMatch = disposition.match(/filename="?([^"]+)"?/);
+      const fileName = nameMatch ? nameMatch[1] : fallbackName;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fileName; a.click();
+      URL.revokeObjectURL(url);
+      setToast(`${fileName} downloaded!`);
+    } catch {
+      setToast("Download failed. Try again.");
+    } finally {
+      setHistoryDownloading((h) => ({ ...h, [reportId]: false }));
+    }
+  };
+
   // ── Summary cards data ───────────────────────────────────────────────────
   const summaryCards = [
     {
@@ -708,6 +731,16 @@ export default function ReportsPage() {
                     <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-semibold text-neutral-500">
                       {isPdf ? "PDF" : "CSV"}
                     </span>
+                    <button
+                      onClick={() => handleHistoryDownload(item.id, item.fileName)}
+                      disabled={!!historyDownloading[item.id]}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-green-500/25 bg-green-500/8 px-2.5 text-[11px] font-bold text-green-300 hover:bg-green-500/15 transition disabled:opacity-50"
+                    >
+                      {historyDownloading[item.id]
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : <Download className="h-3 w-3" />}
+                      Download
+                    </button>
                   </div>
                 </div>
               );

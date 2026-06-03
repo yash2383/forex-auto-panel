@@ -6,6 +6,7 @@ import {
   Res,
   UseGuards,
   HttpStatus,
+  Param,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ReportsService } from './reports.service';
@@ -127,6 +128,65 @@ export class ReportsController {
     }
   }
 
+  @Get('download/:id')
+  async downloadReport(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Param('id') id: string,
+  ) {
+    try {
+      const user = (req as any).user;
+      const isAdmin = ['SUPER_ADMIN', 'MANAGER', 'VIEWER'].includes(user.role);
+
+      const report = await this.reportsService.prisma.generatedReport.findUnique({
+        where: { id },
+        include: { user: true },
+      });
+
+      if (!report) {
+        return res.status(HttpStatus.NOT_FOUND).json({ message: 'Report not found' });
+      }
+
+      if (!isAdmin && report.userId !== user.id) {
+        return res.status(HttpStatus.FORBIDDEN).json({ message: 'Access denied' });
+      }
+
+      const reportType = report.reportType.toLowerCase();
+      const isPdf = report.fileName.toLowerCase().endsWith('.pdf');
+
+      if (isPdf) {
+        const { buffer, fileName } =
+          await this.reportsService.generatePdfBuffer(
+            report.userId,
+            reportType,
+            report.user?.name || 'User',
+          );
+
+        res.set({
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${fileName}"`,
+          'Content-Length': buffer.length,
+        });
+        return res.end(buffer);
+      } else {
+        const { buffer, fileName } =
+          await this.reportsService.generateCsvBuffer(report.userId, reportType);
+
+        res.set({
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="${fileName}"`,
+          'Content-Length': buffer.length,
+        });
+        return res.end(buffer);
+      }
+    } catch (e: any) {
+      console.error('Download report error:', e);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: e.message || 'Download failed' });
+    }
+  }
+
   /**
    * GET /api/reports/export?type=trading&format=csv
    * GET /api/reports/export?type=trading&format=pdf
@@ -137,23 +197,38 @@ export class ReportsController {
     @Res() res: Response,
     @Query('type') type: string,
     @Query('format') format: string,
+    @Query('userId') userId?: string,
   ) {
     try {
       const user = (req as any).user;
+      let targetUserId = user.id;
+      let targetUserName = user.name || 'User';
+
+      const isAdmin = ['SUPER_ADMIN', 'MANAGER', 'VIEWER'].includes(user.role);
+      if (isAdmin && userId) {
+        targetUserId = userId;
+        const targetUser = await this.reportsService.prisma.user.findUnique({
+          where: { id: targetUserId },
+        });
+        if (targetUser) {
+          targetUserName = targetUser.name || 'User';
+        }
+      }
+
       const reportType = (type || 'trading').toLowerCase();
       const reportFormat = (format || 'csv').toLowerCase();
 
       if (reportFormat === 'pdf') {
         const { buffer, fileName } =
           await this.reportsService.generatePdfBuffer(
-            user.id,
+            targetUserId,
             reportType,
-            user.name || 'User',
+            targetUserName,
           );
 
         // Persist record
         await this.reportsService.saveReportRecord(
-          user.id,
+          targetUserId,
           fileName,
           reportType.toUpperCase(),
           `/reports/${fileName}`,
@@ -169,11 +244,11 @@ export class ReportsController {
 
       // Default: CSV
       const { buffer, fileName } =
-        await this.reportsService.generateCsvBuffer(user.id, reportType);
+        await this.reportsService.generateCsvBuffer(targetUserId, reportType);
 
       // Persist record
       await this.reportsService.saveReportRecord(
-        user.id,
+        targetUserId,
         fileName,
         reportType.toUpperCase(),
         `/reports/${fileName}`,
@@ -193,3 +268,4 @@ export class ReportsController {
     }
   }
 }
+

@@ -5,7 +5,7 @@ const PDFDocument = require('pdfkit');
 
 @Injectable()
 export class ReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(public prisma: PrismaService) {}
 
   // ─── Summary Card Data ────────────────────────────────────────────────────
   async getReportSummary(userId: string) {

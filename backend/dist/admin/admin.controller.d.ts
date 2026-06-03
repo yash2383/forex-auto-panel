@@ -50,6 +50,4 @@ export declare class AdminController {
     }, res: Response): Promise<Response<any, Record<string, any>>>;
     getInitiatedPayments(res: Response): Promise<Response<any, Record<string, any>>>;
     updateInitiatedPayment(id: string, req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
-    approveVerification(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    retryOtp(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
 }

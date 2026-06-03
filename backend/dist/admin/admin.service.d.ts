@@ -21,7 +21,6 @@ export declare class AdminService {
             partnerId: string;
             partnerName: string;
             isVerified: boolean;
-            otpCode: string | null;
         }[];
         payments: {
             id: any;
@@ -187,9 +186,9 @@ export declare class AdminService {
         }[];
         referralSettings: {
             id: string;
+            partnerId: string | null;
             createdAt: Date;
             updatedAt: Date;
-            partnerId: string | null;
             enabled: boolean;
             commissionRate: Prisma.Decimal;
             minimumDeposit: Prisma.Decimal;
@@ -198,6 +197,17 @@ export declare class AdminService {
             commissionPayoutMode: string;
             maxReferralCommission: Prisma.Decimal | null;
         } | null;
+        generatedReports: {
+            id: any;
+            userId: any;
+            userName: any;
+            userEmail: any;
+            partnerId: any;
+            fileName: any;
+            reportType: any;
+            fileUrl: any;
+            createdAt: any;
+        }[];
     }>;
     createUser(adminId: string, body: any, clientIp: string): Promise<{
         error: string;
@@ -219,17 +229,17 @@ export declare class AdminService {
         success: boolean;
         user: {
             id: string;
+            partnerId: string;
             name: string;
             email: string;
-            status: import("@prisma/client").$Enums.UserStatus;
-            createdAt: Date;
-            updatedAt: Date;
-            partnerId: string;
             phone: string | null;
             passwordHash: string;
+            status: import("@prisma/client").$Enums.UserStatus;
             isDeleted: boolean;
             lastLoginAt: Date | null;
             lastLoginIP: string | null;
+            createdAt: Date;
+            updatedAt: Date;
             referralCode: string;
             referredBy: string | null;
             isVerified: boolean;
@@ -263,17 +273,17 @@ export declare class AdminService {
             id: string;
             name: string;
             email: string;
-            status: import("@prisma/client").$Enums.PartnerStatus;
-            createdAt: Date;
-            updatedAt: Date;
             passwordHash: string;
+            status: import("@prisma/client").$Enums.PartnerStatus;
             lastLoginAt: Date | null;
             lastLoginIP: string | null;
+            createdAt: Date;
+            updatedAt: Date;
             slug: string;
-            domain: string;
             companyName: string;
             profitSharePct: Prisma.Decimal;
             maxAllowedPct: Prisma.Decimal;
+            domain: string;
             logo: string | null;
         };
         error?: undefined;
@@ -294,6 +304,7 @@ export declare class AdminService {
             updatedAt: Date;
             desc: string;
             amount: Prisma.Decimal;
+            isActive: boolean;
             subtitle: string;
             capitalLabel: string;
             features: string[];
@@ -302,7 +313,6 @@ export declare class AdminService {
             weeklyProfit: Prisma.Decimal;
             durationDays: number;
             sortOrder: number;
-            isActive: boolean;
         };
         error?: undefined;
         status?: undefined;
@@ -322,6 +332,7 @@ export declare class AdminService {
             updatedAt: Date;
             desc: string;
             amount: Prisma.Decimal;
+            isActive: boolean;
             subtitle: string;
             capitalLabel: string;
             features: string[];
@@ -330,7 +341,6 @@ export declare class AdminService {
             weeklyProfit: Prisma.Decimal;
             durationDays: number;
             sortOrder: number;
-            isActive: boolean;
         };
         error?: undefined;
         status?: undefined;
@@ -350,8 +360,8 @@ export declare class AdminService {
         success: boolean;
         settings: {
             id: string;
-            updatedAt: Date;
             partnerId: string | null;
+            updatedAt: Date;
             upiId: string | null;
             usdtAddress: string | null;
             usdtNetwork: string;
@@ -373,8 +383,8 @@ export declare class AdminService {
         success: boolean;
         settings: {
             id: string;
-            updatedAt: Date;
             partnerId: string | null;
+            updatedAt: Date;
             upiId: string | null;
             usdtAddress: string | null;
             usdtNetwork: string;
@@ -393,9 +403,9 @@ export declare class AdminService {
         success: boolean;
         settings: {
             id: string;
+            partnerId: string | null;
             createdAt: Date;
             updatedAt: Date;
-            partnerId: string | null;
             enabled: boolean;
             commissionRate: Prisma.Decimal;
             minimumDeposit: Prisma.Decimal;
@@ -409,9 +419,9 @@ export declare class AdminService {
         success: boolean;
         settings: {
             id: string;
+            partnerId: string | null;
             createdAt: Date;
             updatedAt: Date;
-            partnerId: string | null;
             enabled: boolean;
             commissionRate: Prisma.Decimal;
             minimumDeposit: Prisma.Decimal;
@@ -434,10 +444,10 @@ export declare class AdminService {
             };
         } & {
             id: string;
+            partnerId: string;
             status: import("@prisma/client").$Enums.ReferralStatus;
             createdAt: Date;
             updatedAt: Date;
-            partnerId: string;
             referrerId: string;
             referredId: string;
             depositAmount: Prisma.Decimal | null;
@@ -455,10 +465,10 @@ export declare class AdminService {
         success: boolean;
         referral: {
             id: string;
+            partnerId: string;
             status: import("@prisma/client").$Enums.ReferralStatus;
             createdAt: Date;
             updatedAt: Date;
-            partnerId: string;
             referrerId: string;
             referredId: string;
             depositAmount: Prisma.Decimal | null;
@@ -478,21 +488,21 @@ export declare class AdminService {
         success: boolean;
         trade: {
             id: string;
+            partnerId: string;
             status: import("@prisma/client").$Enums.TradeStatus;
             createdAt: Date;
-            partnerId: string;
             userId: string;
-            target: Prisma.Decimal;
+            ledgerTransactionGroupId: string | null;
             pair: string;
-            type: import("@prisma/client").$Enums.TradeType;
             entryPrice: Prisma.Decimal;
+            exitPrice: Prisma.Decimal;
+            type: import("@prisma/client").$Enums.TradeType;
             currentPrice: Prisma.Decimal;
             quantity: Prisma.Decimal;
-            exitPrice: Prisma.Decimal;
             stopLoss: Prisma.Decimal;
+            target: Prisma.Decimal;
             profit: Prisma.Decimal;
             pnl: Prisma.Decimal;
-            ledgerTransactionGroupId: string | null;
             closedAt: Date | null;
         };
         error?: undefined;
@@ -508,18 +518,18 @@ export declare class AdminService {
         status?: undefined;
     }>;
     listTradeRecords(): Promise<{
+        result: string;
         id: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
-        result: string;
         pair: string;
+        side: string;
         entryPrice: number;
         exitPrice: number;
-        notes: string | null;
-        side: string;
         profitLoss: number;
         tradeDate: Date;
+        notes: string | null;
     }[]>;
     createTradeRecord(body: any): Promise<{
         error: string;
@@ -529,18 +539,18 @@ export declare class AdminService {
     } | {
         success: boolean;
         tradeRecord: {
+            result: string;
             id: string;
             status: string;
             createdAt: Date;
             updatedAt: Date;
-            result: string;
             pair: string;
+            side: string;
             entryPrice: number;
             exitPrice: number;
-            notes: string | null;
-            side: string;
             profitLoss: number;
             tradeDate: Date;
+            notes: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -553,18 +563,18 @@ export declare class AdminService {
     } | {
         success: boolean;
         tradeRecord: {
+            result: string;
             id: string;
             status: string;
             createdAt: Date;
             updatedAt: Date;
-            result: string;
             pair: string;
+            side: string;
             entryPrice: number;
             exitPrice: number;
-            notes: string | null;
-            side: string;
             profitLoss: number;
             tradeDate: Date;
+            notes: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -588,18 +598,18 @@ export declare class AdminService {
     } | {
         success: boolean;
         tradeRecord: {
+            result: string;
             id: string;
             status: string;
             createdAt: Date;
             updatedAt: Date;
-            result: string;
             pair: string;
+            side: string;
             entryPrice: number;
             exitPrice: number;
-            notes: string | null;
-            side: string;
             profitLoss: number;
             tradeDate: Date;
+            notes: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -617,21 +627,21 @@ export declare class AdminService {
         success: boolean;
         payment: {
             id: string;
+            partnerId: string;
             status: import("@prisma/client").$Enums.PaymentStatus;
             createdAt: Date;
             updatedAt: Date;
-            partnerId: string;
             userId: string;
-            ledgerTransactionGroupId: string | null;
-            currency: string;
             planName: string;
             amount: Prisma.Decimal;
+            currency: string;
             paymentType: import("@prisma/client").$Enums.PaymentType;
             network: string | null;
             txnHash: string | null;
             utr: string | null;
             screenshot: string | null;
             remark: string | null;
+            ledgerTransactionGroupId: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -645,21 +655,21 @@ export declare class AdminService {
         success: boolean;
         payment: {
             id: string;
+            partnerId: string;
             status: import("@prisma/client").$Enums.PaymentStatus;
             createdAt: Date;
             updatedAt: Date;
-            partnerId: string;
             userId: string;
-            ledgerTransactionGroupId: string | null;
-            currency: string;
             planName: string;
             amount: Prisma.Decimal;
+            currency: string;
             paymentType: import("@prisma/client").$Enums.PaymentType;
             network: string | null;
             txnHash: string | null;
             utr: string | null;
             screenshot: string | null;
             remark: string | null;
+            ledgerTransactionGroupId: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -980,21 +990,21 @@ export declare class AdminService {
         id: string;
         name: string;
         email: string;
-        subject: string;
-        message: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
+        subject: string;
+        message: string;
     }[]>;
     updateInquiryStatus(id: string, status: string): Promise<{
         id: string;
         name: string;
         email: string;
-        subject: string;
-        message: string;
         status: string;
         createdAt: Date;
         updatedAt: Date;
+        subject: string;
+        message: string;
     } | {
         error: string;
         status: number;
@@ -1021,15 +1031,15 @@ export declare class AdminService {
             } | null;
         } & {
             id: string;
+            partnerId: string;
             status: string;
             createdAt: Date;
             updatedAt: Date;
-            partnerId: string;
             userId: string;
             amount: Prisma.Decimal;
+            planId: string | null;
             paymentGateway: string | null;
             source: string | null;
-            planId: string | null;
             checkoutOpenedAt: Date;
             lastActivityAt: Date;
             completedAt: Date | null;
@@ -1048,15 +1058,15 @@ export declare class AdminService {
         success: boolean;
         initiatedPayment: {
             id: string;
+            partnerId: string;
             status: string;
             createdAt: Date;
             updatedAt: Date;
-            partnerId: string;
             userId: string;
             amount: Prisma.Decimal;
+            planId: string | null;
             paymentGateway: string | null;
             source: string | null;
-            planId: string | null;
             checkoutOpenedAt: Date;
             lastActivityAt: Date;
             completedAt: Date | null;

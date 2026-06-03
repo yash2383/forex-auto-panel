@@ -123,14 +123,24 @@ let ReportsController = class ReportsController {
                 .json({ message: 'Internal server error' });
         }
     }
-    async exportReport(req, res, type, format) {
+    async downloadReport(req, res, id) {
         try {
             const user = req.user;
-            const reportType = (type || 'trading').toLowerCase();
-            const reportFormat = (format || 'csv').toLowerCase();
-            if (reportFormat === 'pdf') {
-                const { buffer, fileName } = await this.reportsService.generatePdfBuffer(user.id, reportType, user.name || 'User');
-                await this.reportsService.saveReportRecord(user.id, fileName, reportType.toUpperCase(), `/reports/${fileName}`);
+            const isAdmin = ['SUPER_ADMIN', 'MANAGER', 'VIEWER'].includes(user.role);
+            const report = await this.reportsService.prisma.generatedReport.findUnique({
+                where: { id },
+                include: { user: true },
+            });
+            if (!report) {
+                return res.status(common_1.HttpStatus.NOT_FOUND).json({ message: 'Report not found' });
+            }
+            if (!isAdmin && report.userId !== user.id) {
+                return res.status(common_1.HttpStatus.FORBIDDEN).json({ message: 'Access denied' });
+            }
+            const reportType = report.reportType.toLowerCase();
+            const isPdf = report.fileName.toLowerCase().endsWith('.pdf');
+            if (isPdf) {
+                const { buffer, fileName } = await this.reportsService.generatePdfBuffer(report.userId, reportType, report.user?.name || 'User');
                 res.set({
                     'Content-Type': 'application/pdf',
                     'Content-Disposition': `attachment; filename="${fileName}"`,
@@ -138,8 +148,52 @@ let ReportsController = class ReportsController {
                 });
                 return res.end(buffer);
             }
-            const { buffer, fileName } = await this.reportsService.generateCsvBuffer(user.id, reportType);
-            await this.reportsService.saveReportRecord(user.id, fileName, reportType.toUpperCase(), `/reports/${fileName}`);
+            else {
+                const { buffer, fileName } = await this.reportsService.generateCsvBuffer(report.userId, reportType);
+                res.set({
+                    'Content-Type': 'text/csv',
+                    'Content-Disposition': `attachment; filename="${fileName}"`,
+                    'Content-Length': buffer.length,
+                });
+                return res.end(buffer);
+            }
+        }
+        catch (e) {
+            console.error('Download report error:', e);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: e.message || 'Download failed' });
+        }
+    }
+    async exportReport(req, res, type, format, userId) {
+        try {
+            const user = req.user;
+            let targetUserId = user.id;
+            let targetUserName = user.name || 'User';
+            const isAdmin = ['SUPER_ADMIN', 'MANAGER', 'VIEWER'].includes(user.role);
+            if (isAdmin && userId) {
+                targetUserId = userId;
+                const targetUser = await this.reportsService.prisma.user.findUnique({
+                    where: { id: targetUserId },
+                });
+                if (targetUser) {
+                    targetUserName = targetUser.name || 'User';
+                }
+            }
+            const reportType = (type || 'trading').toLowerCase();
+            const reportFormat = (format || 'csv').toLowerCase();
+            if (reportFormat === 'pdf') {
+                const { buffer, fileName } = await this.reportsService.generatePdfBuffer(targetUserId, reportType, targetUserName);
+                await this.reportsService.saveReportRecord(targetUserId, fileName, reportType.toUpperCase(), `/reports/${fileName}`);
+                res.set({
+                    'Content-Type': 'application/pdf',
+                    'Content-Disposition': `attachment; filename="${fileName}"`,
+                    'Content-Length': buffer.length,
+                });
+                return res.end(buffer);
+            }
+            const { buffer, fileName } = await this.reportsService.generateCsvBuffer(targetUserId, reportType);
+            await this.reportsService.saveReportRecord(targetUserId, fileName, reportType.toUpperCase(), `/reports/${fileName}`);
             res.set({
                 'Content-Type': 'text/csv',
                 'Content-Disposition': `attachment; filename="${fileName}"`,
@@ -218,13 +272,23 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ReportsController.prototype, "getHistory", null);
 __decorate([
+    (0, common_1.Get)('download/:id'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)()),
+    __param(2, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, String]),
+    __metadata("design:returntype", Promise)
+], ReportsController.prototype, "downloadReport", null);
+__decorate([
     (0, common_1.Get)('export'),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Res)()),
     __param(2, (0, common_1.Query)('type')),
     __param(3, (0, common_1.Query)('format')),
+    __param(4, (0, common_1.Query)('userId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object, String, String]),
+    __metadata("design:paramtypes", [Object, Object, String, String, String]),
     __metadata("design:returntype", Promise)
 ], ReportsController.prototype, "exportReport", null);
 exports.ReportsController = ReportsController = __decorate([

@@ -163,13 +163,9 @@ const sectionContent = {
     permissionKey: "reports",
     title: "Reports & Analytics",
     description: "Access detailed reports on users, revenue, and platform activity.",
-    metrics: [["Revenue Reports", "24"], ["Growth Reports", "18"], ["Exports", "92"], ["This Month", "$42,800"]],
-    headers: ["Report Name", "Category", "Last Updated", "File Format"],
-    rows: [
-      ["Monthly Revenue", "Finance", "Today", "Excel"],
-      ["User Growth", "Growth", "Yesterday", "PDF"],
-      ["Active Trade Logs", "Trading", "May 25", "Excel"],
-    ],
+    metrics: [["Total Exports", "0"], ["Trading Reports", "0"], ["Profit Reports", "0"], ["Wallet Statements", "0"]],
+    headers: ["Report Name", "Client", "Category", "Last Updated", "File Format"],
+    rows: [],
   },
   settings: {
     permissionKey: "settings",
@@ -328,6 +324,40 @@ function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, o
   }
 
 
+
+  if (permissionKey === "reports") {
+    const reportId = itemId;
+    const handleDownload = async () => {
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/reports/download/${reportId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) { showToast?.("Failed to download report", "error"); return; }
+        const disposition = res.headers.get("content-disposition") || "";
+        const nameMatch = disposition.match(/filename="?([^"]+)"?/);
+        const fileName = nameMatch ? nameMatch[1] : `report-${reportId}.pdf`;
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = fileName; a.click();
+        URL.revokeObjectURL(url);
+        showToast?.("Report downloaded!", "success");
+      } catch {
+        showToast?.("Download failed", "error");
+      }
+    };
+    return (
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={handleDownload}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-1.5 text-xs font-bold text-green-300 hover:bg-green-500/20 transition"
+        >
+          <FileDown className="h-3.5 w-3.5" /> Download
+        </button>
+      </div>
+    );
+  }
 
   if (sectionTitle === "Withdrawal Requests") {
     const status = itemRow[4];
@@ -815,6 +845,7 @@ function AdminSectionPage({
   const transactions = useAdminStore((s) => s.transactions || []);
   const plans = useAdminStore((s) => s.plans || []);
   const withdrawals = useAdminStore((s) => s.withdrawals || []);
+  const generatedReports = useAdminStore((s) => s.generatedReports || []);
   const pnlReports = useAdminStore((s) => s.pnlReports);
   const fetchPnlReports = useAdminStore((s) => s.fetchPnlReports);
   const hasPermission = useAdminStore((s) => s.hasPermission);
@@ -854,21 +885,28 @@ function AdminSectionPage({
         return trades.length > 0 ? `${((wins / trades.length) * 100).toFixed(1)}%` : "0.0%";
       })()],
     ]
-    : section.title === "Withdrawal Requests"
+    : section.permissionKey === "reports"
       ? [
-        ["Total Requests", withdrawals.length.toString()],
-        ["Pending", withdrawals.filter((w) => w.status === "Pending").length.toString()],
-        ["Approved", withdrawals.filter((w) => w.status === "Approved").length.toString()],
-        ["Rejected", withdrawals.filter((w) => w.status === "Rejected").length.toString()],
+        ["Total Exports", generatedReports.length.toString()],
+        ["Trading Reports", generatedReports.filter(r => r.reportType === "TRADING").length.toString()],
+        ["Profit Reports", generatedReports.filter(r => r.reportType === "PROFIT").length.toString()],
+        ["Wallet Statements", generatedReports.filter(r => r.reportType === "WALLET").length.toString()],
       ]
-      : section.permissionKey === "pnl-reports" && pnlReports
-          ? [
-            ["Total PnL", `$${pnlReports.overview.totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
-            ["User-wise Avg", pnlReports.overview.winningTrades > 0 ? `$${pnlReports.overview.averageWin}` : "$0"],
-            ["Profit Factor", pnlReports.overview.profitFactor],
-            ["Win Rate", `${pnlReports.overview.winRate}%`],
-          ]
-          : section.metrics;
+      : section.title === "Withdrawal Requests"
+        ? [
+          ["Total Requests", withdrawals.length.toString()],
+          ["Pending", withdrawals.filter((w) => w.status === "Pending").length.toString()],
+          ["Approved", withdrawals.filter((w) => w.status === "Approved").length.toString()],
+          ["Rejected", withdrawals.filter((w) => w.status === "Rejected").length.toString()],
+        ]
+        : section.permissionKey === "pnl-reports" && pnlReports
+            ? [
+              ["Total PnL", `$${pnlReports.overview.totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
+              ["User-wise Avg", pnlReports.overview.winningTrades > 0 ? `$${pnlReports.overview.averageWin}` : "$0"],
+              ["Profit Factor", pnlReports.overview.profitFactor],
+              ["Win Rate", `${pnlReports.overview.winRate}%`],
+            ]
+            : section.metrics;
 
   let rows = [];
   if (section.permissionKey === "users") {
@@ -955,19 +993,57 @@ function AdminSectionPage({
       a.id
     ]);
   } else if (section.permissionKey === "reports") {
-    // Dynamic reports table using dropdown filters
-    let list = section.rows || [];
+    // Dynamic reports table from generatedReports store
+    let list = [...generatedReports];
+
+    // Filter by partner
     if (reportPartnerId !== "all") {
-      list = list.filter((r) => r[0].toLowerCase().includes("revenue") || r[1].toLowerCase().includes("trading"));
+      list = list.filter((r) => r.partnerId === reportPartnerId);
     }
+
+    // Filter by user
+    if (reportUserId !== "all") {
+      list = list.filter((r) => r.userId === reportUserId);
+    }
+
+    // Filter by date range
+    if (reportDateRange !== "all") {
+      const now = new Date();
+      const dayMs = 86400000;
+      const cutoffs = { today: 1, week: 7, month: 30 };
+      const days = cutoffs[reportDateRange];
+      if (days) {
+        list = list.filter((r) => {
+          const diff = (now - new Date(r.createdAt)) / dayMs;
+          return diff <= days;
+        });
+      }
+    }
+
+    // Search filter
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       list = list.filter((r) =>
-        r[0].toLowerCase().includes(q) ||
-        r[1].toLowerCase().includes(q)
+        r.fileName.toLowerCase().includes(q) ||
+        r.userName.toLowerCase().includes(q) ||
+        r.userEmail.toLowerCase().includes(q) ||
+        r.reportType.toLowerCase().includes(q)
       );
     }
-    rows = list.map((r, idx) => [r[0], r[1], reportDateRange === "today" ? "Today" : r[2], r[3], `report-id-${idx}`]);
+
+    rows = list.map((r) => {
+      const isPdf = r.fileName.toLowerCase().endsWith(".pdf");
+      const date = new Date(r.createdAt);
+      const dateStr = date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+      return [
+        r.fileName,
+        r.userName,
+        r.reportType,
+        dateStr,
+        isPdf ? "PDF" : "CSV",
+        r.id
+      ];
+    });
   } else if (section.permissionKey === "pnl-reports" && pnlReports) {
     let list = pnlReports.rows || [];
     rows = list.map((r, idx) => [...r, `pnl-row-id-${idx}`]);
@@ -1241,6 +1317,8 @@ function AdminSectionPage({
               <select value={reportDateRange} onChange={(e) => setReportDateRange(e.target.value)} className="h-10 rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-xs text-white outline-none">
                 <option value="all">Date: All Time</option>
                 <option value="today">Date: Today</option>
+                <option value="week">Date: Last 7 Days</option>
+                <option value="month">Date: Last 30 Days</option>
               </select>
               <select value={reportPartnerId} onChange={(e) => setReportPartnerId(e.target.value)} className="h-10 rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-xs text-white outline-none">
                 <option value="all">Partner: All Brands</option>
@@ -1251,7 +1329,33 @@ function AdminSectionPage({
                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
-            <button className="h-10 rounded-lg bg-green-500 px-4 text-xs font-bold text-black hover:bg-green-400">Export All</button>
+            <button
+              className="h-10 rounded-lg bg-green-500 px-4 text-xs font-bold text-black hover:bg-green-400 transition"
+              onClick={async () => {
+                try {
+                  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+                  const params = new URLSearchParams({ format: "csv" });
+                  if (reportUserId !== "all") params.set("userId", reportUserId);
+                  const res = await fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/reports/export?${params.toString()}`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                  );
+                  if (!res.ok) { showToast?.("Export failed", "error"); return; }
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `reports-export-${Date.now()}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  showToast?.("Reports exported!", "success");
+                } catch {
+                  showToast?.("Export failed", "error");
+                }
+              }}
+            >
+              Export All
+            </button>
           </section>
         </>
       )}

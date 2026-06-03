@@ -1,6 +1,6 @@
 import { PrismaService } from '../prisma/prisma.service';
 export declare class ReportsService {
-    private prisma;
+    prisma: PrismaService;
     constructor(prisma: PrismaService);
     getReportSummary(userId: string): Promise<{
         totalTrades: number;

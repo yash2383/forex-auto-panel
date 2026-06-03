@@ -21,7 +21,7 @@ let AdminService = class AdminService {
         this.prisma = prisma;
     }
     async getData() {
-        const [dbUsers, dbPayments, dbTrades, dbLogs, dbPartners, dbSettings, dbCampaigns, dbReferrals, dbAdmins, dbWithdrawals, dbPlans, dbProfitDistributions, dbReferralSettings] = await Promise.all([
+        const [dbUsers, dbPayments, dbTrades, dbLogs, dbPartners, dbSettings, dbCampaigns, dbReferrals, dbAdmins, dbWithdrawals, dbPlans, dbProfitDistributions, dbReferralSettings, dbGeneratedReports] = await Promise.all([
             this.prisma.user.findMany({ where: { isDeleted: false }, include: { wallet: true, partner: true }, orderBy: { createdAt: 'desc' } }),
             this.prisma.payment.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
             this.prisma.tradeRecord.findMany({ orderBy: { tradeDate: 'desc' } }),
@@ -35,6 +35,7 @@ let AdminService = class AdminService {
             this.prisma.plan.findMany({ orderBy: { createdAt: 'asc' } }),
             this.prisma.profitDistribution.findMany({ include: { user: true }, orderBy: { distributionDate: 'desc' } }),
             this.prisma.referralSettings.findFirst(),
+            this.prisma.generatedReport.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
         ]);
         const users = dbUsers.map((u) => {
             let plan = 'None';
@@ -60,7 +61,6 @@ let AdminService = class AdminService {
                 plan, status: statusLabel, partnerId: u.partnerId,
                 partnerName: u.partner?.name || 'N/A',
                 isVerified: u.isVerified,
-                otpCode: u.otpCode,
             };
         });
         const payments = dbPayments.map((p) => {
@@ -235,6 +235,17 @@ let AdminService = class AdminService {
             date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
             time: w.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         }));
+        const generatedReports = dbGeneratedReports.map((gr) => ({
+            id: gr.id,
+            userId: gr.userId,
+            userName: gr.user?.name || 'Unknown User',
+            userEmail: gr.user?.email || 'N/A',
+            partnerId: gr.user?.partnerId || '',
+            fileName: gr.fileName,
+            reportType: gr.reportType,
+            fileUrl: gr.fileUrl,
+            createdAt: gr.createdAt,
+        }));
         return {
             stats: platformStats, users, payments, trades, logs, partners, campaigns,
             referrals, admins, transactions, settings, profitDistributions, withdrawals,
@@ -243,6 +254,7 @@ let AdminService = class AdminService {
                 desc: p.desc, features: p.features, btnText: p.btnText, status: p.status, isPopular: p.isPopular,
             })),
             referralSettings: dbReferralSettings,
+            generatedReports,
         };
     }
     async createUser(adminId, body, clientIp) {

@@ -11,5 +11,6 @@ export declare class ReportsController {
     getWalletStatement(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     getTaxSummary(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     getHistory(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
-    exportReport(req: Request, res: Response, type: string, format: string): Promise<Response<any, Record<string, any>>>;
+    downloadReport(req: Request, res: Response, id: string): Promise<Response<any, Record<string, any>>>;
+    exportReport(req: Request, res: Response, type: string, format: string, userId?: string): Promise<Response<any, Record<string, any>>>;
 }

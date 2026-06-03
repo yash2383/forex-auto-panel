@@ -12,7 +12,7 @@ export default function DashboardShell({ children }) {
   const pathname = usePathname();
   const [theme, setTheme] = useState("dark");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
+
   const currentUser = useAdminStore((s) => s.currentUser);
   const payments = useAdminStore((s) => s.payments || []);
   const fetchData = useAdminStore((s) => s.fetchData);
@@ -25,13 +25,13 @@ export default function DashboardShell({ children }) {
     startOfWeek.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
-    
+
     const options = { month: 'short', day: 'numeric', year: 'numeric' };
     return `${startOfWeek.toLocaleDateString('en-US', options)} - ${endOfWeek.toLocaleDateString('en-US', options)}`;
   };
 
   const getPageHeader = () => {
-    switch(pathname) {
+    switch (pathname) {
       case "/dashboard":
         return { title: `Welcome back, ${currentUser?.name || "User"}`, subtitle: "Here's what's happening with your trades today." };
       case "/dashboard/wallet":
@@ -88,9 +88,9 @@ export default function DashboardShell({ children }) {
       <div className="grid min-h-screen lg:grid-cols-[300px_minmax(0,1fr)] relative">
         {/* Mobile Overlay */}
         {isSidebarOpen && (
-          <div 
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden" 
-            onClick={() => setIsSidebarOpen(false)} 
+          <div
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
           />
         )}
 
@@ -109,17 +109,16 @@ export default function DashboardShell({ children }) {
             {userNavItems.map((item) => {
               const Icon = item.icon;
               const active = pathname === item.href;
-              
+
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setIsSidebarOpen(false)}
-                  className={`flex h-11 items-center justify-between rounded-xl px-4 text-sm font-medium transition ${
-                    active
+                  className={`flex h-11 items-center justify-between rounded-xl px-4 text-sm font-medium transition ${active
                       ? "bg-green-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,197,94,0.18)]"
                       : "text-neutral-400 hover:bg-white/[0.04] hover:text-white"
-                  }`}>
+                    }`}>
                   <div className="flex items-center gap-3">
                     <Icon className="h-4 w-4" />
                     {item.label}
@@ -135,19 +134,6 @@ export default function DashboardShell({ children }) {
           </nav>
 
           <div className="space-y-5 border-t border-white/10 px-5 py-6">
-            {!hasActivePlan && (
-              <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-5">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/15 text-green-300">
-                  <Crown className="h-5 w-5" />
-                </span>
-                <h3 className="mt-4 text-sm font-bold text-white">Unlock Premium</h3>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-400">Get full access to all features and insights.</p>
-                <Link href="/pricing" className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-green-400 text-sm font-bold text-black hover:bg-green-300 transition">
-                  Upgrade Now
-                </Link>
-              </div>
-            )}
-
             <div className="flex items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-sm font-bold text-black">
                 {(currentUser?.name || "U").split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}

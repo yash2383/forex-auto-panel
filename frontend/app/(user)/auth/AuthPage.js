@@ -162,7 +162,7 @@ export default function AuthPage({ mode }) {
     // Sync Zustand data
     await useAdminStore.getState().fetchData();
 
-    const target = nextTarget || "/dashboard";
+    const target = nextTarget || "/";
     router.push(target);
   };
 

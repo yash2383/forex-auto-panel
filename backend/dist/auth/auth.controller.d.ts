@@ -7,9 +7,18 @@ export declare class AuthController {
         email: string;
         password: string;
     }, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    verifyLoginOtp(body: {
+        otpToken: string;
+        otp: string;
+    }, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    sendOtp(body: {
+        email: string;
+        partnerSlug?: string;
+    }, res: Response): Promise<Response<any, Record<string, any>>>;
     signup(body: {
         email: string;
         password: string;
+        otp: string;
         firstName?: string;
         lastName?: string;
         partnerSlug?: string;

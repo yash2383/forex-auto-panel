@@ -143,10 +143,26 @@ export class DashboardService {
     };
   }
 
-  async deposit(userId: string, partnerId: string, body: any) {
-    const { planName, amount, txnHash, utr, paymentType, network } = body;
+  async initiatePayment(userId: string, partnerId: string, body: any) {
+    const { amount, paymentGateway, source, planId } = body;
+    const initiation = await this.prisma.paymentInitiation.create({
+      data: {
+        userId,
+        partnerId,
+        planId: planId || null,
+        amount: Number(amount) || 0,
+        paymentGateway: paymentGateway || 'usdt',
+        source: source || 'Direct',
+        status: 'initiated',
+      },
+    });
+    return { success: true, initiationId: initiation.id };
+  }
 
-    if (!planName || !amount) {
+  async deposit(userId: string, partnerId: string, body: any) {
+    const { planName, amount, txnHash, utr, paymentType, network, initiationId } = body;
+
+    if (!planName || amount === undefined || amount === null || isNaN(Number(amount))) {
       return { error: 'Plan name and amount are required', status: 400 };
     }
 
@@ -164,6 +180,22 @@ export class DashboardService {
         status: 'PENDING',
       },
     });
+
+    if (initiationId) {
+      try {
+        await this.prisma.paymentInitiation.update({
+          where: { id: initiationId },
+          data: {
+            status: 'completed',
+            completedAt: new Date(),
+            converted: true,
+            followUpStatus: 'CONVERTED'
+          }
+        });
+      } catch (e) {
+        console.error('Failed to update initiation record', e);
+      }
+    }
 
     return { success: true, payment };
   }

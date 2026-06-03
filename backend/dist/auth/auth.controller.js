@@ -32,6 +32,9 @@ let AuthController = class AuthController {
             if ('error' in result) {
                 return res.status(result.status || 400).json({ message: result.error });
             }
+            if (result.otpRequired) {
+                return res.json({ otpRequired: true, otpToken: result.otpToken, email: result.email });
+            }
             return res.json({ token: result.token, user: result.user });
         }
         catch (error) {
@@ -39,13 +42,48 @@ let AuthController = class AuthController {
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
+    async verifyLoginOtp(body, req, res) {
+        try {
+            const { otpToken, otp } = body;
+            if (!otpToken || !otp) {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'OTP token and verification code are required' });
+            }
+            const clientIp = req.headers['x-forwarded-for'] || '127.0.0.1';
+            const result = await this.authService.verifyLoginOtp(otpToken, otp, clientIp);
+            if ('error' in result) {
+                return res.status(result.status || 400).json({ message: result.error });
+            }
+            return res.json({ token: result.token, user: result.user });
+        }
+        catch (error) {
+            console.error('Verify login OTP error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async sendOtp(body, res) {
+        try {
+            const { email, partnerSlug } = body;
+            if (!email) {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Email is required' });
+            }
+            const result = await this.authService.sendSignupOtp(email, partnerSlug);
+            if ('error' in result) {
+                return res.status(result.status || 400).json({ message: result.error });
+            }
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Send OTP error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
     async signup(body, res) {
         try {
-            const { email, password, firstName, lastName, partnerSlug, referralCode } = body;
-            if (!email || !password) {
-                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Email and password are required' });
+            const { email, password, otp, firstName, lastName, partnerSlug, referralCode } = body;
+            if (!email || !password || !otp) {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Email, password, and verification code are required' });
             }
-            const result = await this.authService.signup(email, password, firstName, lastName, partnerSlug, referralCode);
+            const result = await this.authService.signup(email, password, otp, firstName, lastName, partnerSlug, referralCode);
             if ('error' in result) {
                 return res.status(result.status || 400).json({ message: result.error });
             }
@@ -89,6 +127,23 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
+__decorate([
+    (0, common_1.Post)('verify-login-otp'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "verifyLoginOtp", null);
+__decorate([
+    (0, common_1.Post)('send-otp'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "sendOtp", null);
 __decorate([
     (0, common_1.Post)('signup'),
     __param(0, (0, common_1.Body)()),

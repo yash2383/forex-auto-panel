@@ -9,7 +9,7 @@ import { useAdminStore } from "../../../hooks/adminStore";
 
 const steps = ["Register your identity", "Configure Tradebot", "Activate your profile"];
 
-const AuthInput = ({ label, placeholder, type = "text", name, value, onChange }) => (
+const AuthInput = ({ label, placeholder, type = "text", name, value, onChange, disabled }) => (
   <label className="block">
     <span className="mb-2 block text-sm font-semibold text-white">{label}</span>
     <span className="relative block">
@@ -19,7 +19,8 @@ const AuthInput = ({ label, placeholder, type = "text", name, value, onChange })
         placeholder={placeholder}
         value={value}
         onChange={onChange}
-        className="h-12 w-full rounded-xl border border-transparent bg-[#1B1B1B] px-4 text-sm text-white outline-none transition placeholder:text-neutral-600 focus:border-green-500/40 focus:ring-2 focus:ring-green-500/10"
+        disabled={disabled}
+        className="h-12 w-full rounded-xl border border-transparent bg-[#1B1B1B] px-4 text-sm text-white outline-none transition placeholder:text-neutral-600 focus:border-green-500/40 focus:ring-2 focus:ring-green-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
       />
       {type === "password" && (
         <Eye className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
@@ -40,12 +41,86 @@ const StepItem = ({ index, text, active }) => (
   </div>
 );
 
+const OtpInput = ({ otp, setOtp }) => {
+  const handleChange = (element, index) => {
+    if (isNaN(element.value)) return false;
+
+    const newOtp = [...otp];
+    newOtp[index] = element.value;
+    setOtp(newOtp);
+
+    // Focus next input box
+    if (element.value !== "" && element.nextSibling) {
+      element.nextSibling.focus();
+    }
+  };
+
+  const handleKeyDown = (e, index) => {
+    if (e.key === "Backspace") {
+      const newOtp = [...otp];
+      newOtp[index] = "";
+      setOtp(newOtp);
+
+      // Focus previous input box
+      if (e.target.previousSibling) {
+        e.target.previousSibling.focus();
+      }
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pasteData = e.clipboardData.getData("text").trim();
+    if (pasteData.length === 6 && /^\d+$/.test(pasteData)) {
+      const newOtp = pasteData.split("");
+      setOtp(newOtp);
+      // Focus the last input box
+      const inputs = e.target.parentElement.querySelectorAll("input");
+      if (inputs && inputs[5]) {
+        inputs[5].focus();
+      }
+    }
+  };
+
+  return (
+    <div className="flex justify-center gap-3">
+      {otp.map((data, index) => (
+        <input
+          key={index}
+          type="text"
+          name={`otp-${index}`}
+          maxLength="1"
+          value={data}
+          onChange={(e) => handleChange(e.target, index)}
+          onKeyDown={(e) => handleKeyDown(e, index)}
+          onPaste={handlePaste}
+          onFocus={(e) => e.target.select()}
+          className="h-14 w-12 rounded-xl border border-transparent bg-[#1B1B1B] text-center text-xl font-bold text-white outline-none transition focus:border-green-500/40 focus:ring-2 focus:ring-green-500/10"
+        />
+      ))}
+    </div>
+  );
+};
+
 export default function AuthPage({ mode }) {
   const isSignup = mode === "signup";
   const router = useRouter();
   const [refCode, setRefCode] = useState("");
   const [nextTarget, setNextTarget] = useState("");
   const [error, setError] = useState("");
+
+  // Input states
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  // OTP states
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpToken, setOtpToken] = useState("");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [countdown, setCountdown] = useState(0);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -59,47 +134,222 @@ export default function AuthPage({ mode }) {
     }
   }, []);
 
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+  const completeLogin = async (token, user) => {
+    localStorage.setItem("tradebot-user", JSON.stringify({ ...user, token }));
+    localStorage.setItem("tradebot-authenticated", "true");
+    document.cookie = `tradebot-token=${token}; path=/; max-age=86400; SameSite=Lax`;
+
+    // Sync Zustand data
+    await useAdminStore.getState().fetchData();
+
+    const target = nextTarget || "/dashboard";
+    router.push(target);
+  };
+
   const handleAuthSubmit = async (event) => {
     event.preventDefault();
     setError("");
-    const formData = new FormData(event.currentTarget);
-    const firstName = String(formData.get("firstName") || "").trim();
-    const lastName = String(formData.get("lastName") || "").trim();
-    const email = String(formData.get("email") || "").trim();
-    const password = String(formData.get("password") || "");
-    const referralCode = String(formData.get("referralCode") || "").trim();
+
+    if (isSignup) {
+      if (!otpSent) {
+        // Step 1: Send OTP for registration
+        if (!firstName || !lastName || !email || !password) {
+          setError("Please fill in all fields.");
+          return;
+        }
+        if (password.length < 8) {
+          setError("Password must be at least 8 characters.");
+          return;
+        }
+
+        setIsSendingOtp(true);
+        try {
+          const res = await apiFetch("/api/auth/send-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, partnerSlug: "alpha-traders" }),
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            setError(data.message || "Failed to send verification OTP.");
+            return;
+          }
+
+          setOtpSent(true);
+          setCountdown(60);
+          if (data.otp) {
+            setOtp(data.otp.split(""));
+            setError(`[Development Mode] Verification code is: ${data.otp}`);
+          }
+        } catch (err) {
+          setError("A network error occurred. Please try again.");
+          console.error(err);
+        } finally {
+          setIsSendingOtp(false);
+        }
+      } else {
+        // Step 2: Verify OTP and register user
+        const otpCode = otp.join("");
+        if (otpCode.length < 6) {
+          setError("Please enter the 6-digit verification code.");
+          return;
+        }
+
+        try {
+          const res = await apiFetch("/api/auth/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              password,
+              otp: otpCode,
+              firstName,
+              lastName,
+              referralCode: refCode || null,
+            }),
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            setError(data.message || "Account creation failed.");
+            return;
+          }
+
+          completeLogin(data.token, data.user);
+        } catch (err) {
+          setError("A network error occurred. Please try again.");
+          console.error(err);
+        }
+      }
+    } else {
+      // Login Flow
+      if (!otpSent) {
+        // Step 1: Validate credentials, trigger login OTP
+        if (!email || !password) {
+          setError("Please enter your email and password.");
+          return;
+        }
+
+        setIsSendingOtp(true);
+        try {
+          const res = await apiFetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            setError(data.message || "Invalid credentials.");
+            return;
+          }
+
+          if (data.otpRequired) {
+            setOtpSent(true);
+            setOtpToken(data.otpToken);
+            setCountdown(60);
+            if (data.otp) {
+              setOtp(data.otp.split(""));
+              setError(`[Development Mode] Verification code is: ${data.otp}`);
+            }
+          } else {
+            // Falls back immediately if OTP is bypassed (Admin/Partners)
+            completeLogin(data.token, data.user);
+          }
+        } catch (err) {
+          setError("A network error occurred. Please try again.");
+          console.error(err);
+        } finally {
+          setIsSendingOtp(false);
+        }
+      } else {
+        // Step 2: Verify Login OTP
+        const otpCode = otp.join("");
+        if (otpCode.length < 6) {
+          setError("Please enter the 6-digit verification code.");
+          return;
+        }
+
+        try {
+          const res = await apiFetch("/api/auth/verify-login-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ otpToken, otp: otpCode }),
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            setError(data.message || "Verification failed.");
+            return;
+          }
+
+          completeLogin(data.token, data.user);
+        } catch (err) {
+          setError("A network error occurred. Please try again.");
+          console.error(err);
+        }
+      }
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setError("");
+    setOtp(["", "", "", "", "", ""]);
+    setIsSendingOtp(true);
 
     try {
-      const endpoint = isSignup ? "/api/auth/signup" : "/api/auth/login";
-      const body = isSignup 
-        ? { email, password, firstName, lastName, referralCode: referralCode || null } 
-        : { email, password };
+      if (isSignup) {
+        const res = await apiFetch("/api/auth/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, partnerSlug: "alpha-traders" }),
+        });
 
-      const res = await apiFetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
         const data = await res.json();
-        setError(data.message || "Authentication failed. Check your details.");
-        return;
+        if (!res.ok) {
+          setError(data.message || "Failed to resend verification code.");
+          return;
+        }
+        if (data.otp) {
+          setOtp(data.otp.split(""));
+          setError(`[Development Mode] Verification code is: ${data.otp}`);
+        }
+      } else {
+        const res = await apiFetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.message || "Failed to resend verification code.");
+          return;
+        }
+
+        if (data.otpRequired) {
+          setOtpToken(data.otpToken);
+          if (data.otp) {
+            setOtp(data.otp.split(""));
+            setError(`[Development Mode] Verification code is: ${data.otp}`);
+          }
+        }
       }
 
-      const { token, user } = await res.json();
-      localStorage.setItem("tradebot-user", JSON.stringify({ ...user, token }));
-      localStorage.setItem("tradebot-authenticated", "true");
-      document.cookie = `tradebot-token=${token}; path=/; max-age=86400; SameSite=Lax`;
-
-      // Sync Zustand data
-      await useAdminStore.getState().fetchData();
-
-      const target = nextTarget || "/dashboard";
-      router.push(target);
+      setCountdown(60);
     } catch (err) {
-      setError("An unexpected network error occurred. Please try again.");
+      setError("Failed to resend verification code.");
       console.error(err);
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
@@ -168,53 +418,108 @@ export default function AuthPage({ mode }) {
             )}
 
             <form className="mt-8 space-y-4" onSubmit={handleAuthSubmit}>
-              {isSignup && (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <AuthInput name="firstName" label="First Name" placeholder="John" />
-                  <AuthInput name="lastName" label="Last Name" placeholder="Doe" />
-                </div>
-              )}
-              <AuthInput name="email" label="Email" placeholder="john@doe.com" type="email" />
-              {isSignup && (
-                <div>
-                  <AuthInput 
-                    name="referralCode" 
-                    label="Referral Code (Optional)" 
-                    placeholder="Enter referral code" 
-                    value={refCode} 
-                    onChange={(e) => setRefCode(e.target.value)} 
-                  />
-                  <span className="mt-1.5 block text-xs text-neutral-500">
-                    Have a referral code? Enter it to receive referral benefits.
-                  </span>
-                </div>
-              )}
-              <AuthInput name="password" label="Password" placeholder="********" type="password" />
+              {!otpSent ? (
+                <>
+                  {isSignup && (
+                    <>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <AuthInput name="firstName" label="First Name" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                        <AuthInput name="lastName" label="Last Name" placeholder="Doe" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                      </div>
+                      <AuthInput name="email" label="Email" placeholder="john@doe.com" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                      <div>
+                        <AuthInput 
+                          name="referralCode" 
+                          label="Referral Code (Optional)" 
+                          placeholder="Enter referral code" 
+                          value={refCode} 
+                          onChange={(e) => setRefCode(e.target.value)} 
+                        />
+                        <span className="mt-1.5 block text-xs text-neutral-500">
+                          Have a referral code? Enter it to receive referral benefits.
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {!isSignup && (
+                    <AuthInput name="email" label="Email" placeholder="john@doe.com" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  )}
+                  <AuthInput name="password" label="Password" placeholder="********" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
 
-              {!isSignup && (
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-sm">
-                  <label className="flex items-center gap-2 text-neutral-500">
-                    <input type="checkbox" className="h-4 w-4 rounded border-white/10 bg-[#1B1B1B] accent-green-500" />
-                    Remember me
-                  </label>
-                  <a href="#" className="font-semibold text-green-300 hover:text-green-200">
-                    Forgot password?
-                  </a>
-                </div>
-              )}
+                  {!isSignup && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-sm">
+                      <label className="flex items-center gap-2 text-neutral-500">
+                        <input type="checkbox" className="h-4 w-4 rounded border-white/10 bg-[#1B1B1B] accent-green-500" />
+                        Remember me
+                      </label>
+                      <a href="#" className="font-semibold text-green-300 hover:text-green-200">
+                        Forgot password?
+                      </a>
+                    </div>
+                  )}
 
-              {isSignup && (
-                <label className="flex items-start gap-3 pt-1 text-xs leading-relaxed text-neutral-500">
-                  <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-white/10 bg-[#1B1B1B] accent-green-500" />
-                  I understand trading involves financial risk and agree to receive account updates.
-                </label>
-              )}
+                  {isSignup && (
+                    <label className="flex items-start gap-3 pt-1 text-xs leading-relaxed text-neutral-500">
+                      <input type="checkbox" className="mt-0.5 h-4 w-4 rounded border-white/10 bg-[#1B1B1B] accent-green-500" required />
+                      I understand trading involves financial risk and agree to receive account updates.
+                    </label>
+                  )}
 
-              <button
-                type="submit"
-                className="mt-4 h-14 w-full rounded-xl bg-white text-sm font-bold text-black transition hover:bg-neutral-200 active:scale-[0.98]">
-                {isSignup ? "Create Account" : "Login"}
-              </button>
+                  <button
+                    type="submit"
+                    disabled={isSendingOtp}
+                    className="mt-4 h-14 w-full rounded-xl bg-white text-sm font-bold text-black transition hover:bg-neutral-200 active:scale-[0.98] disabled:opacity-50">
+                    {isSendingOtp ? "Sending code..." : (isSignup ? "Send Verification OTP" : "Login")}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    <p className="text-sm text-neutral-400 text-center">
+                      We've sent a 6-digit verification code to <span className="text-white font-semibold">{email}</span>.
+                    </p>
+                    <OtpInput otp={otp} setOtp={setOtp} />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSendingOtp}
+                    className="mt-6 h-14 w-full rounded-xl bg-green-500 text-sm font-bold text-black transition hover:bg-green-400 active:scale-[0.98] disabled:opacity-50">
+                    {isSendingOtp ? "Verifying..." : (isSignup ? "Verify & Create Account" : "Verify & Login")}
+                  </button>
+
+                  {countdown > 0 ? (
+                    <p className="text-center text-sm text-neutral-500 mt-4">
+                      Resend code in <span className="font-semibold text-white">{countdown}s</span>
+                    </p>
+                  ) : (
+                    <div className="text-center mt-4">
+                      <button
+                        type="button"
+                        onClick={handleResendOtp}
+                        className="text-sm font-semibold text-green-300 hover:text-green-200 underline underline-offset-4"
+                        disabled={isSendingOtp}
+                      >
+                        {isSendingOtp ? "Resending..." : "Resend Verification Code"}
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="text-center mt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpSent(false);
+                        setOtp(["", "", "", "", "", ""]);
+                        setError("");
+                      }}
+                      className="text-xs text-neutral-500 hover:text-neutral-400"
+                    >
+                      ← Back to edit credentials
+                    </button>
+                  </div>
+                </>
+              )}
             </form>
 
             <p className="mt-8 text-center text-sm text-neutral-500 lg:text-left">

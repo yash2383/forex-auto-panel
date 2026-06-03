@@ -448,6 +448,29 @@ let AdminController = class AdminController {
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
+    async getInitiatedPayments(res) {
+        try {
+            const result = await this.adminService.getInitiatedPayments();
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Get initiated payments error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async updateInitiatedPayment(id, req, body, res) {
+        try {
+            const user = req.user;
+            const result = await this.adminService.updateInitiatedPayment(id, body, user.id, this.getClientIp(req));
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Update initiated payment error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
 };
 exports.AdminController = AdminController;
 __decorate([
@@ -794,6 +817,25 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "updateInquiryStatus", null);
+__decorate([
+    (0, common_1.Get)('initiated-payments'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getInitiatedPayments", null);
+__decorate([
+    (0, common_1.Put)('initiated-payments/:id'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Body)()),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "updateInitiatedPayment", null);
 exports.AdminController = AdminController = __decorate([
     (0, common_1.Controller)('admin'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

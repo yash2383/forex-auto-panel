@@ -222,10 +222,11 @@ export declare class AdminService {
             status: import("@prisma/client").$Enums.UserStatus;
             createdAt: Date;
             updatedAt: Date;
+            partnerId: string;
             passwordHash: string;
             lastLoginAt: Date | null;
             lastLoginIP: string | null;
-            partnerId: string;
+            phone: string | null;
             isDeleted: boolean;
             referralCode: string;
             referredBy: string | null;
@@ -264,10 +265,10 @@ export declare class AdminService {
             lastLoginAt: Date | null;
             lastLoginIP: string | null;
             slug: string;
+            domain: string;
             companyName: string;
             profitSharePct: Prisma.Decimal;
             maxAllowedPct: Prisma.Decimal;
-            domain: string;
             logo: string | null;
         };
         error?: undefined;
@@ -287,11 +288,16 @@ export declare class AdminService {
             createdAt: Date;
             updatedAt: Date;
             desc: string;
+            amount: Prisma.Decimal;
             subtitle: string;
             capitalLabel: string;
             features: string[];
             btnText: string;
             isPopular: boolean;
+            weeklyProfit: Prisma.Decimal;
+            durationDays: number;
+            sortOrder: number;
+            isActive: boolean;
         };
         error?: undefined;
         status?: undefined;
@@ -310,11 +316,16 @@ export declare class AdminService {
             createdAt: Date;
             updatedAt: Date;
             desc: string;
+            amount: Prisma.Decimal;
             subtitle: string;
             capitalLabel: string;
             features: string[];
             btnText: string;
             isPopular: boolean;
+            weeklyProfit: Prisma.Decimal;
+            durationDays: number;
+            sortOrder: number;
+            isActive: boolean;
         };
         error?: undefined;
         status?: undefined;
@@ -466,6 +477,7 @@ export declare class AdminService {
             createdAt: Date;
             partnerId: string;
             userId: string;
+            target: Prisma.Decimal;
             pair: string;
             type: import("@prisma/client").$Enums.TradeType;
             entryPrice: Prisma.Decimal;
@@ -473,7 +485,6 @@ export declare class AdminService {
             quantity: Prisma.Decimal;
             exitPrice: Prisma.Decimal;
             stopLoss: Prisma.Decimal;
-            target: Prisma.Decimal;
             profit: Prisma.Decimal;
             pnl: Prisma.Decimal;
             ledgerTransactionGroupId: string | null;
@@ -690,10 +701,11 @@ export declare class AdminService {
                 status: import("@prisma/client").$Enums.UserStatus;
                 createdAt: Date;
                 updatedAt: Date;
+                partnerId: string;
                 passwordHash: string;
                 lastLoginAt: Date | null;
                 lastLoginIP: string | null;
-                partnerId: string;
+                phone: string | null;
                 isDeleted: boolean;
                 referralCode: string;
                 referredBy: string | null;
@@ -726,10 +738,11 @@ export declare class AdminService {
                 status: import("@prisma/client").$Enums.UserStatus;
                 createdAt: Date;
                 updatedAt: Date;
+                partnerId: string;
                 passwordHash: string;
                 lastLoginAt: Date | null;
                 lastLoginIP: string | null;
-                partnerId: string;
+                phone: string | null;
                 isDeleted: boolean;
                 referralCode: string;
                 referredBy: string | null;
@@ -1029,5 +1042,74 @@ export declare class AdminService {
     } | {
         error: string;
         status: number;
+    }>;
+    getInitiatedPayments(): Promise<{
+        success: boolean;
+        metrics: {
+            initiatedToday: number;
+            initiatedWeek: number;
+            pendingFollowUps: number;
+            convertedLeads: number;
+            abandonedValue: number;
+            recoveredRevenue: number;
+            conversionRate: number;
+        };
+        initiatedPayments: ({
+            user: {
+                name: string;
+                email: string;
+                phone: string | null;
+            };
+            plan: {
+                name: string;
+            } | null;
+        } & {
+            id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            partnerId: string;
+            userId: string;
+            amount: Prisma.Decimal;
+            paymentGateway: string | null;
+            source: string | null;
+            planId: string | null;
+            checkoutOpenedAt: Date;
+            lastActivityAt: Date;
+            completedAt: Date | null;
+            followUpStatus: import("@prisma/client").$Enums.FollowUpStatus;
+            contactedAt: Date | null;
+            remarks: string | null;
+            converted: boolean;
+        })[];
+    }>;
+    updateInitiatedPayment(id: string, body: any, adminId: string, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        initiatedPayment?: undefined;
+    } | {
+        success: boolean;
+        initiatedPayment: {
+            id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            partnerId: string;
+            userId: string;
+            amount: Prisma.Decimal;
+            paymentGateway: string | null;
+            source: string | null;
+            planId: string | null;
+            checkoutOpenedAt: Date;
+            lastActivityAt: Date;
+            completedAt: Date | null;
+            followUpStatus: import("@prisma/client").$Enums.FollowUpStatus;
+            contactedAt: Date | null;
+            remarks: string | null;
+            converted: boolean;
+        };
+        error?: undefined;
+        status?: undefined;
     }>;
 }

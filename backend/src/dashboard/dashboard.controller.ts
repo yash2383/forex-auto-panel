@@ -27,6 +27,18 @@ export class DashboardController {
     }
   }
 
+  @Post('initiate-payment')
+  async initiatePayment(@Req() req: Request, @Body() body: any, @Res() res: Response) {
+    try {
+      const user = (req as any).user;
+      const result = await this.dashboardService.initiatePayment(user.id, user.partnerId, body);
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Payment initiation error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
   @Post('deposit')
   async deposit(@Req() req: Request, @Body() body: any, @Res() res: Response) {
     try {

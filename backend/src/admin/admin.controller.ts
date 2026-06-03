@@ -508,4 +508,32 @@ export class AdminController {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
+
+  // --- Initiated Payments ---
+
+  @Get('initiated-payments')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getInitiatedPayments(@Res() res: Response) {
+    try {
+      const result = await this.adminService.getInitiatedPayments();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Get initiated payments error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Put('initiated-payments/:id')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async updateInitiatedPayment(@Param('id') id: string, @Req() req: Request, @Body() body: any, @Res() res: Response) {
+    try {
+      const user = (req as any).user;
+      const result = await this.adminService.updateInitiatedPayment(id, body, user.id, this.getClientIp(req));
+      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Update initiated payment error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
 }

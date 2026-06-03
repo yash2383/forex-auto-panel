@@ -24,6 +24,7 @@ export declare class DashboardService {
         wallet: {
             id: string;
             updatedAt: Date;
+            version: number;
             userId: string;
             realizedBalance: import("@prisma/client/runtime/library").Decimal;
             unrealizedBalance: import("@prisma/client/runtime/library").Decimal;
@@ -32,7 +33,6 @@ export declare class DashboardService {
             pendingWithdrawals: import("@prisma/client/runtime/library").Decimal;
             totalWithdrawn: import("@prisma/client/runtime/library").Decimal;
             currency: string;
-            version: number;
         } | null;
         trades: {
             id: any;
@@ -94,6 +94,10 @@ export declare class DashboardService {
         };
         error?: undefined;
         status?: undefined;
+    }>;
+    initiatePayment(userId: string, partnerId: string, body: any): Promise<{
+        success: boolean;
+        initiationId: string;
     }>;
     deposit(userId: string, partnerId: string, body: any): Promise<{
         error: string;

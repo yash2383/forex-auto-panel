@@ -149,8 +149,11 @@ export const useAdminStore = create((set, get) => ({
   ],
   adminOtpCounts: {},
   referralSettings: null,
+  initiatedPayments: [],
+  initiatedPaymentMetrics: null,
 
-  // SYNC ACTION (CONNECTS DATABASE)
+  // INIT
+  isInitialized: false,
   fetchData: async () => {
     try {
       const meRes = await apiFetch("/api/auth/me");
@@ -200,6 +203,38 @@ export const useAdminStore = create((set, get) => ({
       }
     } catch (e) {
       console.error("fetchData error:", e);
+    } finally {
+      set({ isLoading: false, isInitialized: true });
+    }
+  },
+
+  fetchInitiatedPayments: async () => {
+    try {
+      const res = await apiFetch("/api/admin/initiated-payments");
+      if (res.ok) {
+        const data = await res.json();
+        set({ 
+          initiatedPayments: data.initiatedPayments || [],
+          initiatedPaymentMetrics: data.metrics || null
+        });
+      }
+    } catch (e) {
+      console.error("fetchInitiatedPayments API error:", e);
+    }
+  },
+
+  updateInitiatedPayment: async (id, payload) => {
+    try {
+      const res = await apiFetch(`/api/admin/initiated-payments/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        await get().fetchInitiatedPayments();
+      }
+    } catch (e) {
+      console.error("updateInitiatedPayment API error:", e);
     }
   },
 
@@ -224,6 +259,70 @@ export const useAdminStore = create((set, get) => ({
       }
     } catch (e) {
       console.error("fetchPlans error:", e);
+    }
+  },
+
+  fetchAllPlans: async () => {
+    try {
+      const res = await apiFetch("/api/plans/all");
+      if (res.ok) {
+        const { plans } = await res.json();
+        set({ plans });
+      }
+    } catch (e) {
+      console.error("fetchAllPlans error:", e);
+    }
+  },
+
+  addPlan: async (payload) => {
+    try {
+      const res = await apiFetch("/api/plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        await get().fetchAllPlans();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("addPlan error:", e);
+      return false;
+    }
+  },
+
+  updatePlan: async (id, payload) => {
+    try {
+      const res = await apiFetch(`/api/plans/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        await get().fetchAllPlans();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("updatePlan error:", e);
+      return false;
+    }
+  },
+
+  deletePlan: async (id) => {
+    try {
+      const res = await apiFetch(`/api/plans/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        await get().fetchAllPlans();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("deletePlan error:", e);
+      return false;
     }
   },
 
@@ -306,9 +405,13 @@ export const useAdminStore = create((set, get) => ({
       const res = await apiFetch(`/api/admin/payments/${id}/verify`, { method: "POST" });
       if (res.ok) {
         await get().fetchData();
+        return { success: true };
       }
+      const data = await res.json().catch(() => ({}));
+      return { success: false, error: data.message || "Failed to verify payment" };
     } catch (e) {
       console.error("verifyPayment API error:", e);
+      return { success: false, error: e.message };
     }
   },
 
@@ -317,9 +420,13 @@ export const useAdminStore = create((set, get) => ({
       const res = await apiFetch(`/api/admin/payments/${id}/approve`, { method: "POST" });
       if (res.ok) {
         await get().fetchData();
+        return { success: true };
       }
+      const data = await res.json().catch(() => ({}));
+      return { success: false, error: data.message || "Failed to approve payment" };
     } catch (e) {
       console.error("approvePayment API error:", e);
+      return { success: false, error: e.message };
     }
   },
 
@@ -332,9 +439,13 @@ export const useAdminStore = create((set, get) => ({
       });
       if (res.ok) {
         await get().fetchData();
+        return { success: true };
       }
+      const data = await res.json().catch(() => ({}));
+      return { success: false, error: data.message || "Failed to reject payment" };
     } catch (e) {
       console.error("rejectPayment API error:", e);
+      return { success: false, error: e.message };
     }
   },
 
@@ -351,6 +462,7 @@ export const useAdminStore = create((set, get) => ({
           utr: payment.utr,
           paymentType: payment.paymentType || "USDT",
           network: payment.network || "TRC20",
+          initiationId: payment.initiationId || null,
         }),
       });
       if (res.ok) {
@@ -590,9 +702,13 @@ export const useAdminStore = create((set, get) => ({
       const res = await apiFetch(`/api/admin/withdrawals/${id}/approve`, { method: "POST" });
       if (res.ok) {
         await get().fetchData();
+        return { success: true };
       }
+      const data = await res.json().catch(() => ({}));
+      return { success: false, error: data.message || "Failed to approve withdrawal" };
     } catch (e) {
       console.error("approveWithdrawal API error:", e);
+      return { success: false, error: e.message };
     }
   },
 
@@ -601,9 +717,13 @@ export const useAdminStore = create((set, get) => ({
       const res = await apiFetch(`/api/admin/withdrawals/${id}/reject`, { method: "POST" });
       if (res.ok) {
         await get().fetchData();
+        return { success: true };
       }
+      const data = await res.json().catch(() => ({}));
+      return { success: false, error: data.message || "Failed to reject withdrawal" };
     } catch (e) {
       console.error("rejectWithdrawal API error:", e);
+      return { success: false, error: e.message };
     }
   },
 

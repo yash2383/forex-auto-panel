@@ -27,6 +27,7 @@ export const adminNavGroups = [
       { icon: Home, label: "Dashboard", href: "/admin/dashboard" },
       { icon: Users, label: "Users", href: "/admin/dashboard?section=users" },
       { icon: CreditCard, label: "Payments", href: "/admin/dashboard?section=payments" },
+      { icon: CreditCard, label: "Initiated Payments", href: "/admin/initiated-payments" },
       { icon: WalletIcon, label: "Withdraw Requests", href: "/admin/withdrawals" },
       { icon: History, label: "All Transactions", href: "/admin/dashboard?section=transactions&filter=All" },
       { icon: Bot, label: "Trades", href: "/admin/dashboard?section=trades" },

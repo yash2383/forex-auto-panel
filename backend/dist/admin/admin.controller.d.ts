@@ -46,4 +46,6 @@ export declare class AdminController {
     updateInquiryStatus(id: string, body: {
         status: string;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
+    getInitiatedPayments(res: Response): Promise<Response<any, Record<string, any>>>;
+    updateInitiatedPayment(id: string, req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
 }

@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { hashPassword, verifyPassword, signJwt } from '../common/crypto.util';
+import { hashPassword, verifyPassword, signJwt, verifyJwt } from '../common/crypto.util';
+import { OtpService } from './otp.service';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private otpService: OtpService,
+  ) {}
 
   async login(email: string, password: string, clientIp: string) {
     const normalizedEmail = email.toLowerCase().trim();
@@ -62,35 +66,26 @@ export class AuthService {
           return { error: 'Account is blocked', status: 403 };
         }
 
-        const token = signJwt({
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: 'USER',
-          partnerId: user.partnerId,
-          partnerSlug: user.partner.slug,
-        });
+        // Generate and send OTP
+        let generated;
+        try {
+          generated = await this.otpService.generateOtp(user.partnerId, user.email, user.partner.name);
+        } catch (err: any) {
+          return { error: err.message, status: 400 };
+        }
 
-        // Update last login
-        await this.prisma.user.update({
-          where: { id: user.id },
-          data: {
-            lastLoginAt: new Date(),
-            lastLoginIP: clientIp,
-          },
-        });
+        // Generate temporary login OTP token (expires in 5 minutes)
+        const otpToken = signJwt({
+          email: user.email,
+          partnerId: user.partnerId,
+          target: 'login',
+        }, 300);
 
         return {
-          token,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: 'USER',
-            partnerId: user.partnerId,
-            partnerSlug: user.partner.slug,
-            status: user.status,
-          },
+          otpRequired: true,
+          otpToken,
+          email: user.email,
+          otp: process.env.NODE_ENV !== 'production' ? generated.otp : undefined,
         };
       }
     }
@@ -131,9 +126,108 @@ export class AuthService {
     return { error: 'Invalid email or password', status: 401 };
   }
 
+  async verifyLoginOtp(otpToken: string, otp: string, clientIp: string) {
+    const payload = verifyJwt(otpToken);
+    if (!payload || payload.target !== 'login') {
+      return { error: 'Invalid or expired OTP token. Please try logging in again.', status: 400 };
+    }
+
+    const { email, partnerId } = payload;
+
+    try {
+      await this.otpService.verifyOtp(partnerId, email, otp);
+    } catch (err: any) {
+      return { error: err.message, status: 400 };
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { email: email.toLowerCase().trim(), partnerId, isDeleted: false },
+      include: { partner: true },
+    });
+
+    if (!user) {
+      return { error: 'User not found', status: 404 };
+    }
+
+    if (user.status === 'BLOCKED') {
+      return { error: 'Account is blocked', status: 403 };
+    }
+
+    const token = signJwt({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: 'USER',
+      partnerId: user.partnerId,
+      partnerSlug: user.partner.slug,
+    });
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastLoginAt: new Date(),
+        lastLoginIP: clientIp,
+      },
+    });
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: 'USER',
+        partnerId: user.partnerId,
+        partnerSlug: user.partner.slug,
+        status: user.status,
+      },
+    };
+  }
+
+  async sendSignupOtp(email: string, partnerSlug?: string) {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // 1. Resolve Partner
+    const slug = partnerSlug || 'alpha-traders';
+    const partner = await this.prisma.partner.findUnique({
+      where: { slug },
+    });
+
+    if (!partner) {
+      return { error: 'White-label partner not found', status: 400 };
+    }
+
+    // 2. Check duplicate email under this partner
+    const existingUser = await this.prisma.user.findUnique({
+      where: {
+        partnerId_email: {
+          partnerId: partner.id,
+          email: normalizedEmail,
+        },
+      },
+    });
+
+    if (existingUser && !existingUser.isDeleted) {
+      return { error: 'Email is already registered under this platform', status: 400 };
+    }
+
+    // 3. Generate and send OTP
+    try {
+      const generated = await this.otpService.generateOtp(partner.id, normalizedEmail, partner.name);
+      return {
+        success: true,
+        message: 'Verification code sent successfully.',
+        otp: process.env.NODE_ENV !== 'production' ? generated.otp : undefined,
+      };
+    } catch (err: any) {
+      return { error: err.message, status: 400 };
+    }
+  }
+
   async signup(
     email: string,
     password: string,
+    otp: string,
     firstName?: string,
     lastName?: string,
     partnerSlug?: string,
@@ -150,6 +244,13 @@ export class AuthService {
 
     if (!partner) {
       return { error: 'White-label partner not found', status: 400 };
+    }
+
+    // Verify OTP code
+    try {
+      await this.otpService.verifyOtp(partner.id, normalizedEmail, otp);
+    } catch (err: any) {
+      return { error: err.message, status: 400 };
     }
 
     // 2. Check duplicate email under this partner

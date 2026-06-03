@@ -11,6 +11,15 @@ datasource db {
 // STRICT STATUS ENUMS
 // ==========================================
 
+enum FollowUpStatus {
+  PENDING
+  CONTACTED
+  INTERESTED
+  FOLLOWUP_REQUIRED
+  CONVERTED
+  CLOSED
+}
+
 enum AdminRole {
   SUPER_ADMIN
   MANAGER
@@ -146,6 +155,7 @@ model Partner {
   ledgerEntries     LedgerEntry[]
   investmentPlans   InvestmentPlan[]
   userInvestments   UserInvestment[]
+  emailOtps         EmailOtp[]
 
   @@index([domain])
 }
@@ -155,6 +165,7 @@ model User {
   partnerId      String
   name           String
   email          String
+  phone          String?          @db.VarChar(20)
   passwordHash   String
   status         UserStatus       @default(NEW)
   isDeleted      Boolean          @default(false)
@@ -174,6 +185,7 @@ model User {
   partner        Partner          @relation(fields: [partnerId], references: [id])
   wallet         Wallet?
   payments       Payment[]
+  paymentInitiations PaymentInitiation[]
   withdrawals    Withdrawal[]
   trades         Trade[]
   ledgerEntries  LedgerEntry[]
@@ -280,12 +292,43 @@ model Trade {
   // Relations
   user                     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Tenant isolation & query index strategies
+// Tenant isolation & query index strategies
   @@index([userId])
   @@index([partnerId])
   @@index([partnerId, userId])
   @@index([partnerId, status])
   @@index([partnerId, createdAt])
+}
+
+model PaymentInitiation {
+  id              String         @id @default(uuid())
+  userId          String
+  partnerId       String         // Tenant isolation anchor
+  planId          String?
+  amount          Decimal        @db.Decimal(18, 4)
+  paymentGateway  String?        @default("usdt") @db.VarChar(50)
+  status          String         @default("initiated") @db.VarChar(20)
+  source          String?        // e.g. "Direct", "Referral", "Invest Now"
+  checkoutOpenedAt DateTime      @default(now())
+  lastActivityAt  DateTime       @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  followUpStatus  FollowUpStatus @default(PENDING)
+  contactedAt     DateTime?
+  remarks         String?
+  converted       Boolean        @default(false)
+
+  // Relations
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan            Plan?          @relation(fields: [planId], references: [id])
+
+  // Indexes
+  @@index([userId])
+  @@index([partnerId])
+  @@index([partnerId, status])
+  @@index([partnerId, followUpStatus])
 }
 
 model Payment {
@@ -459,8 +502,17 @@ model Plan {
   btnText      String   @default("Get Started")
   status       String   @default("Active")
   isPopular    Boolean  @default(false)
+  
+  amount        Decimal   @default(0) @db.Decimal(18, 4)
+  weeklyProfit  Decimal   @default(5) @db.Decimal(5, 2)
+  durationDays  Int       @default(30)
+  sortOrder     Int       @default(0)
+  isActive      Boolean   @default(true)
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  paymentInitiations PaymentInitiation[]
 }
 
 model TradeRecord {
@@ -583,4 +635,20 @@ model UserInvestment {
 
   @@index([partnerId])
   @@index([userId])
+}
+
+model EmailOtp {
+  id         String   @id @default(uuid())
+  partnerId  String
+  email      String
+  otpHash    String
+  expiresAt  DateTime
+  verified   Boolean  @default(false)
+  attempts   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([partnerId])
 }

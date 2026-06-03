@@ -14,6 +14,8 @@ import {
   Zap,
 } from "lucide-react";
 import { useAdminStore } from "../../../hooks/adminStore";
+import { useRouter } from "next/navigation";
+import { apiFetch } from "../../../lib/apiFetch";
 
 const comparisonRows = [
   ["Capital Range", "$10-$100", "$1000+", "Flexible"],
@@ -82,32 +84,70 @@ function PlanCard({ plan }) {
         ))}
       </ul>
 
-      <Link
-        href={plan.href}
-        className={`mt-8 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold transition active:scale-[0.98] ${
-          plan.popular
-            ? "bg-white text-black hover:bg-neutral-200"
-            : "border border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]"
-        }`}>
-        {plan.cta}
-        <ArrowRight className="h-4 w-4" />
-      </Link>
+      {plan.href.startsWith("/signup") ? (
+        <Link
+          href={plan.href}
+          className={`mt-8 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold transition active:scale-[0.98] ${
+            plan.popular
+              ? "bg-white text-black hover:bg-neutral-200"
+              : "border border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]"
+          }`}>
+          {plan.cta}
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      ) : (
+        <button
+          onClick={plan.onSelect}
+          className={`mt-8 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold transition active:scale-[0.98] ${
+            plan.popular
+              ? "bg-white text-black hover:bg-neutral-200"
+              : "border border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]"
+          }`}>
+          {plan.cta}
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      )}
     </article>
   );
 }
 
 export default function PricingPage() {
-  const storePlans = useAdminStore((s) => s.plans || []);
+  const storePlans = useAdminStore((s) => s.plans) || [];
   const fetchPlans = useAdminStore((s) => s.fetchPlans);
   const currentUser = useAdminStore((s) => s.currentUser);
   const fetchData = useAdminStore((s) => s.fetchData);
+  const router = useRouter();
+
+  const handlePlanSelect = async (plan) => {
+    const planSlug = plan.name.split(" ")[0].toLowerCase();
+    if (!currentUser) {
+      router.push(`/signup?next=${encodeURIComponent(`/checkout?plan=${planSlug}`)}`);
+      return;
+    }
+    try {
+      const res = await apiFetch("/api/dashboard/initiate-payment", {
+        method: "POST",
+        body: JSON.stringify({ planId: plan.id, amount: plan.amount, paymentGateway: "usdt", source: "Pricing Page - " + plan.name })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.initiationId) {
+          router.push(`/checkout?plan=${planSlug}&initId=${data.initiationId}`);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    router.push(`/checkout?plan=${planSlug}`);
+  };
 
   useEffect(() => {
     fetchPlans();
     fetchData();
   }, [fetchPlans, fetchData]);
 
-  const activePlans = storePlans.filter((p) => p.status === "Active");
+  const activePlans = storePlans.filter((p) => p.isActive !== false);
 
   const plans = activePlans.map((plan, index) => {
     let icon = CircleDollarSign;
@@ -134,6 +174,7 @@ export default function PricingPage() {
       features: plan.features || [],
       cta: plan.btnText || "Get Started",
       href,
+      onSelect: () => handlePlanSelect(plan),
       icon,
       tone,
       popular: Boolean(plan.isPopular),

@@ -2446,12 +2446,16 @@ export default function DashboardPage() {
     showToast("Trade signal closed successfully");
   };
 
-  const handleRejectSubmit = (e) => {
+  const handleRejectSubmit = async (e) => {
     e.preventDefault();
-    rejectPayment(activeRejectId, rejectRemarkText);
-    setRejectRemarkText("");
-    setIsRejectOpen(false);
-    showToast("Payment rejected");
+    const res = await rejectPayment(activeRejectId, rejectRemarkText);
+    if (res?.error) {
+      showToast(res.error, "error");
+    } else {
+      setRejectRemarkText("");
+      setIsRejectOpen(false);
+      showToast("Payment rejected");
+    }
   };
 
   // ADMINS CRUD EVENT HANDLERS
@@ -2681,7 +2685,11 @@ export default function DashboardPage() {
     <>
       {/* Toast Alert */}
       {toast && (
-        <div className="fixed right-5 top-24 z-50 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm font-semibold text-green-300 shadow-2xl backdrop-blur-xl animate-fade-in">
+        <div className={`fixed right-5 top-24 z-50 rounded-lg border px-4 py-3 text-sm font-semibold shadow-2xl backdrop-blur-xl animate-fade-in ${
+          toast.type === "error" 
+            ? "border-red-500/30 bg-red-500/10 text-red-300" 
+            : "border-green-500/30 bg-green-500/10 text-green-300"
+        }`}>
           {toast.message}
         </div>
       )}
@@ -2704,14 +2712,22 @@ export default function DashboardPage() {
               openRecordModal("withdrawals", "view", id);
             }
           }}
-          onVerify={(id) => { verifyPayment(id); showToast("Payment verified details"); }}
-          onApprove={(id) => {
+          onVerify={async (id) => { 
+            const res = await verifyPayment(id); 
+            if (res?.error) showToast(res.error, "error");
+            else showToast("Payment verified details"); 
+          }}
+          onApprove={async (id) => {
             if (section.title === "Transaction History" || section.title === "Withdrawal Requests") {
-              approveWithdrawal(id);
-              showToast("Withdrawal approved successfully");
+              const res = await approveWithdrawal(id);
+              if (res?.error) showToast(res.error, "error");
+              else showToast("Withdrawal approved successfully");
             } else {
-              approvePayment(id);
-              showToast("Payment approved & plan activated");
+              if (confirm("Are you sure you want to approve this payment?")) {
+                const res = await approvePayment(id);
+                if (res?.error) showToast(res.error, "error");
+                else showToast("Payment approved & plan activated");
+              }
             }
           }}
           onReject={(id) => {
@@ -2803,8 +2819,16 @@ export default function DashboardPage() {
         />
       ) : (
         <PlatformOverview 
-          onVerify={(id) => { verifyPayment(id); showToast("Payment verified details"); }}
-          onApprove={(id) => { approvePayment(id); showToast("Payment approved & plan activated"); }}
+          onVerify={async (id) => { 
+            const res = await verifyPayment(id); 
+            if (res?.error) showToast(res.error, "error");
+            else showToast("Payment verified details"); 
+          }}
+          onApprove={async (id) => { 
+            const res = await approvePayment(id); 
+            if (res?.error) showToast(res.error, "error");
+            else showToast("Payment approved & plan activated"); 
+          }}
           onReject={(id) => { setActiveRejectId(id); setIsRejectOpen(true); }}
         />
       )}

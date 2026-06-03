@@ -46,11 +46,11 @@ export declare class InvestmentService {
         createdAt: Date;
         updatedAt: Date;
         partnerId: string;
+        weeklyProfit: import("@prisma/client/runtime/library").Decimal;
         description: string | null;
         image: string | null;
         minAmount: import("@prisma/client/runtime/library").Decimal;
         maxAmount: import("@prisma/client/runtime/library").Decimal;
-        weeklyProfit: import("@prisma/client/runtime/library").Decimal;
         lockPeriod: number;
         referralBonus: import("@prisma/client/runtime/library").Decimal;
     }>;
@@ -71,11 +71,11 @@ export declare class InvestmentService {
         createdAt: Date;
         updatedAt: Date;
         partnerId: string;
+        weeklyProfit: import("@prisma/client/runtime/library").Decimal;
         description: string | null;
         image: string | null;
         minAmount: import("@prisma/client/runtime/library").Decimal;
         maxAmount: import("@prisma/client/runtime/library").Decimal;
-        weeklyProfit: import("@prisma/client/runtime/library").Decimal;
         lockPeriod: number;
         referralBonus: import("@prisma/client/runtime/library").Decimal;
     }>;

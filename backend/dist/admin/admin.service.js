@@ -1446,6 +1446,81 @@ let AdminService = class AdminService {
             data: { status },
         });
     }
+    async getInitiatedPayments() {
+        const initiations = await this.prisma.paymentInitiation.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: {
+                user: { select: { name: true, email: true, phone: true } },
+                plan: { select: { name: true } },
+            }
+        });
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        let initiatedToday = 0;
+        let initiatedWeek = 0;
+        let pendingFollowUps = 0;
+        let convertedLeads = 0;
+        let abandonedValue = 0;
+        let recoveredRevenue = 0;
+        for (const init of initiations) {
+            if (new Date(init.createdAt) >= today)
+                initiatedToday++;
+            if (new Date(init.createdAt) >= weekAgo)
+                initiatedWeek++;
+            if (['PENDING', 'FOLLOWUP_REQUIRED'].includes(init.followUpStatus))
+                pendingFollowUps++;
+            const amount = Number(init.amount) || 0;
+            if (init.followUpStatus === 'CONVERTED' || init.status === 'completed') {
+                convertedLeads++;
+                recoveredRevenue += amount;
+            }
+            else {
+                abandonedValue += amount;
+            }
+        }
+        const conversionRate = initiations.length > 0 ? Number(((convertedLeads / initiations.length) * 100).toFixed(1)) : 0;
+        return {
+            success: true,
+            metrics: {
+                initiatedToday,
+                initiatedWeek,
+                pendingFollowUps,
+                convertedLeads,
+                abandonedValue,
+                recoveredRevenue,
+                conversionRate,
+            },
+            initiatedPayments: initiations
+        };
+    }
+    async updateInitiatedPayment(id, body, adminId, clientIp) {
+        const { followUpStatus, remarks, contactedAt } = body;
+        const existing = await this.prisma.paymentInitiation.findUnique({ where: { id } });
+        if (!existing)
+            return { error: 'Payment initiation not found', status: 404 };
+        const updateData = {};
+        if (followUpStatus)
+            updateData.followUpStatus = followUpStatus;
+        if (remarks)
+            updateData.remarks = remarks;
+        if (contactedAt)
+            updateData.contactedAt = new Date(contactedAt);
+        const updated = await this.prisma.paymentInitiation.update({
+            where: { id },
+            data: updateData,
+        });
+        await this.prisma.securityEvent.create({
+            data: {
+                adminId,
+                action: 'PAYMENT_INITIATION_UPDATE',
+                reason: `Updated followUpStatus to ${followUpStatus} for ${id}`,
+                ipAddress: clientIp,
+            },
+        });
+        return { success: true, initiatedPayment: updated };
+    }
 };
 exports.AdminService = AdminService;
 exports.AdminService = AdminService = __decorate([

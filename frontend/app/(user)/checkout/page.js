@@ -346,7 +346,7 @@ function PaymentStatusView({ moveToStep }) {
 export default function CheckoutPage() {
   const router = useRouter();
   const addPayment = useAdminStore((s) => s.addPayment);
-  const storePlans = useAdminStore((s) => s.plans || []);
+  const storePlans = useAdminStore((s) => s.plans) || [];
   const fetchPlans = useAdminStore((s) => s.fetchPlans);
 
   useEffect(() => {
@@ -364,68 +364,20 @@ export default function CheckoutPage() {
         gradient = "from-violet-500/30 to-green-500/10";
       }
 
-      let profitFee = "Custom";
-      const feeFeature = p.features.find(f => f.toLowerCase().includes("fee"));
-      if (feeFeature) {
-        const match = feeFeature.match(/\d+%/);
-        if (match) profitFee = match[0];
-      }
-
-      let amount = "Manual Review";
-      if (slug === "club") amount = "$100.00";
-      else if (slug === "individual") amount = "$1,000.00";
-
       map[slug] = {
+        id: p.id,
         name: p.name,
-        subtitle: p.subtitle,
+        subtitle: p.subtitle || p.desc,
         description: p.desc,
-        capital: p.capitalLabel,
-        profitFee,
-        planType: slug === "custom" ? "Consultation" : "Monthly",
-        amount,
+        capital: p.capitalLabel || `₹${Number(p.amount).toLocaleString()}`,
+        profitFee: `${p.weeklyProfit}%`,
+        planType: p.durationDays + " Days",
+        amount: `₹${Number(p.amount).toLocaleString()}`,
+        rawAmount: p.amount,
         gradient,
         popular: p.isPopular,
       };
     });
-
-    // Static fallbacks
-    if (!map.club) {
-      map.club = {
-        name: "Club Plan",
-        subtitle: "Micro Capital",
-        description: "Ideal plan for new traders starting out with small test capital.",
-        capital: "$10 - $100",
-        profitFee: "5%",
-        planType: "Monthly",
-        amount: "$100.00",
-        gradient: "from-green-500/25 to-emerald-500/10",
-      };
-    }
-    if (!map.individual) {
-      map.individual = {
-        name: "Individual Plan",
-        subtitle: "Full Access",
-        description: "For advanced traders who require priority execution and higher capital limits.",
-        capital: "$1000+",
-        profitFee: "4%",
-        planType: "Monthly",
-        amount: "$1,000.00",
-        gradient: "from-violet-500/30 to-green-500/10",
-        popular: true,
-      };
-    }
-    if (!map.custom) {
-      map.custom = {
-        name: "Custom Plan",
-        subtitle: "Tailored Capital Setup",
-        description: "A flexible trading setup with a custom capital range and fee agreement.",
-        capital: "Flexible",
-        profitFee: "Custom",
-        planType: "Consultation",
-        amount: "Manual Review",
-        gradient: "from-cyan-500/25 to-green-500/10",
-      };
-    }
     return map;
   }, [storePlans]);
 
@@ -437,12 +389,22 @@ export default function CheckoutPage() {
   const [screenshotName, setScreenshotName] = useState("");
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState("");
-  const plan = plans[planSlug] || plans.individual;
+  const [initiationId, setInitiationId] = useState(null);
+  const plan = plans[planSlug] || Object.values(plans)[0] || {
+    name: "Loading Plan...",
+    planType: "",
+    amount: "₹0",
+    rawAmount: 0,
+    gradient: "from-gray-500/25 to-gray-500/10"
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const selectedPlan = plans[params.get("plan")] ? params.get("plan") : "individual";
+    const requestedPlan = params.get("plan");
+    const selectedPlan = plans[requestedPlan] ? requestedPlan : (Object.keys(plans)[0] || "individual");
     const selectedStep = ["payment", "status"].includes(params.get("step")) ? params.get("step") : "payment";
+    const initId = params.get("initId");
+    if (initId) setInitiationId(initId);
     const isAuthenticated = localStorage.getItem("tradebot-authenticated") === "true";
 
     if (!isAuthenticated) {
@@ -588,11 +550,12 @@ export default function CheckoutPage() {
                       user: paymentUser.name,
                       email: paymentUser.email,
                       plan: `${plan.name} ${plan.planType}`,
-                      amount: plan.amount,
+                      amount: plan.rawAmount,
                       txnHash,
                       screenshot: screenshotPreview,
                       network: "TRC20",
-                      paymentType: "USDT"
+                      paymentType: "USDT",
+                      initiationId
                     });
                     setIsSubmittingPayment(false);
                     if (!created) {

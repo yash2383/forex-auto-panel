@@ -48,6 +48,11 @@ export default function ProfileHero({ profile }) {
             <span className="inline-flex items-center rounded-full bg-green-500/10 border border-green-500/20 px-3 py-1 text-xs font-bold text-green-400 uppercase">
               {profile?.activePlan?.name || "Free Trial"}
             </span>
+            {profile?.activePlan?.expiresAt && (
+              <span className="inline-flex items-center rounded-full bg-amber-500/10 border border-amber-500/20 px-3 py-1 text-xs font-bold text-amber-400">
+                Expires: {new Date(profile.activePlan.expiresAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </span>
+            )}
           </div>
         </div>
       </div>

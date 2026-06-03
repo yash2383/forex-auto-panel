@@ -14,16 +14,23 @@ export declare class AuthController {
     sendOtp(body: {
         email: string;
         partnerSlug?: string;
+        password?: string;
+        firstName?: string;
+        lastName?: string;
+        referralCode?: string;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
     signup(body: {
         email: string;
-        password: string;
-        otp: string;
+        password?: string;
+        otp?: string;
         firstName?: string;
         lastName?: string;
         partnerSlug?: string;
         referralCode?: string;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
+    requestManualVerification(email: string, res: Response): Promise<Response<any, Record<string, any>>>;
+    getOtpSettings(res: Response): Promise<Response<any, Record<string, any>>>;
+    updateOtpSettings(body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     me(req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     logout(res: Response): Promise<Response<any, Record<string, any>>>;
 }

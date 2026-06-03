@@ -12,159 +12,87 @@ export class OtpService {
   ) {}
 
   private hashOtp(otp: string): string {
-    return createHash('sha256').update(otp).digest('hex');
+    return otp;
   }
 
   async generateOtp(partnerId: string, email: string, partnerName: string): Promise<{ success: boolean; otp: string }> {
     const normalizedEmail = email.toLowerCase().trim();
     const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
 
-    // 1. Rate limiting check: Max 3 OTPs per email per hour
-    const otpsInLastHour = await this.prisma.emailOtp.count({
-      where: {
-        partnerId,
-        email: normalizedEmail,
-        createdAt: { gte: oneHourAgo },
-      },
+    // 1. Fetch OTP settings
+    const settings = await this.prisma.otpSettings.findFirst() || {
+      emailOtpEnabled: true,
+      otpLength: 6,
+      otpExpiryMinutes: 10,
+      supportContact: "+91 XXXXX XXXXX"
+    };
+
+    // 2. Generate secure code
+    const length = settings.otpLength || 6;
+    const otp = Array.from({ length }, () => randomInt(0, 10)).join('');
+    const expiresAt = new Date(now.getTime() + (settings.otpExpiryMinutes || 10) * 60 * 1000);
+
+    // 3. Save to User record
+    const user = await this.prisma.user.findFirst({
+      where: { partnerId, email: normalizedEmail, isDeleted: false }
     });
-
-    if (otpsInLastHour >= 3) {
-      throw new BadRequestException('Rate limit exceeded. Maximum 3 verification codes per hour allowed.');
+    if (!user) {
+      throw new BadRequestException('User not found.');
     }
 
-    // 2. Cooldown check: Min 60 seconds between OTP requests
-    const lastOtp = await this.prisma.emailOtp.findFirst({
-      where: {
-        partnerId,
-        email: normalizedEmail,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otpCode: otp,
+        otpExpiresAt: expiresAt
+      }
     });
 
-    if (lastOtp && lastOtp.createdAt >= oneMinuteAgo) {
-      const secondsLeft = Math.ceil((lastOtp.createdAt.getTime() + 60 * 1000 - now.getTime()) / 1000);
-      throw new BadRequestException(`Please wait ${secondsLeft} seconds before requesting a new code.`);
+    // 4. Dispatch via Email (Mandatory SMTP connection)
+    let emailSent = false;
+    try {
+      emailSent = await this.emailService.sendOtpEmail(normalizedEmail, otp, partnerName);
+    } catch (err: any) {
+      console.error(`SMTP Dispatch failed for user ${normalizedEmail}:`, err.message);
+      emailSent = false;
     }
 
-    // 3. Auto-expire old pending OTPs
-    await this.prisma.emailOtp.updateMany({
-      where: {
-        partnerId,
-        email: normalizedEmail,
-        verified: false,
-      },
-      data: {
-        verified: true, // Invalidate old ones
-      },
-    });
-
-    // 4. Clean up any expired OTPs right now as a proactive measure
-    await this.cleanupExpiredOtps();
-
-    // 5. Generate cryptographically secure OTP
-    const otp = randomInt(100000, 1000000).toString(); // Secure 6-digit number (100000 to 999999)
-    const otpHash = this.hashOtp(otp);
-    const expiresAt = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes expiration
-
-    // 6. Save to database
-    await this.prisma.emailOtp.create({
-      data: {
-        partnerId,
-        email: normalizedEmail,
-        otpHash,
-        expiresAt,
-      },
-    });
-
-    // 7. Dispatch via Email
-    const success = await this.emailService.sendOtpEmail(normalizedEmail, otp, partnerName);
-    return { success, otp };
+    return { success: emailSent, otp };
   }
 
   async verifyOtp(partnerId: string, email: string, code: string): Promise<boolean> {
     const normalizedEmail = email.toLowerCase().trim();
     const now = new Date();
 
-    // Find the latest pending, unverified OTP
-    const activeOtp = await this.prisma.emailOtp.findFirst({
-      where: {
-        partnerId,
-        email: normalizedEmail,
-        verified: false,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+    const user = await this.prisma.user.findFirst({
+      where: { partnerId, email: normalizedEmail, isDeleted: false }
     });
 
-    if (!activeOtp) {
+    if (!user) {
+      throw new BadRequestException('User not found.');
+    }
+
+    if (!user.otpCode || !user.otpExpiresAt) {
       throw new BadRequestException('No verification request found. Please request a new code.');
     }
 
-    // Check expiration
-    if (activeOtp.expiresAt < now) {
+    if (user.otpExpiresAt < now) {
       throw new BadRequestException('Verification code has expired. Please request a new code.');
     }
 
-    // Check attempt lockout
-    if (activeOtp.attempts >= 5) {
-      throw new BadRequestException('Too many failed attempts. This code is locked. Please request a new code.');
+    if (user.otpCode !== code) {
+      throw new BadRequestException('Invalid verification code.');
     }
 
-    // Check match
-    const hashedInput = this.hashOtp(code);
-    if (activeOtp.otpHash !== hashedInput) {
-      const newAttempts = activeOtp.attempts + 1;
-
-      if (newAttempts >= 5) {
-        // Lock this OTP permanently by marking verified = true
-        await this.prisma.emailOtp.update({
-          where: { id: activeOtp.id },
-          data: {
-            attempts: newAttempts,
-            verified: true,
-          },
-        });
-        throw new BadRequestException('Too many failed attempts. This code is locked. Please request a new code.');
-      } else {
-        await this.prisma.emailOtp.update({
-          where: { id: activeOtp.id },
-          data: { attempts: newAttempts },
-        });
-        const attemptsLeft = 5 - newAttempts;
-        throw new BadRequestException(`Invalid verification code. ${attemptsLeft} attempts remaining.`);
+    // Success - Clear OTP
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otpCode: null,
+        otpExpiresAt: null
       }
-    }
-
-    // Success - Mark verified
-    await this.prisma.emailOtp.update({
-      where: { id: activeOtp.id },
-      data: { verified: true },
     });
 
     return true;
-  }
-
-  // Periodic cleanup job (Runs every hour)
-  @Cron('0 * * * *')
-  async cleanupExpiredOtps() {
-    try {
-      const result = await this.prisma.emailOtp.deleteMany({
-        where: {
-          expiresAt: {
-            lt: new Date(),
-          },
-        },
-      });
-      if (result.count > 0) {
-        console.log(`[OtpService Cleanup] Deleted ${result.count} expired OTPs.`);
-      }
-    } catch (err: any) {
-      console.error('[OtpService Cleanup Error]', err.message);
-    }
   }
 }

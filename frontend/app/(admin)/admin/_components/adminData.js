@@ -36,12 +36,6 @@ export const adminNavGroups = [
     ],
   },
   {
-    title: "Investments",
-    items: [
-      { icon: LineChart, label: "Investment Plans", href: "/admin/investment-plans" },
-    ],
-  },
-  {
     title: "Communication",
     items: [
       { icon: Bell, label: "Notifications", href: "/admin/dashboard?section=notifications", badge: "18" },
@@ -65,7 +59,6 @@ export const adminNavGroups = [
       { icon: ChartNoAxesCombined, label: "Reports", href: "/admin/dashboard?section=reports" },
       { icon: Settings, label: "Settings", href: "/admin/dashboard?section=settings" },
       { icon: Crown, label: "Pricing Plans", href: "/admin/dashboard?section=plans" },
-      { icon: KeyRound, label: "OTP Override", href: "/admin/dashboard?section=otp" },
       { icon: Activity, label: "Activity Logs", href: "/admin/dashboard?section=activity-logs" },
     ],
   },

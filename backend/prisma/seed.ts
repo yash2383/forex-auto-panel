@@ -11,7 +11,6 @@ async function main() {
   await prisma.payment.deleteMany();
   await prisma.withdrawal.deleteMany();
   await prisma.trade.deleteMany();
-  await prisma.otpRequest.deleteMany();
   await prisma.securityEvent.deleteMany();
   await prisma.referral.deleteMany();
   await prisma.campaign.deleteMany();

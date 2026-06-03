@@ -34,7 +34,6 @@ export default function AdminShell({ children }) {
   const payments = useAdminStore((s) => s.payments);
   const trades = useAdminStore((s) => s.trades);
   const partners = useAdminStore((s) => s.partners);
-  const otpRequests = useAdminStore((s) => s.otpRequests || []);
   const transactions = useAdminStore((s) => s.transactions || []);
 
   useEffect(() => {
@@ -121,7 +120,6 @@ export default function AdminShell({ children }) {
   }
 
 
-  const pendingCount = otpRequests.filter((r) => r.status === "pending").length;
   const pendingWithdrawalCount = transactions.filter((t) => t.type === "Withdrawal" && t.status === "Pending").length;
 
   // Search Results calculations
@@ -389,9 +387,7 @@ export default function AdminShell({ children }) {
                         (item.href === "/admin/dashboard" && pathname === "/admin/dashboard" && !section) ||
                         (itemSection && section === itemSection && (!itemFilter || activeFilter === itemFilter)) ||
                         (!itemSection && item.href !== "/admin/dashboard" && pathname?.startsWith(item.href));
-                      const badgeValue = item.label === "OTP Override"
-                        ? (pendingCount > 0 ? pendingCount.toString() : null)
-                        : item.label === "Withdraw Requests"
+                      const badgeValue = item.label === "Withdraw Requests"
                         ? (pendingWithdrawalCount > 0 ? pendingWithdrawalCount.toString() : null)
                         : item.badge;
                       return (

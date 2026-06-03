@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { 
-  ArrowRight, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, Eye, FileDown, 
+import {
+  ArrowRight, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, Eye, FileDown,
   MessageSquare, MoreVertical, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2, X, AlertTriangle, User, Users,
   DollarSign, Wallet, TrendingUp, UserCheck, CheckCircle
 } from "lucide-react";
@@ -185,13 +185,6 @@ const sectionContent = {
     metrics: [["Logs Today", "642"], ["Admin Actions", "84"], ["User Actions", "558"], ["Alerts", "3"]],
     headers: ["Auditor Name", "Logged Action", "Target Module", "Timestamp", "IP Address"],
   },
-  otp: {
-    permissionKey: "otp",
-    title: "OTP Override Management",
-    description: "Manage security overrides and manual OTP generation for users encountering network delivery issues.",
-    metrics: [["Pending Requests", "2"], ["Active/Generated", "0"], ["Verified Overrides", "0"], ["Daily Limit", "Max 10 / admin"]],
-    headers: ["ID", "User Details", "Type", "Risk level", "Status", "Request Date"],
-  },
   transactions: {
     permissionKey: "payments",
     title: "Transaction History",
@@ -250,7 +243,7 @@ function CreateActionButton({ permissionKey, onClick }) {
   return <CrudButton icon={Plus} label={createLabels[permissionKey] || "Create"} tone="create" onClick={onClick} />;
 }
 
-function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, onEdit, onDelete, onBlock, onVerify, onApprove, onReject, onCloseTrade, onPublish, onUnpublish }) {
+function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, onEdit, onDelete, onBlock, onVerify, onApprove, onReject, onCloseTrade, onPublish, onUnpublish, showToast }) {
   const hasPermission = useAdminStore((s) => s.hasPermission);
   const canEdit = hasPermission(permissionKey, "edit");
   const canDelete = hasPermission(permissionKey, "delete");
@@ -266,7 +259,7 @@ function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, o
   }
 
   if (permissionKey === "payments" && sectionTitle !== "Transaction History") {
-    const status = itemRow[6]; 
+    const status = itemRow[6];
     if (!canEdit) return <span className="text-xs text-neutral-500">Read-Only</span>;
     if (status === "Pending") {
       return (
@@ -321,12 +314,12 @@ function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, o
       <div className="flex gap-2">
         {canEdit && <CrudButton icon={Pencil} label="Edit" tone="edit" onClick={() => onEdit(itemId)} />}
         {canDelete && (
-          <CrudButton 
-            icon={Trash2} 
-            label="Remove" 
-            tone="delete" 
+          <CrudButton
+            icon={Trash2}
+            label="Remove"
+            tone="delete"
             disabled={role === "Super Admin"}
-            onClick={() => onDelete(itemId)} 
+            onClick={() => onDelete(itemId)}
           />
         )}
         {!canEdit && !canDelete && <span className="text-xs text-neutral-500">Read-Only</span>}
@@ -334,20 +327,7 @@ function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, o
     );
   }
 
-  if (permissionKey === "otp") {
-    const status = itemRow[4];
-    const canGenerate = hasPermission("otp", "generate");
-    if (status === "pending") {
-      return (
-        <div className="flex gap-2 justify-end">
-          {canGenerate && <CrudButton icon={Check} label="Handle Request" tone="approve" onClick={() => onEdit(itemId)} />}
-          {canGenerate && <CrudButton icon={X} label="Reject" tone="reject" onClick={() => onDelete(itemId)} />}
-          {!canGenerate && <span className="text-xs text-neutral-500">Read-Only</span>}
-        </div>
-      );
-    }
-    return <span className="text-xs text-neutral-500 capitalize">{status}</span>;
-  }
+
 
   if (sectionTitle === "Withdrawal Requests") {
     const status = itemRow[4];
@@ -362,9 +342,8 @@ function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, o
           </>
         )}
         {status !== "Pending" && (
-          <span className={`text-xs font-bold ${
-            status === "Approved" ? "text-green-300" : "text-red-300"
-          }`}>{status}</span>
+          <span className={`text-xs font-bold ${status === "Approved" ? "text-green-300" : "text-red-300"
+            }`}>{status}</span>
         )}
       </div>
     );
@@ -385,7 +364,7 @@ function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, o
     const status = itemRow[6];
     const canApprove = hasPermission("payments", "edit");
     const isWithdrawal = type === "Withdrawal" || type === "↑ Withdrawal";
-    
+
     return (
       <div className="flex gap-2 justify-end items-center">
         {isWithdrawal && (
@@ -398,12 +377,11 @@ function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, o
           </>
         )}
         {(!isWithdrawal || status !== "Pending") && (
-          <span className={`text-xs font-bold ${
-            status === "Completed" || status === "Approved" ? "text-green-300" :
-            status === "Rejected" ? "text-red-300" :
-            status === "Failed" ? "text-red-400" :
-            "text-yellow-300"
-          }`}>{status}</span>
+          <span className={`text-xs font-bold ${status === "Completed" || status === "Approved" ? "text-green-300" :
+              status === "Rejected" ? "text-red-300" :
+                status === "Failed" ? "text-red-400" :
+                  "text-yellow-300"
+            }`}>{status}</span>
         )}
       </div>
     );
@@ -576,11 +554,11 @@ function PendingPaymentsTable({ onVerify, onApprove, onReject }) {
 
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
-    pending = pending.filter((p) => 
-      p.id.toLowerCase().includes(q) || 
-      p.user.toLowerCase().includes(q) || 
-      p.email.toLowerCase().includes(q) || 
-      (p.utr && p.utr.toLowerCase().includes(q)) || 
+    pending = pending.filter((p) =>
+      p.id.toLowerCase().includes(q) ||
+      p.user.toLowerCase().includes(q) ||
+      p.email.toLowerCase().includes(q) ||
+      (p.utr && p.utr.toLowerCase().includes(q)) ||
       (p.txnHash && p.txnHash.toLowerCase().includes(q))
     );
   }
@@ -647,9 +625,8 @@ function PendingPaymentsTable({ onVerify, onApprove, onReject }) {
                   </div>
                 </td>
                 <td className="px-4 py-4">
-                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${
-                    payment.status === "Verified" ? "bg-green-500/10 text-green-300 border border-green-500/20" : "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20"
-                  }`}>
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${payment.status === "Verified" ? "bg-green-500/10 text-green-300 border border-green-500/20" : "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20"
+                    }`}>
                     {payment.status}
                   </span>
                 </td>
@@ -747,10 +724,10 @@ function PendingPaymentsTable({ onVerify, onApprove, onReject }) {
 function QuickActionCard({ item }) {
   const Icon = item.icon;
   const url = item.title === "Users" ? "/admin/dashboard?section=users" :
-              item.title === "Send Notification" ? "/admin/dashboard?section=notifications" :
-              item.title === "Create Campaign" ? "/admin/dashboard?section=campaigns" :
-              item.title === "Referral Settings" ? "/admin/dashboard?section=referrals" :
-              item.title === "White Label" ? "/admin/white-label" : "/admin/dashboard?section=reports";
+    item.title === "Send Notification" ? "/admin/dashboard?section=notifications" :
+      item.title === "Create Campaign" ? "/admin/dashboard?section=campaigns" :
+        item.title === "Referral Settings" ? "/admin/dashboard?section=referrals" :
+          item.title === "White Label" ? "/admin/white-label" : "/admin/dashboard?section=reports";
 
   return (
     <Link href={url} className={`block rounded-xl border bg-[#081118]/95 p-5 shadow-[0_18px_65px_-55px_rgba(0,208,156,0.65)] transition ${quickBorder[item.tone]}`}>
@@ -811,13 +788,13 @@ function PlatformOverview({ onVerify, onApprove, onReject }) {
   );
 }
 
-function AdminSectionPage({ 
-  section, activeFilter = "All", onView, onEdit, onDelete, onBlock, onVerify, onApprove, onReject, 
+function AdminSectionPage({
+  section, activeFilter = "All", onView, onEdit, onDelete, onBlock, onVerify, onApprove, onReject,
   onAddClick, onCloseTrade, activeSettings, onSaveSettings, activeReferralSettings, onSaveReferralSettings, referralListModal, setReferralListModal,
-  onPublish, onUnpublish
+  onPublish, onUnpublish, showToast
 }) {
   const [selectedTrades, setSelectedTrades] = useState([]);
-  
+
   const showFilterTabs = section.permissionKey === "users" || section.title === "Transaction History" || section.permissionKey === "trades" || section.title === "Withdrawal Requests";
   const filterBaseUrl = section.title === "Transaction History" ? "/admin/dashboard?section=transactions" : section.permissionKey === "trades" ? "/admin/dashboard?section=trades" : section.title === "Withdrawal Requests" ? "/admin/dashboard?section=withdrawals" : "/admin/dashboard?section=users";
 
@@ -835,7 +812,6 @@ function AdminSectionPage({
   const notifications = useAdminStore((s) => s.notifications || []);
   const campaigns = useAdminStore((s) => s.campaigns || []);
   const referrals = useAdminStore((s) => s.referrals || []);
-  const otpRequests = useAdminStore((s) => s.otpRequests || []);
   const transactions = useAdminStore((s) => s.transactions || []);
   const plans = useAdminStore((s) => s.plans || []);
   const withdrawals = useAdminStore((s) => s.withdrawals || []);
@@ -845,6 +821,8 @@ function AdminSectionPage({
   const canEditSettings = hasPermission("settings", "edit");
   const searchQuery = useAdminStore((s) => s.searchQuery || "");
   const setSearchQuery = useAdminStore((s) => s.setSearchQuery);
+
+
 
   // Filters for Reports section
   const [reportDateRange, setReportDateRange] = useState("all");
@@ -868,29 +846,29 @@ function AdminSectionPage({
   const [logModuleFilter, setLogModuleFilter] = useState("all");
   const sectionMetrics = section.permissionKey === "trades"
     ? [
-        ["Total Records", trades.length.toLocaleString()],
-        ["Published", trades.filter((trade) => trade.status === "published").length.toLocaleString()],
-        ["Drafts", trades.filter((trade) => trade.status === "draft").length.toLocaleString()],
-        ["Win Rate", (() => {
-          const wins = trades.filter((t) => t.profitLoss > 0).length;
-          return trades.length > 0 ? `${((wins / trades.length) * 100).toFixed(1)}%` : "0.0%";
-        })()],
-      ]
+      ["Total Records", trades.length.toLocaleString()],
+      ["Published", trades.filter((trade) => trade.status === "published").length.toLocaleString()],
+      ["Drafts", trades.filter((trade) => trade.status === "draft").length.toLocaleString()],
+      ["Win Rate", (() => {
+        const wins = trades.filter((t) => t.profitLoss > 0).length;
+        return trades.length > 0 ? `${((wins / trades.length) * 100).toFixed(1)}%` : "0.0%";
+      })()],
+    ]
     : section.title === "Withdrawal Requests"
-    ? [
+      ? [
         ["Total Requests", withdrawals.length.toString()],
         ["Pending", withdrawals.filter((w) => w.status === "Pending").length.toString()],
         ["Approved", withdrawals.filter((w) => w.status === "Approved").length.toString()],
         ["Rejected", withdrawals.filter((w) => w.status === "Rejected").length.toString()],
       ]
-    : section.permissionKey === "pnl-reports" && pnlReports
-    ? [
-        ["Total PnL", `$${pnlReports.overview.totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
-        ["User-wise Avg", pnlReports.overview.winningTrades > 0 ? `$${pnlReports.overview.averageWin}` : "$0"],
-        ["Profit Factor", pnlReports.overview.profitFactor],
-        ["Win Rate", `${pnlReports.overview.winRate}%`],
-      ]
-    : section.metrics;
+      : section.permissionKey === "pnl-reports" && pnlReports
+          ? [
+            ["Total PnL", `$${pnlReports.overview.totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}`],
+            ["User-wise Avg", pnlReports.overview.winningTrades > 0 ? `$${pnlReports.overview.averageWin}` : "$0"],
+            ["Profit Factor", pnlReports.overview.profitFactor],
+            ["Win Rate", `${pnlReports.overview.winRate}%`],
+          ]
+          : section.metrics;
 
   let rows = [];
   if (section.permissionKey === "users") {
@@ -902,8 +880,8 @@ function AdminSectionPage({
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      list = list.filter((u) => 
-        u.name.toLowerCase().includes(q) || 
+      list = list.filter((u) =>
+        u.name.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
         u.plan.toLowerCase().includes(q) ||
         u.status.toLowerCase().includes(q)
@@ -914,9 +892,9 @@ function AdminSectionPage({
     let list = payments;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      list = list.filter((p) => 
-        p.id.toLowerCase().includes(q) || 
-        p.user.toLowerCase().includes(q) || 
+      list = list.filter((p) =>
+        p.id.toLowerCase().includes(q) ||
+        p.user.toLowerCase().includes(q) ||
         p.email.toLowerCase().includes(q) ||
         p.plan.toLowerCase().includes(q) ||
         p.amount.toLowerCase().includes(q) ||
@@ -941,31 +919,31 @@ function AdminSectionPage({
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      list = list.filter((t) => 
-        t.pair.toLowerCase().includes(q) || 
-        t.side.toLowerCase().includes(q) || 
+      list = list.filter((t) =>
+        t.pair.toLowerCase().includes(q) ||
+        t.side.toLowerCase().includes(q) ||
         t.status.toLowerCase().includes(q) ||
         (t.result && t.result.toLowerCase().includes(q))
       );
     }
     rows = list.map((t) => [
-      t.pair, 
-      t.side, 
-      `₹${Number(t.entryPrice).toLocaleString("en-IN")}`, 
-      `₹${Number(t.exitPrice).toLocaleString("en-IN")}`, 
-      t.tradeDate ? new Date(t.tradeDate).toLocaleDateString("en-IN") : "N/A", 
-      t.result, 
-      t.profitLoss >= 0 ? `+₹${t.profitLoss.toLocaleString("en-IN")}` : `-₹${Math.abs(t.profitLoss).toLocaleString("en-IN")}`, 
-      t.status, 
+      t.pair,
+      t.side,
+      `₹${Number(t.entryPrice).toLocaleString("en-IN")}`,
+      `₹${Number(t.exitPrice).toLocaleString("en-IN")}`,
+      t.tradeDate ? new Date(t.tradeDate).toLocaleDateString("en-IN") : "N/A",
+      t.result,
+      t.profitLoss >= 0 ? `+₹${t.profitLoss.toLocaleString("en-IN")}` : `-₹${Math.abs(t.profitLoss).toLocaleString("en-IN")}`,
+      t.status,
       t.id
     ]);
   } else if (section.permissionKey === "admins") {
     let list = admins;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      list = list.filter((a) => 
-        a.name.toLowerCase().includes(q) || 
-        a.role.toLowerCase().includes(q) || 
+      list = list.filter((a) =>
+        a.name.toLowerCase().includes(q) ||
+        a.role.toLowerCase().includes(q) ||
         a.status.toLowerCase().includes(q)
       );
     }
@@ -984,8 +962,8 @@ function AdminSectionPage({
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      list = list.filter((r) => 
-        r[0].toLowerCase().includes(q) || 
+      list = list.filter((r) =>
+        r[0].toLowerCase().includes(q) ||
         r[1].toLowerCase().includes(q)
       );
     }
@@ -1033,8 +1011,8 @@ function AdminSectionPage({
     let filteredLogs = logs;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      filteredLogs = logs.filter((l) => 
-        l.actor.toLowerCase().includes(q) || 
+      filteredLogs = logs.filter((l) =>
+        l.actor.toLowerCase().includes(q) ||
         l.action.toLowerCase().includes(q) ||
         l.module.toLowerCase().includes(q)
       );
@@ -1043,26 +1021,7 @@ function AdminSectionPage({
       filteredLogs = filteredLogs.filter((l) => l.module.toLowerCase() === logModuleFilter.toLowerCase());
     }
     rows = filteredLogs.map((l) => [l.actor, l.action, l.module, l.time, l.ipAddress || "127.0.0.1", l.id]);
-  } else if (section.permissionKey === "otp") {
-    let list = otpRequests;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter((r) =>
-        r.userName.toLowerCase().includes(q) ||
-        r.userEmail.toLowerCase().includes(q) ||
-        r.id.toLowerCase().includes(q) ||
-        r.type.toLowerCase().includes(q)
-      );
-    }
-    rows = list.map((r) => [
-      r.id,
-      `${r.userName} (${r.userEmail})`,
-      r.type,
-      r.riskFlag,
-      r.status,
-      new Date(r.createdAt).toLocaleString(),
-      r.id
-    ]);
+
   } else if (section.title === "Withdrawal Requests") {
     let list = withdrawals;
     if (activeFilter === "Pending") list = list.filter(w => w.status === "Pending");
@@ -1138,6 +1097,7 @@ function AdminSectionPage({
       p.status,
       p.id
     ]);
+
   } else {
     rows = section.rows || [];
   }
@@ -1167,13 +1127,13 @@ function AdminSectionPage({
         return;
       }
     }
-    
+
     setIsBulkProcessing(true);
     const requestId = dryRun ? null : `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const store = useAdminStore.getState();
     const res = await store.bulkDistributeProfit(dryRun, requestId);
     setIsBulkProcessing(false);
-    
+
     if (res.success) {
       setBulkSummary({
         ...res.summary,
@@ -1250,15 +1210,7 @@ function AdminSectionPage({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {(section.permissionKey === "otp"
-          ? [
-              ["Pending Requests", otpRequests.filter(r => r.status === "pending").length.toString()],
-              ["Active/Generated", otpRequests.filter(r => r.status === "generated").length.toString()],
-              ["Verified Overrides", otpRequests.filter(r => r.status === "verified").length.toString()],
-              ["Daily Limit", "Max 10 / admin"]
-            ]
-          : sectionMetrics
-        ).map(([label, value]) => (
+        {sectionMetrics.map(([label, value]) => (
           <article key={label} className={`${adminPanel} p-5`}>
             <p className="text-sm text-neutral-500">{label}</p>
             <p className="mt-3 text-2xl font-semibold text-white">{value}</p>
@@ -1308,12 +1260,12 @@ function AdminSectionPage({
         <section className={`${adminPanel} p-4 flex flex-wrap gap-4 items-center justify-between`}>
           <label className="flex h-10 min-w-[280px] items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-neutral-500">
             <Search className="h-4 w-4" />
-            <input 
-              type="text" 
-              value={searchQuery} 
+            <input
+              type="text"
+              value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-neutral-600" 
-              placeholder="Search logs by operator or details..." 
+              className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-neutral-600"
+              placeholder="Search logs by operator or details..."
             />
           </label>
           <div className="flex gap-3">
@@ -1330,6 +1282,8 @@ function AdminSectionPage({
         </section>
       )}
 
+
+
       {section.permissionKey !== "settings" && (
         <section className={`${adminPanel} p-5`}>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -1338,12 +1292,12 @@ function AdminSectionPage({
               {section.permissionKey !== "activity-logs" && (
                 <label className="flex h-10 min-w-[280px] items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-neutral-500 focus-within:border-green-500/35 transition">
                   <Search className="h-4 w-4" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-neutral-600" 
-                    placeholder={`Search ${section.title.toLowerCase()}...`} 
+                    className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-neutral-600"
+                    placeholder={`Search ${section.title.toLowerCase()}...`}
                   />
                   {searchQuery && (
                     <button type="button" onClick={() => setSearchQuery("")} className="text-neutral-500 hover:text-white cursor-pointer">
@@ -1412,9 +1366,8 @@ function AdminSectionPage({
                   <Link
                     key={filter}
                     href={href}
-                    className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
-                      active ? "border-green-500/40 bg-green-500/15 text-green-300" : "border-white/[0.08] bg-white/[0.025] text-neutral-300 hover:bg-white/[0.08]"
-                    }`}>
+                    className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${active ? "border-green-500/40 bg-green-500/15 text-green-300" : "border-white/[0.08] bg-white/[0.025] text-neutral-300 hover:bg-white/[0.08]"
+                      }`}>
                     {filter}
                   </Link>
                 );
@@ -1428,9 +1381,9 @@ function AdminSectionPage({
                 <tr>
                   {section.permissionKey === "trades" && (
                     <th className="px-4 py-4 font-semibold w-10">
-                      <input 
-                        type="checkbox" 
-                        checked={rows.length > 0 && selectedTrades.length === rows.length} 
+                      <input
+                        type="checkbox"
+                        checked={rows.length > 0 && selectedTrades.length === rows.length}
                         onChange={(e) => {
                           if (e.target.checked) {
                             setSelectedTrades(rows.map(r => r[r.length - 1]));
@@ -1438,7 +1391,7 @@ function AdminSectionPage({
                             setSelectedTrades([]);
                           }
                         }}
-                        className="h-4 w-4 rounded border-white/10 bg-white/[0.02] text-green-500 focus:ring-green-500/50 cursor-pointer" 
+                        className="h-4 w-4 rounded border-white/10 bg-white/[0.02] text-green-500 focus:ring-green-500/50 cursor-pointer"
                       />
                     </th>
                   )}
@@ -1457,9 +1410,9 @@ function AdminSectionPage({
                     <tr key={`${itemId}-${index}`} className="hover:bg-white/[0.025]">
                       {section.permissionKey === "trades" && (
                         <td className="px-4 py-4 w-10">
-                          <input 
-                            type="checkbox" 
-                            checked={selectedTrades.includes(itemId)} 
+                          <input
+                            type="checkbox"
+                            checked={selectedTrades.includes(itemId)}
                             onChange={(e) => {
                               if (e.target.checked) {
                                 setSelectedTrades(prev => [...prev, itemId]);
@@ -1467,7 +1420,7 @@ function AdminSectionPage({
                                 setSelectedTrades(prev => prev.filter(id => id !== itemId));
                               }
                             }}
-                            className="h-4 w-4 rounded border-white/10 bg-white/[0.02] text-green-500 focus:ring-green-500/50 cursor-pointer" 
+                            className="h-4 w-4 rounded border-white/10 bg-white/[0.02] text-green-500 focus:ring-green-500/50 cursor-pointer"
                           />
                         </td>
                       )}
@@ -1491,9 +1444,8 @@ function AdminSectionPage({
                             if (idx === 4) {
                               return (
                                 <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded px-2 py-0.5 text-xs font-bold ${
-                                    "bg-amber-500/10 text-amber-300"
-                                  }`}>
+                                  <span className={`rounded px-2 py-0.5 text-xs font-bold ${"bg-amber-500/10 text-amber-300"
+                                    }`}>
                                     {paymentItem.paymentType}
                                   </span>
                                 </td>
@@ -1519,12 +1471,11 @@ function AdminSectionPage({
                             if (idx === 6) {
                               return (
                                 <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                    paymentItem.status === "Approved" ? "bg-green-500/10 text-green-300 border border-green-500/20" :
-                                    paymentItem.status === "Rejected" ? "bg-red-500/10 text-red-300 border border-red-500/20" :
-                                    paymentItem.status === "Verified" ? "bg-blue-500/10 text-blue-300 border border-blue-500/20" :
-                                    "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20"
-                                  }`}>
+                                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${paymentItem.status === "Approved" ? "bg-green-500/10 text-green-300 border border-green-500/20" :
+                                      paymentItem.status === "Rejected" ? "bg-red-500/10 text-red-300 border border-red-500/20" :
+                                        paymentItem.status === "Verified" ? "bg-blue-500/10 text-blue-300 border border-blue-500/20" :
+                                          "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20"
+                                    }`}>
                                     {paymentItem.status}
                                   </span>
                                   {paymentItem.remark && (
@@ -1535,6 +1486,8 @@ function AdminSectionPage({
                             }
                           }
                         }
+
+
 
                         if (section.title === "Withdrawal Requests") {
                           const wItem = withdrawals.find(w => w.id === itemId);
@@ -1556,11 +1509,10 @@ function AdminSectionPage({
                             if (idx === 4) {
                               return (
                                 <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded-full px-3 py-1 text-xs font-bold border ${
-                                    wItem.status === "Approved" ? "bg-green-500/10 text-green-300 border-green-500/20" :
-                                    wItem.status === "Rejected" ? "bg-red-500/10 text-red-300 border-red-500/20" :
-                                    "bg-yellow-500/10 text-yellow-300 border-yellow-500/20"
-                                  }`}>
+                                  <span className={`rounded-full px-3 py-1 text-xs font-bold border ${wItem.status === "Approved" ? "bg-green-500/10 text-green-300 border-green-500/20" :
+                                      wItem.status === "Rejected" ? "bg-red-500/10 text-red-300 border-red-500/20" :
+                                        "bg-yellow-500/10 text-yellow-300 border-yellow-500/20"
+                                    }`}>
                                     {wItem.status}
                                   </span>
                                 </td>
@@ -1633,48 +1585,7 @@ function AdminSectionPage({
                           }
                         }
 
-                        if (section.permissionKey === "otp") {
-                          const otpItem = otpRequests.find(r => r.id === itemId);
-                          if (otpItem) {
-                            if (idx === 1) { // User Details
-                              return (
-                                <td key={idx} className="px-4 py-4">
-                                  <div>
-                                    <p className="font-semibold text-white">{otpItem.userName}</p>
-                                    <p className="text-xs text-neutral-500">{otpItem.userEmail}</p>
-                                  </div>
-                                </td>
-                              );
-                            }
-                            if (idx === 3) { // Risk level
-                              return (
-                                <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                                    otpItem.riskFlag === "HIGH" ? "bg-red-500/10 text-red-300 border border-red-500/20" :
-                                    otpItem.riskFlag === "MEDIUM" ? "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20" :
-                                    "bg-blue-500/10 text-blue-300 border border-blue-500/20"
-                                  }`}>
-                                    {otpItem.riskFlag}
-                                  </span>
-                                </td>
-                              );
-                            }
-                            if (idx === 4) { // Status
-                              return (
-                                <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                                    otpItem.status === "verified" ? "bg-green-500/10 text-green-300 border border-green-500/20" :
-                                    otpItem.status === "generated" ? "bg-blue-500/10 text-blue-300 border border-blue-500/20" :
-                                    otpItem.status === "pending" ? "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20" :
-                                    "bg-neutral-500/10 text-neutral-400 border border-neutral-500/20"
-                                  }`}>
-                                    {otpItem.status.toUpperCase()}
-                                  </span>
-                                </td>
-                              );
-                            }
-                          }
-                          }
+
 
                         if (section.title === "Transaction History") {
                           const txnItem = transactions.find(t => t.id === itemId);
@@ -1682,10 +1593,9 @@ function AdminSectionPage({
                             if (idx === 2) { // Type badge
                               return (
                                 <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded px-2.5 py-0.5 text-xs font-bold ${
-                                    txnItem.type === "Deposit" ? "bg-green-500/10 text-green-300 border border-green-500/20" :
-                                    "bg-red-500/10 text-red-300 border border-red-500/20"
-                                  }`}>
+                                  <span className={`rounded px-2.5 py-0.5 text-xs font-bold ${txnItem.type === "Deposit" ? "bg-green-500/10 text-green-300 border border-green-500/20" :
+                                      "bg-red-500/10 text-red-300 border border-red-500/20"
+                                    }`}>
                                     {txnItem.type === "Deposit" ? "↓ Deposit" : "↑ Withdrawal"}
                                   </span>
                                 </td>
@@ -1693,9 +1603,8 @@ function AdminSectionPage({
                             }
                             if (idx === 3) { // Amount
                               return (
-                                <td key={idx} className={`px-4 py-4 font-mono font-bold ${
-                                  txnItem.type === "Deposit" ? "text-green-300" : "text-red-300"
-                                }`}>
+                                <td key={idx} className={`px-4 py-4 font-mono font-bold ${txnItem.type === "Deposit" ? "text-green-300" : "text-red-300"
+                                  }`}>
                                   {txnItem.type === "Deposit" ? "+" : "-"}₹{txnItem.amount.toLocaleString()}
                                 </td>
                               );
@@ -1703,12 +1612,11 @@ function AdminSectionPage({
                             if (idx === 6) { // Status
                               return (
                                 <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded-full px-3 py-0.5 text-xs font-bold border ${
-                                    txnItem.status === "Completed" ? "bg-green-500/10 text-green-300 border-green-500/20" :
-                                    txnItem.status === "Pending" ? "bg-yellow-500/10 text-yellow-300 border-yellow-500/20" :
-                                    txnItem.status === "Rejected" ? "bg-red-500/10 text-red-300 border-red-500/20" :
-                                    "bg-neutral-500/10 text-neutral-400 border-neutral-500/20"
-                                  }`}>
+                                  <span className={`rounded-full px-3 py-0.5 text-xs font-bold border ${txnItem.status === "Completed" ? "bg-green-500/10 text-green-300 border-green-500/20" :
+                                      txnItem.status === "Pending" ? "bg-yellow-500/10 text-yellow-300 border-yellow-500/20" :
+                                        txnItem.status === "Rejected" ? "bg-red-500/10 text-red-300 border-red-500/20" :
+                                          "bg-neutral-500/10 text-neutral-400 border-neutral-500/20"
+                                    }`}>
                                     {txnItem.status}
                                   </span>
                                 </td>
@@ -1732,10 +1640,10 @@ function AdminSectionPage({
                         );
                       })}
                       <td className="px-4 py-4 text-right">
-                        <RecordActions 
+                        <RecordActions
                           permissionKey={section.permissionKey}
                           sectionTitle={section.title}
-                          itemId={itemId} 
+                          itemId={itemId}
                           itemRow={row}
                           onView={onView}
                           onEdit={onEdit}
@@ -1747,6 +1655,7 @@ function AdminSectionPage({
                           onCloseTrade={onCloseTrade}
                           onPublish={onPublish}
                           onUnpublish={onUnpublish}
+                          showToast={showToast}
                         />
                       </td>
                     </tr>
@@ -1806,12 +1715,12 @@ function AdminSectionPage({
                 <h3 className="text-sm font-bold uppercase tracking-wider text-green-300">🏦 UPI Configuration</h3>
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold text-neutral-400">UPI Address ID</span>
-                  <input 
-                    type="text" 
-                    value={upiIdInput} 
+                  <input
+                    type="text"
+                    value={upiIdInput}
                     disabled={!upiEnabled || !canEditSettings}
-                    onChange={(e) => setUpiIdInput(e.target.value)} 
-                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" 
+                    onChange={(e) => setUpiIdInput(e.target.value)}
+                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
                   />
                 </label>
                 <div className="rounded-lg border border-dashed border-white/[0.12] bg-white/[0.01] p-3 text-center">
@@ -1828,10 +1737,10 @@ function AdminSectionPage({
                 <h3 className="text-sm font-bold uppercase tracking-wider text-green-300">🪙 USDT Configuration</h3>
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold text-neutral-400">Network Type</span>
-                  <select 
-                    value={usdtNetwork} 
+                  <select
+                    value={usdtNetwork}
                     disabled={!canEditSettings}
-                    onChange={(e) => setUsdtNetwork(e.target.value)} 
+                    onChange={(e) => setUsdtNetwork(e.target.value)}
                     className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50"
                   >
                     <option value="TRC20">TRC20 (Tron Network - Low Fee)</option>
@@ -1840,13 +1749,13 @@ function AdminSectionPage({
                 </label>
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold text-neutral-400">USDT Wallet Address</span>
-                  <input 
-                    type="text" 
-                    value={usdtAddress} 
+                  <input
+                    type="text"
+                    value={usdtAddress}
                     disabled={!canEditSettings}
-                    onChange={(e) => setUsdtAddress(e.target.value)} 
+                    onChange={(e) => setUsdtAddress(e.target.value)}
                     placeholder="Enter wallet destination"
-                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" 
+                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
                   />
                 </label>
               </div>
@@ -1859,22 +1768,22 @@ function AdminSectionPage({
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold text-neutral-400">Platform Profit Cut %</span>
-                <input 
-                  type="number" 
-                  value={platformFee} 
+                <input
+                  type="number"
+                  value={platformFee}
                   disabled={!canEditSettings}
-                  onChange={(e) => setPlatformFee(e.target.value)} 
-                  className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" 
+                  onChange={(e) => setPlatformFee(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
                 />
               </label>
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold text-neutral-400">Referral Multiplier %</span>
-                <input 
-                  type="number" 
-                  value={referralFee} 
+                <input
+                  type="number"
+                  value={referralFee}
                   disabled={!canEditSettings}
-                  onChange={(e) => setReferralFee(e.target.value)} 
-                  className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" 
+                  onChange={(e) => setReferralFee(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
                 />
               </label>
             </div>
@@ -1919,23 +1828,23 @@ function AdminSectionPage({
 
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold text-neutral-400">Referral Commission Rate (%)</span>
-                <input 
-                  type="number" 
-                  value={refCommission} 
+                <input
+                  type="number"
+                  value={refCommission}
                   disabled={!canEditSettings}
-                  onChange={(e) => setRefCommission(e.target.value)} 
-                  className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" 
+                  onChange={(e) => setRefCommission(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
                 />
               </label>
 
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold text-neutral-400">Minimum Eligible Deposit (₹)</span>
-                <input 
-                  type="number" 
-                  value={refMinDeposit} 
+                <input
+                  type="number"
+                  value={refMinDeposit}
                   disabled={!canEditSettings}
-                  onChange={(e) => setRefMinDeposit(e.target.value)} 
-                  className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" 
+                  onChange={(e) => setRefMinDeposit(e.target.value)}
+                  className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
                 />
               </label>
             </div>
@@ -1954,28 +1863,28 @@ function AdminSectionPage({
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold text-neutral-400">Individual Plan Weekly Profit (%)</span>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     min="0"
                     max="100"
                     step="0.01"
-                    value={individualProfitPct} 
+                    value={individualProfitPct}
                     disabled={!canEditSettings}
-                    onChange={(e) => setIndividualProfitPct(e.target.value)} 
-                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" 
+                    onChange={(e) => setIndividualProfitPct(e.target.value)}
+                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
                   />
                 </label>
                 <label className="block">
                   <span className="mb-2 block text-xs font-semibold text-neutral-400">Club Plan Weekly Profit (%)</span>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     min="0"
                     max="100"
                     step="0.01"
-                    value={clubProfitPct} 
+                    value={clubProfitPct}
                     disabled={!canEditSettings}
-                    onChange={(e) => setClubProfitPct(e.target.value)} 
-                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" 
+                    onChange={(e) => setClubProfitPct(e.target.value)}
+                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
                   />
                 </label>
               </div>
@@ -2006,14 +1915,14 @@ function AdminSectionPage({
 
               {canEditSettings && (
                 <div className="flex flex-wrap gap-3 pt-2 border-t border-white/[0.05]">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => handleBulkDistribute(true)}
                     className="h-10 rounded-lg border border-blue-500/30 bg-blue-500/10 px-5 text-sm font-bold text-blue-300 hover:bg-blue-500/20 transition"
                   >
                     Preview Distribution (Dry Run)
                   </button>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => handleBulkDistribute(false)}
                     className="h-10 rounded-lg bg-green-500 px-5 text-sm font-bold text-black hover:bg-green-400 transition"
@@ -2055,7 +1964,7 @@ function AdminSectionPage({
               </div>
               <button onClick={() => setBulkSummary(null)} className="rounded-lg p-1.5 text-neutral-400 hover:bg-white/5 hover:text-white font-semibold">✕</button>
             </div>
-            
+
             <div className="p-6 space-y-6 overflow-y-auto flex-1">
               {/* Primary Stats Grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -2089,7 +1998,7 @@ function AdminSectionPage({
               {/* Skipped Details Lists */}
               <div className="space-y-4">
                 <h4 className="text-sm font-bold uppercase tracking-wider text-green-300 border-b border-white/[0.05] pb-2">Skipped Users Breakdown</h4>
-                
+
                 <div className="space-y-3.5">
                   {[
                     { label: "Already Paid This Week", list: bulkSummary.skipped?.alreadyPaid, color: "text-yellow-300 bg-yellow-500/10 border-yellow-500/20" },
@@ -2119,7 +2028,7 @@ function AdminSectionPage({
                 </div>
               </div>
             </div>
-            
+
             <div className="border-t border-white/[0.05] p-5 bg-white/[0.01] shrink-0">
               <button
                 onClick={() => setBulkSummary(null)}
@@ -2149,7 +2058,7 @@ export default function DashboardPage() {
   const sectionKey = searchParams.get("section");
   const filterKey = searchParams.get("filter");
   const section = sectionContent[sectionKey];
-  
+
   const hasPermission = useAdminStore((s) => s.hasPermission);
 
 
@@ -2202,9 +2111,6 @@ export default function DashboardPage() {
   const deletePlan = useAdminStore((s) => s.deletePlan);
 
   // Load OTP Override state actions
-  const rejectOtpRequest = useAdminStore((s) => s.rejectOtpRequest);
-  const generateOverrideOtp = useAdminStore((s) => s.generateOverrideOtp);
-  const otpRequestsAll = useAdminStore((s) => s.otpRequests || []);
   const transactions = useAdminStore((s) => s.transactions || []);
   const withdrawals = useAdminStore((s) => s.withdrawals || []);
 
@@ -2221,53 +2127,7 @@ export default function DashboardPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // OTP Override modal state variables
-  const [activeOtpRequestId, setActiveOtpRequestId] = useState("");
-  const [isOtpOverrideModalOpen, setIsOtpOverrideModalOpen] = useState(false);
-  const [adminPasswordInput, setAdminPasswordInput] = useState("");
-  const [revealedOtp, setRevealedOtp] = useState(null);
-  const [otpError, setOtpError] = useState("");
-  const [timeLeft, setTimeLeft] = useState(120);
 
-  // Derive the active OTP request reactively
-  const activeOtpReq = otpRequestsAll.find(r => r.id === activeOtpRequestId) || null;
-
-  useEffect(() => {
-    if (!isOtpOverrideModalOpen) {
-      setAdminPasswordInput("");
-      setRevealedOtp(null);
-      setOtpError("");
-      return;
-    }
-  }, [isOtpOverrideModalOpen]);
-
-  useEffect(() => {
-    let timer;
-    if (revealedOtp && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft <= 0) {
-      setRevealedOtp(null);
-    }
-    return () => clearInterval(timer);
-  }, [revealedOtp, timeLeft]);
-
-  const handleGenerateOverrideOtp = (e) => {
-    e?.preventDefault();
-    const res = generateOverrideOtp(activeOtpRequestId);
-    if (res.success) {
-      const updatedReq = useAdminStore.getState().otpRequests.find(r => r.id === activeOtpRequestId);
-      if (updatedReq) {
-        setRevealedOtp(updatedReq.rawOtpForAdmin);
-        setTimeLeft(Math.max(0, Math.floor((updatedReq.expiresAt - Date.now()) / 1000)));
-      }
-      setOtpError("");
-      showToast("OTP Override generated successfully");
-    } else {
-      setOtpError(res.error);
-    }
-  };
 
   // local Modal controls
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -2671,7 +2531,7 @@ export default function DashboardPage() {
         <AlertTriangle className="h-12 w-12 text-red-400 mb-4 animate-bounce" />
         <h3 className="text-xl font-bold text-white">Access Denied</h3>
         <p className="mt-2 text-sm text-neutral-400 max-w-md">
-          You do not have the required permissions to view the <strong>{section?.title || sectionKey}</strong> section. 
+          You do not have the required permissions to view the <strong>{section?.title || sectionKey}</strong> section.
           Please contact a Super Admin if you believe this is an error.
         </p>
         <Link href="/admin/dashboard" className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-white/[0.08] px-4 text-xs font-bold text-white hover:bg-white/[0.15] transition">
@@ -2685,22 +2545,22 @@ export default function DashboardPage() {
     <>
       {/* Toast Alert */}
       {toast && (
-        <div className={`fixed right-5 top-24 z-50 rounded-lg border px-4 py-3 text-sm font-semibold shadow-2xl backdrop-blur-xl animate-fade-in ${
-          toast.type === "error" 
-            ? "border-red-500/30 bg-red-500/10 text-red-300" 
+        <div className={`fixed right-5 top-24 z-50 rounded-lg border px-4 py-3 text-sm font-semibold shadow-2xl backdrop-blur-xl animate-fade-in ${toast.type === "error"
+            ? "border-red-500/30 bg-red-500/10 text-red-300"
             : "border-green-500/30 bg-green-500/10 text-green-300"
-        }`}>
+          }`}>
           {toast.message}
         </div>
       )}
 
       {/* Dynamic Content Routing */}
       {section ? (
-        <AdminSectionPage 
-          section={section} 
-          activeFilter={filterKey || "All"} 
+        <AdminSectionPage
+          section={section}
+          activeFilter={filterKey || "All"}
           referralListModal={referralListModal}
           setReferralListModal={setReferralListModal}
+          showToast={showToast}
           onPublish={(id) => { publishTrade(id); showToast("Trade record published"); }}
           onUnpublish={(id) => { unpublishTrade(id); showToast("Trade record unpublished"); }}
           onView={(id) => {
@@ -2712,10 +2572,10 @@ export default function DashboardPage() {
               openRecordModal("withdrawals", "view", id);
             }
           }}
-          onVerify={async (id) => { 
-            const res = await verifyPayment(id); 
+          onVerify={async (id) => {
+            const res = await verifyPayment(id);
             if (res?.error) showToast(res.error, "error");
-            else showToast("Payment verified details"); 
+            else showToast("Payment verified details");
           }}
           onApprove={async (id) => {
             if (section.title === "Transaction History" || section.title === "Withdrawal Requests") {
@@ -2747,9 +2607,6 @@ export default function DashboardPage() {
             } else if (section.permissionKey === "admins") {
               deleteAdmin(id);
               showToast("Admin account deactivated");
-            } else if (section.permissionKey === "otp") {
-              rejectOtpRequest(id);
-              showToast("OTP Override request rejected");
             } else if (section.permissionKey === "plans") {
               deletePlan(id);
               showToast("Pricing plan deleted");
@@ -2778,9 +2635,6 @@ export default function DashboardPage() {
               }
             } else if (section.permissionKey === "admins") {
               handleEditAdminClick(id);
-            } else if (section.permissionKey === "otp") {
-              setActiveOtpRequestId(id);
-              setIsOtpOverrideModalOpen(true);
             } else if (section.permissionKey === "plans") {
               handleEditPlanClick(id);
             } else if (["notifications", "campaigns", "referrals"].includes(section.permissionKey)) {
@@ -2818,16 +2672,16 @@ export default function DashboardPage() {
           onSaveReferralSettings={saveReferralSettings}
         />
       ) : (
-        <PlatformOverview 
-          onVerify={async (id) => { 
-            const res = await verifyPayment(id); 
+        <PlatformOverview
+          onVerify={async (id) => {
+            const res = await verifyPayment(id);
             if (res?.error) showToast(res.error, "error");
-            else showToast("Payment verified details"); 
+            else showToast("Payment verified details");
           }}
-          onApprove={async (id) => { 
-            const res = await approvePayment(id); 
+          onApprove={async (id) => {
+            const res = await approvePayment(id);
             if (res?.error) showToast(res.error, "error");
-            else showToast("Payment approved & plan activated"); 
+            else showToast("Payment approved & plan activated");
           }}
           onReject={(id) => { setActiveRejectId(id); setIsRejectOpen(true); }}
         />
@@ -3111,7 +2965,7 @@ export default function DashboardPage() {
                 <option value="Support">Support Staff</option>
               </select>
             </label>
-            
+
             {/* Permission checklist */}
             <div className="space-y-2 pt-2">
               <span className="block text-xs font-bold uppercase tracking-wider text-green-300">Section Permissions</span>
@@ -3130,7 +2984,7 @@ export default function DashboardPage() {
                 </label>
               </div>
             </div>
-            
+
             <button type="submit" className="w-full h-11 rounded-lg bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition mt-2">
               Onboard Admin
             </button>
@@ -3172,7 +3026,7 @@ export default function DashboardPage() {
                 </select>
               </label>
             </div>
-            
+
             {/* Permission checklist */}
             <div className="space-y-2 pt-2">
               <span className="block text-xs font-bold uppercase tracking-wider text-green-300">Section Permissions</span>
@@ -3191,7 +3045,7 @@ export default function DashboardPage() {
                 </label>
               </div>
             </div>
-            
+
             <button type="submit" className="w-full h-11 rounded-lg bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition mt-2">
               Save Operator configs
             </button>
@@ -3398,7 +3252,7 @@ export default function DashboardPage() {
             {recordModal.type === "withdrawals" && (() => {
               const withdrawal = withdrawals.find(w => w.id === recordModal.id) || transactions.find(t => t.id === recordModal.id);
               if (!withdrawal) return <p className="text-neutral-400">Withdrawal details not found.</p>;
-              
+
               let detailsStr = "";
               if (withdrawal.accountDetails) {
                 if (typeof withdrawal.accountDetails === "object") {
@@ -3426,12 +3280,11 @@ export default function DashboardPage() {
                     </div>
                     <div>
                       <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Status</p>
-                      <span className={`inline-block rounded px-2.5 py-0.5 text-xs font-bold mt-1.5 ${
-                        withdrawal.status === "Approved" || withdrawal.status === "Completed" ? "bg-green-500/10 text-green-300 border border-green-500/20" :
-                        withdrawal.status === "Pending" ? "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20" :
-                        withdrawal.status === "Processing" ? "bg-blue-500/10 text-blue-300 border border-blue-500/20" :
-                        "bg-red-500/10 text-red-300 border border-red-500/20"
-                      }`}>
+                      <span className={`inline-block rounded px-2.5 py-0.5 text-xs font-bold mt-1.5 ${withdrawal.status === "Approved" || withdrawal.status === "Completed" ? "bg-green-500/10 text-green-300 border border-green-500/20" :
+                          withdrawal.status === "Pending" ? "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20" :
+                            withdrawal.status === "Processing" ? "bg-blue-500/10 text-blue-300 border border-blue-500/20" :
+                              "bg-red-500/10 text-red-300 border border-red-500/20"
+                        }`}>
                         {withdrawal.status.toUpperCase()}
                       </span>
                     </div>
@@ -3703,104 +3556,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* OTP OVERRIDE MODAL */}
-      {isOtpOverrideModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/[0.1] bg-[#0b141b] p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center border-b border-white/[0.08] pb-3">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse"></span>
-                Secure OTP Override
-              </h3>
-              <button type="button" onClick={() => setIsOtpOverrideModalOpen(false)} className="text-neutral-400 hover:text-white">✕</button>
-            </div>
 
-            {!activeOtpReq ? (
-              <p className="text-sm text-neutral-400 py-4 text-center">Request details not found.</p>
-            ) : (
-              <div className="space-y-4">
-                {/* User Profile Info */}
-                <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-4 space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500 font-semibold">User Name:</span>
-                    <span className="text-white font-bold">{activeOtpReq.userName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500 font-semibold">Email:</span>
-                    <span className="text-white font-bold select-all">{activeOtpReq.userEmail}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500 font-semibold">Type:</span>
-                    <span className="text-white font-bold uppercase">{activeOtpReq.type}</span>
-                  </div>
-                  {activeOtpReq.amount > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-neutral-500 font-semibold">Amount:</span>
-                      <span className="text-red-400 font-bold font-mono">₹{activeOtpReq.amount.toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-neutral-500 font-semibold">Risk Flag:</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
-                      activeOtpReq.riskFlag === "HIGH" ? "bg-red-500/10 text-red-300 border border-red-500/20" :
-                      activeOtpReq.riskFlag === "MEDIUM" ? "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20" :
-                      "bg-blue-500/10 text-blue-300 border border-blue-500/20"
-                    }`}>{activeOtpReq.riskFlag}</span>
-                  </div>
-                  <div className="border-t border-white/[0.04] pt-2 mt-2 space-y-1 text-neutral-500 font-semibold">
-                    <p>💻 Device: {activeOtpReq.device}</p>
-                    <p>🕒 Last Login: {activeOtpReq.lastLogin}</p>
-                    <p>💳 Last Transaction: {activeOtpReq.lastTx}</p>
-                  </div>
-                </div>
-
-                {revealedOtp ? (
-                  <div className="text-center space-y-4 py-2">
-                    <p className="text-xs text-neutral-400 uppercase tracking-wider font-bold">Generated Security Code</p>
-                    <div className="flex justify-center gap-2">
-                      {String(revealedOtp).split("").map((digit, i) => (
-                        <span key={i} className="flex h-12 w-10 items-center justify-center rounded-lg border border-green-500/35 bg-green-500/5 text-xl font-bold text-green-300 shadow-[0_0_15px_rgba(34,197,94,0.15)] font-mono">
-                          {digit}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="rounded-lg bg-yellow-500/5 border border-yellow-500/20 p-3 text-left">
-                      <p className="text-xs text-yellow-300 leading-relaxed font-semibold">
-                        ⚠️ <strong>Security Notice:</strong> Convey this 6-digit code to the user. It is valid for <span className="font-mono text-white">{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")}</span>. After expiration, a new request is required.
-                      </p>
-                    </div>
-                    <button type="button" onClick={() => setIsOtpOverrideModalOpen(false)} className="w-full h-11 rounded-lg bg-white/[0.08] text-white font-bold text-sm hover:bg-white/[0.15] transition">
-                      Done / Close
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleGenerateOverrideOtp} className="space-y-4">
-                    <div className="rounded-lg bg-yellow-500/5 border border-yellow-500/20 p-3">
-                      <p className="text-xs text-yellow-300 leading-relaxed font-semibold">
-                        🛡️ <strong>Manual OTP Override:</strong> Generating an override will create a secure, temporary one-time passcode for this request. Bypasses standard SMS/Email delivery systems.
-                      </p>
-                    </div>
-                    <p className="text-sm text-neutral-300">
-                      Confirm you wish to generate an override passcode for <strong>{activeOtpReq?.userName}</strong>.
-                    </p>
-                    {otpError && (
-                      <p className="text-xs text-red-400 font-bold bg-red-500/5 border border-red-500/20 rounded-lg p-2">{otpError}</p>
-                    )}
-                    <div className="flex gap-3">
-                      <button type="button" onClick={() => setIsOtpOverrideModalOpen(false)} className="flex-1 h-11 rounded-lg border border-white/[0.08] bg-white/[0.025] text-neutral-400 font-bold text-sm hover:bg-white/[0.08] transition">
-                        Cancel
-                      </button>
-                      <button type="submit" className="flex-1 h-11 rounded-lg bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition">
-                        Generate OTP
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </>
   );
 }

@@ -73,6 +73,9 @@ let AuthService = class AuthService {
                 catch (err) {
                     return { error: err.message, status: 400 };
                 }
+                if (!generated.success) {
+                    return { error: 'Failed to send login OTP via email. Please check your SMTP configuration.', status: 500 };
+                }
                 const otpToken = (0, crypto_util_1.signJwt)({
                     email: user.email,
                     partnerId: user.partnerId,
@@ -166,31 +169,145 @@ let AuthService = class AuthService {
             },
         };
     }
-    async sendSignupOtp(email, partnerSlug) {
-        const normalizedEmail = email.toLowerCase().trim();
-        const slug = partnerSlug || 'alpha-traders';
-        const partner = await this.prisma.partner.findUnique({
-            where: { slug },
-        });
-        if (!partner) {
-            return { error: 'White-label partner not found', status: 400 };
-        }
-        const existingUser = await this.prisma.user.findUnique({
-            where: {
-                partnerId_email: {
-                    partnerId: partner.id,
-                    email: normalizedEmail,
+    async getOtpSettings() {
+        let settings = await this.prisma.otpSettings.findFirst();
+        if (!settings) {
+            settings = await this.prisma.otpSettings.create({
+                data: {
+                    emailOtpEnabled: true,
+                    otpLength: 6,
+                    otpExpiryMinutes: 10,
+                    supportContact: "+91 XXXXX XXXXX",
                 },
-            },
-        });
-        if (existingUser && !existingUser.isDeleted) {
-            return { error: 'Email is already registered under this platform', status: 400 };
+            });
         }
+        return { success: true, settings };
+    }
+    async updateOtpSettings(body) {
+        let settings = await this.prisma.otpSettings.findFirst();
+        if (!settings) {
+            settings = await this.prisma.otpSettings.create({
+                data: {
+                    emailOtpEnabled: body.emailOtpEnabled !== undefined ? Boolean(body.emailOtpEnabled) : true,
+                    otpLength: body.otpLength ? Number(body.otpLength) : 6,
+                    otpExpiryMinutes: body.otpExpiryMinutes ? Number(body.otpExpiryMinutes) : 10,
+                    supportContact: body.supportContact || "+91 XXXXX XXXXX",
+                },
+            });
+        }
+        else {
+            settings = await this.prisma.otpSettings.update({
+                where: { id: settings.id },
+                data: {
+                    emailOtpEnabled: body.emailOtpEnabled !== undefined ? Boolean(body.emailOtpEnabled) : settings.emailOtpEnabled,
+                    otpLength: body.otpLength ? Number(body.otpLength) : settings.otpLength,
+                    otpExpiryMinutes: body.otpExpiryMinutes ? Number(body.otpExpiryMinutes) : settings.otpExpiryMinutes,
+                    supportContact: body.supportContact !== undefined ? body.supportContact : settings.supportContact,
+                },
+            });
+        }
+        return { success: true, settings };
+    }
+    async requestManualVerification(email) {
+        return { success: true };
+    }
+    async activateUser(userId) {
+        return await this.prisma.$transaction(async (tx) => {
+            const user = await tx.user.findUnique({
+                where: { id: userId },
+            });
+            if (!user)
+                throw new Error('User not found');
+            if (user.isVerified)
+                return user;
+            const updated = await tx.user.update({
+                where: { id: userId },
+                data: {
+                    isVerified: true,
+                    status: 'ACTIVE',
+                },
+            });
+            if (user.referredBy) {
+                const refSettings = await tx.referralSettings.findFirst();
+                if (refSettings && refSettings.enabled) {
+                    const pendingReferral = await tx.referral.findFirst({
+                        where: {
+                            referredId: userId,
+                            referrerId: user.referredBy,
+                            status: 'PENDING',
+                        },
+                    });
+                    if (pendingReferral) {
+                        const bonusAmount = 100;
+                        await tx.referral.update({
+                            where: { id: pendingReferral.id },
+                            data: {
+                                status: 'PAID',
+                                commissionAmount: bonusAmount,
+                            },
+                        });
+                        const referrerWallet = await tx.wallet.findUnique({
+                            where: { userId: user.referredBy },
+                        });
+                        if (referrerWallet) {
+                            const newRealized = Number(referrerWallet.realizedBalance) + bonusAmount;
+                            const newAvailable = Number(referrerWallet.availableBalance) + bonusAmount;
+                            const newEquity = Number(referrerWallet.currentEquity) + bonusAmount;
+                            await tx.wallet.update({
+                                where: { id: referrerWallet.id },
+                                data: {
+                                    realizedBalance: newRealized,
+                                    availableBalance: newAvailable,
+                                    currentEquity: newEquity,
+                                },
+                            });
+                            const group = await tx.transactionGroup.create({
+                                data: {
+                                    type: 'REFERRAL_PAYOUT',
+                                    description: `Referral signup bonus for inviting ${user.email}`,
+                                    idempotencyKey: `REF_SIGNUP_BONUS_${user.id}`,
+                                },
+                            });
+                            await tx.ledgerEntry.create({
+                                data: {
+                                    transactionGroupId: group.id,
+                                    userId: user.referredBy,
+                                    partnerId: user.partnerId,
+                                    accountType: 'USER',
+                                    entryType: 'CREDIT',
+                                    amount: bonusAmount,
+                                    currency: 'INR',
+                                },
+                            });
+                        }
+                    }
+                }
+            }
+            try {
+                await this.otpService['emailService'].sendWelcomeEmail(user.email, user.name);
+            }
+            catch (err) {
+                console.error(`Failed to send welcome email to ${user.email}:`, err.message);
+            }
+            return updated;
+        });
+    }
+    async handleOtpDispatch(user, partner, otpSettings) {
         try {
-            const generated = await this.otpService.generateOtp(partner.id, normalizedEmail, partner.name);
+            const generated = await this.otpService.generateOtp(partner.id, user.email, partner.name);
+            if (!generated.success) {
+                return {
+                    success: false,
+                    otpSent: false,
+                    error: 'Failed to deliver verification code via email. Please check your SMTP configuration.',
+                    status: 500,
+                };
+            }
             return {
                 success: true,
+                otpSent: true,
                 message: 'Verification code sent successfully.',
+                userId: user.id,
                 otp: process.env.NODE_ENV !== 'production' ? generated.otp : undefined,
             };
         }
@@ -198,8 +315,7 @@ let AuthService = class AuthService {
             return { error: err.message, status: 400 };
         }
     }
-    async signup(email, password, otp, firstName, lastName, partnerSlug, referralCode) {
-        const name = `${firstName || ''} ${lastName || ''}`.trim() || email.split('@')[0];
+    async sendSignupOtp(email, partnerSlug, password, firstName, lastName, referralCode) {
         const normalizedEmail = email.toLowerCase().trim();
         const slug = partnerSlug || 'alpha-traders';
         const partner = await this.prisma.partner.findUnique({
@@ -208,22 +324,26 @@ let AuthService = class AuthService {
         if (!partner) {
             return { error: 'White-label partner not found', status: 400 };
         }
-        try {
-            await this.otpService.verifyOtp(partner.id, normalizedEmail, otp);
-        }
-        catch (err) {
-            return { error: err.message, status: 400 };
-        }
-        const existingUser = await this.prisma.user.findUnique({
+        const settingsResult = await this.getOtpSettings();
+        const otpSettings = settingsResult.settings;
+        const existingUser = await this.prisma.user.findFirst({
             where: {
-                partnerId_email: {
-                    partnerId: partner.id,
-                    email: normalizedEmail,
-                },
+                partnerId: partner.id,
+                email: normalizedEmail,
+                isDeleted: false,
             },
         });
-        if (existingUser && !existingUser.isDeleted) {
-            return { error: 'Email is already registered under this platform', status: 400 };
+        if (existingUser) {
+            if (existingUser.isVerified) {
+                return { error: 'Email is already registered under this platform', status: 400 };
+            }
+            const passwordHash = password ? (0, crypto_util_1.hashPassword)(password) : existingUser.passwordHash;
+            const name = password ? `${firstName || ''} ${lastName || ''}`.trim() || email.split('@')[0] : existingUser.name;
+            await this.prisma.user.update({
+                where: { id: existingUser.id },
+                data: { name, passwordHash },
+            });
+            return await this.handleOtpDispatch(existingUser, partner, otpSettings);
         }
         let referrerId = null;
         if (referralCode) {
@@ -236,16 +356,19 @@ let AuthService = class AuthService {
             referrerId = referrerUser.id;
         }
         const userReferralCode = "REF" + Math.random().toString(36).substring(2, 8).toUpperCase();
+        const name = `${firstName || ''} ${lastName || ''}`.trim() || email.split('@')[0];
+        const passwordHash = password ? (0, crypto_util_1.hashPassword)(password) : (0, crypto_util_1.hashPassword)('defaultPassword123');
         const newUser = await this.prisma.$transaction(async (tx) => {
             const u = await tx.user.create({
                 data: {
                     partnerId: partner.id,
                     name,
                     email: normalizedEmail,
-                    passwordHash: (0, crypto_util_1.hashPassword)(password),
+                    passwordHash,
                     status: 'NEW',
                     referralCode: userReferralCode,
                     referredBy: referrerId,
+                    isVerified: false,
                 },
             });
             await tx.wallet.create({
@@ -272,24 +395,44 @@ let AuthService = class AuthService {
             }
             return u;
         });
+        return await this.handleOtpDispatch(newUser, partner, otpSettings);
+    }
+    async signup(email, password, otp, firstName, lastName, partnerSlug, referralCode) {
+        const normalizedEmail = email.toLowerCase().trim();
+        const user = await this.prisma.user.findFirst({
+            where: { email: normalizedEmail, isDeleted: false },
+            include: { partner: true },
+        });
+        if (!user) {
+            return { error: 'User not found. Please sign up again.', status: 404 };
+        }
+        if (otp) {
+            try {
+                await this.otpService.verifyOtp(user.partnerId, normalizedEmail, otp);
+            }
+            catch (err) {
+                return { error: err.message, status: 400 };
+            }
+        }
+        const activatedUser = await this.activateUser(user.id);
         const token = (0, crypto_util_1.signJwt)({
-            id: newUser.id,
-            email: newUser.email,
-            name: newUser.name,
+            id: activatedUser.id,
+            email: activatedUser.email,
+            name: activatedUser.name,
             role: 'USER',
-            partnerId: partner.id,
-            partnerSlug: partner.slug,
+            partnerId: user.partnerId,
+            partnerSlug: user.partner.slug,
         });
         return {
             token,
             user: {
-                id: newUser.id,
-                name: newUser.name,
-                email: newUser.email,
+                id: activatedUser.id,
+                name: activatedUser.name,
+                email: activatedUser.email,
                 role: 'USER',
-                partnerId: partner.id,
-                partnerSlug: partner.slug,
-                status: newUser.status,
+                partnerId: user.partnerId,
+                partnerSlug: user.partner.slug,
+                status: activatedUser.status,
             },
         };
     }

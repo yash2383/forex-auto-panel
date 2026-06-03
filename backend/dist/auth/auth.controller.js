@@ -62,12 +62,12 @@ let AuthController = class AuthController {
     }
     async sendOtp(body, res) {
         try {
-            const { email, partnerSlug } = body;
+            const { email, partnerSlug, password, firstName, lastName, referralCode } = body;
             if (!email) {
                 return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Email is required' });
             }
-            const result = await this.authService.sendSignupOtp(email, partnerSlug);
-            if ('error' in result) {
+            const result = await this.authService.sendSignupOtp(email, partnerSlug, password, firstName, lastName, referralCode);
+            if (result && 'error' in result) {
                 return res.status(result.status || 400).json({ message: result.error });
             }
             return res.json(result);
@@ -80,17 +80,53 @@ let AuthController = class AuthController {
     async signup(body, res) {
         try {
             const { email, password, otp, firstName, lastName, partnerSlug, referralCode } = body;
-            if (!email || !password || !otp) {
-                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Email, password, and verification code are required' });
+            if (!email) {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Email is required' });
             }
             const result = await this.authService.signup(email, password, otp, firstName, lastName, partnerSlug, referralCode);
-            if ('error' in result) {
+            if (result && 'error' in result) {
                 return res.status(result.status || 400).json({ message: result.error });
             }
             return res.json({ token: result.token, user: result.user });
         }
         catch (error) {
             console.error('Signup error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async requestManualVerification(email, res) {
+        try {
+            if (!email) {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Email is required' });
+            }
+            const result = await this.authService.requestManualVerification(email);
+            if (result && 'error' in result) {
+                return res.status(result.status || 400).json({ message: result.error });
+            }
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Request manual verification error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async getOtpSettings(res) {
+        try {
+            const result = await this.authService.getOtpSettings();
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Get OTP settings error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async updateOtpSettings(body, res) {
+        try {
+            const result = await this.authService.updateOtpSettings(body);
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Update OTP settings error:', error);
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
@@ -152,6 +188,29 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "signup", null);
+__decorate([
+    (0, common_1.Post)('request-manual-verification'),
+    __param(0, (0, common_1.Body)('email')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "requestManualVerification", null);
+__decorate([
+    (0, common_1.Get)('otp-settings'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "getOtpSettings", null);
+__decorate([
+    (0, common_1.Post)('otp-settings'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "updateOtpSettings", null);
 __decorate([
     (0, common_1.Get)('me'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

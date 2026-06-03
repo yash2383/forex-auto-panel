@@ -109,8 +109,44 @@ let EmailService = EmailService_1 = class EmailService {
         }
         catch (error) {
             this.logger.error(`Failed to send SMTP email to ${email}: ${error.message}`);
-            this.logger.warn(`[FALLBACK DEVELOPMENT OTP] Code [${code}] generated for [${email}] (SMTP send failed)`);
+            throw error;
+        }
+    }
+    async sendWelcomeEmail(email, name) {
+        const from = process.env.SMTP_FROM || `"Tradebot Support" <noreply@yourdomain.com>`;
+        const subject = `Welcome to Tradebot, ${name}!`;
+        const text = `Hello ${name},\n\nWelcome to Tradebot! Your account has been verified and activated successfully.\n\nYou can now access all investment and trading features on your dashboard.\n\nBest regards,\nTradebot Team`;
+        const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
+        <h2 style="color: #22c55e; text-align: center;">Welcome to Tradebot</h2>
+        <p>Hello <strong>${name}</strong>,</p>
+        <p>Your account has been verified and activated successfully!</p>
+        <p>You can now log in and explore all automated trading algorithms, risk parameters, and investment features on your dashboard.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="http://localhost:3000/login" style="background-color: #22c55e; color: black; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 6px; font-size: 16px;">Go to Dashboard</a>
+        </div>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+        <p style="font-size: 12px; color: #71717a; text-align: center;">This is an automated welcoming email from Tradebot. Please do not reply.</p>
+      </div>
+    `;
+        if (!this.transporter) {
+            this.logger.log(`[DEVELOPMENT WELCOME EMAIL] Sent to [${email}]`);
             return true;
+        }
+        try {
+            await this.transporter.sendMail({
+                from,
+                to: email,
+                subject,
+                text,
+                html,
+            });
+            this.logger.log(`Welcome email sent successfully to ${email}`);
+            return true;
+        }
+        catch (error) {
+            this.logger.error(`Failed to send welcome SMTP email to ${email}: ${error.message}`);
+            return false;
         }
     }
 };

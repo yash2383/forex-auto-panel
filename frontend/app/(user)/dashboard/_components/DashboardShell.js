@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CalendarDays, ChevronDown, Crown, Globe2, Moon, Sun, LogOut } from "lucide-react";
+import { Bell, CalendarDays, ChevronDown, Crown, Globe2, Moon, Sun, LogOut, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -11,12 +11,47 @@ import { apiFetch } from "../../../../lib/apiFetch";
 export default function DashboardShell({ children }) {
   const pathname = usePathname();
   const [theme, setTheme] = useState("dark");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const currentUser = useAdminStore((s) => s.currentUser);
   const payments = useAdminStore((s) => s.payments || []);
   const fetchData = useAdminStore((s) => s.fetchData);
 
   const hasActivePlan = payments.some(p => p.status === "Approved");
+
+  const getWeekRange = () => {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    
+    const options = { month: 'short', day: 'numeric', year: 'numeric' };
+    return `${startOfWeek.toLocaleDateString('en-US', options)} - ${endOfWeek.toLocaleDateString('en-US', options)}`;
+  };
+
+  const getPageHeader = () => {
+    switch(pathname) {
+      case "/dashboard":
+        return { title: `Welcome back, ${currentUser?.name || "User"}`, subtitle: "Here's what's happening with your trades today." };
+      case "/dashboard/wallet":
+        return { title: "Wallet & Funds", subtitle: "Manage your deposits, withdrawals, and balances." };
+      case "/dashboard/profit-history":
+        return { title: "Profit History", subtitle: "Track your earnings and distributed profits." };
+      case "/dashboard/past-trades":
+        return { title: "Past Trades", subtitle: "View the history of your closed trading positions." };
+      case "/dashboard/reports":
+        return { title: "Reports & Analytics", subtitle: "Analyze your trading performance and metrics." };
+      case "/dashboard/subscription":
+        return { title: "Subscription Plan", subtitle: "Manage your active plan and billing details." };
+      case "/dashboard/support":
+        return { title: "Help & Support", subtitle: "Get assistance with your account or trading." };
+      default:
+        return { title: `Welcome back, ${currentUser?.name || "User"}`, subtitle: "Manage your trading dashboard." };
+    }
+  };
+
+  const { title, subtitle } = getPageHeader();
 
   const handleLogout = async () => {
     try {
@@ -50,11 +85,24 @@ export default function DashboardShell({ children }) {
 
   return (
     <main className="min-h-screen bg-[#020806] text-white">
-      <div className="grid min-h-screen lg:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-white/10 bg-[#05100c]/95 lg:flex lg:flex-col">
-          <div className="flex h-20 items-center gap-3 border-b border-white/10 px-7">
-            <span className="h-9 w-9 bg-[url('/forex.png')] bg-contain bg-center bg-no-repeat"></span>
-            <span className="text-2xl font-bold tracking-tight">Tradebot</span>
+      <div className="grid min-h-screen lg:grid-cols-[300px_minmax(0,1fr)] relative">
+        {/* Mobile Overlay */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden" 
+            onClick={() => setIsSidebarOpen(false)} 
+          />
+        )}
+
+        <aside className={`fixed inset-y-0 left-0 z-50 w-[300px] flex flex-col border-r border-white/10 bg-[#05100c]/95 transform transition-transform duration-300 lg:static lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          <div className="flex h-20 items-center justify-between border-b border-white/10 px-7">
+            <div className="flex items-center gap-3">
+              <span className="h-9 w-9 bg-[url('/forex.png')] bg-contain bg-center bg-no-repeat"></span>
+              <span className="text-2xl font-bold tracking-tight">Tradebot</span>
+            </div>
+            <button className="lg:hidden text-neutral-400 hover:text-white" onClick={() => setIsSidebarOpen(false)}>
+              <X className="h-5 w-5" />
+            </button>
           </div>
 
           <nav className="flex-1 space-y-1 px-5 py-7 overflow-y-auto">
@@ -66,6 +114,7 @@ export default function DashboardShell({ children }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => setIsSidebarOpen(false)}
                   className={`flex h-11 items-center justify-between rounded-xl px-4 text-sm font-medium transition ${
                     active
                       ? "bg-green-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,197,94,0.18)]"
@@ -86,18 +135,7 @@ export default function DashboardShell({ children }) {
           </nav>
 
           <div className="space-y-5 border-t border-white/10 px-5 py-6">
-            {hasActivePlan ? (
-              <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-5">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/15 text-green-300">
-                  <Crown className="h-5 w-5" />
-                </span>
-                <h3 className="mt-4 text-sm font-bold text-white">Active Subscription</h3>
-                <p className="mt-2 text-sm leading-relaxed text-neutral-400">You have full access to all premium features.</p>
-                <Link href="/dashboard/subscription" className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-lg bg-white/[0.08] text-sm font-bold text-white hover:bg-white/[0.12] transition">
-                  Manage Plan
-                </Link>
-              </div>
-            ) : (
+            {!hasActivePlan && (
               <div className="rounded-xl border border-green-500/20 bg-green-500/10 p-5">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500/15 text-green-300">
                   <Crown className="h-5 w-5" />
@@ -134,9 +172,17 @@ export default function DashboardShell({ children }) {
         <div className="min-w-0">
           <header className="sticky top-0 z-20 border-b border-white/10 bg-[#020806]/88 px-4 py-4 backdrop-blur-xl sm:px-8">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-white">Welcome back, {currentUser?.name || "User"}</h1>
-                <p className="mt-1 text-sm text-neutral-500">Here&apos;s what&apos;s happening with your trades today.</p>
+              <div className="flex items-center gap-4">
+                <button
+                  className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-white lg:hidden"
+                  onClick={() => setIsSidebarOpen(true)}
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">{title}</h1>
+                  <p className="mt-1 hidden sm:block text-sm text-neutral-500">{subtitle}</p>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <Link href="/" className="inline-flex h-11 items-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-4 text-sm font-bold text-green-300 transition hover:bg-green-500 hover:text-black">
@@ -146,7 +192,7 @@ export default function DashboardShell({ children }) {
 
                 <button className="hidden h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white md:flex">
                   <CalendarDays className="h-4 w-4" />
-                  May 19, 2025 - May 25, 2025
+                  {getWeekRange()}
                   <ChevronDown className="h-4 w-4 text-neutral-500" />
                 </button>
                 <button

@@ -15,12 +15,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminController = void 0;
 const common_1 = require("@nestjs/common");
 const admin_service_1 = require("./admin.service");
+const auth_service_1 = require("../auth/auth.service");
 const jwt_auth_guard_1 = require("../common/guards/jwt-auth.guard");
 const roles_guard_1 = require("../common/guards/roles.guard");
 let AdminController = class AdminController {
     adminService;
-    constructor(adminService) {
+    authService;
+    constructor(adminService, authService) {
         this.adminService = adminService;
+        this.authService = authService;
     }
     getClientIp(req) {
         return req.headers['x-forwarded-for'] || '127.0.0.1';
@@ -471,6 +474,53 @@ let AdminController = class AdminController {
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
+    async approveVerification(id, req, res) {
+        try {
+            const user = req.user;
+            const result = await this.authService.activateUser(id);
+            await this.adminService.prisma.securityEvent.create({
+                data: {
+                    adminId: user.id,
+                    userId: id,
+                    action: 'USER_VERIFY_APPROVE',
+                    reason: `Admin manually approved user verification for user ID ${id}`,
+                    ipAddress: this.getClientIp(req),
+                },
+            });
+            return res.json({ success: true, user: result });
+        }
+        catch (error) {
+            console.error('Approve verification error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
+        }
+    }
+    async retryOtp(id, req, res) {
+        try {
+            const adminUser = req.user;
+            const targetUser = await this.adminService.prisma.user.findUnique({
+                where: { id },
+                include: { partner: true },
+            });
+            if (!targetUser) {
+                return res.status(common_1.HttpStatus.NOT_FOUND).json({ message: 'User not found' });
+            }
+            const result = await this.authService.sendSignupOtp(targetUser.email, targetUser.partner.slug);
+            await this.adminService.prisma.securityEvent.create({
+                data: {
+                    adminId: adminUser.id,
+                    userId: id,
+                    action: 'USER_VERIFY_RETRY_OTP',
+                    reason: `Admin retried sending verification OTP to ${targetUser.email}`,
+                    ipAddress: this.getClientIp(req),
+                },
+            });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Retry OTP error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
+        }
+    }
 };
 exports.AdminController = AdminController;
 __decorate([
@@ -836,9 +886,30 @@ __decorate([
     __metadata("design:paramtypes", [String, Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "updateInitiatedPayment", null);
+__decorate([
+    (0, common_1.Post)('users/:id/approve-verification'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "approveVerification", null);
+__decorate([
+    (0, common_1.Post)('users/:id/retry-otp'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "retryOtp", null);
 exports.AdminController = AdminController = __decorate([
     (0, common_1.Controller)('admin'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    __metadata("design:paramtypes", [admin_service_1.AdminService])
+    __metadata("design:paramtypes", [admin_service_1.AdminService,
+        auth_service_1.AuthService])
 ], AdminController);
 //# sourceMappingURL=admin.controller.js.map

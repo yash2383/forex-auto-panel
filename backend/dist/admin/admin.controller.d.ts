@@ -1,8 +1,10 @@
 import type { Request, Response } from 'express';
 import { AdminService } from './admin.service';
+import { AuthService } from '../auth/auth.service';
 export declare class AdminController {
     private adminService;
-    constructor(adminService: AdminService);
+    private authService;
+    constructor(adminService: AdminService, authService: AuthService);
     private getClientIp;
     getData(res: Response): Promise<Response<any, Record<string, any>>>;
     getPnlReports(res: Response): Promise<Response<any, Record<string, any>>>;
@@ -48,4 +50,6 @@ export declare class AdminController {
     }, res: Response): Promise<Response<any, Record<string, any>>>;
     getInitiatedPayments(res: Response): Promise<Response<any, Record<string, any>>>;
     updateInitiatedPayment(id: string, req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    approveVerification(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    retryOtp(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
 }

@@ -6,7 +6,7 @@ import { createTransactionGroup, reverseTransactionGroup } from '../common/ledge
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(public prisma: PrismaService) {}
 
   async getData() {
     const [
@@ -47,8 +47,11 @@ export class AdminService {
         deposit: `₹${balance.toLocaleString('en-IN')}`, rawDeposit: balance,
         plan, status: statusLabel, partnerId: u.partnerId,
         partnerName: u.partner?.name || 'N/A',
+        isVerified: u.isVerified,
+        otpCode: u.otpCode,
       };
     });
+
 
     const payments = dbPayments.map((p: any) => {
       let statusLabel = 'Pending';

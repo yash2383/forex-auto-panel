@@ -10,5 +10,4 @@ export declare class OtpService {
         otp: string;
     }>;
     verifyOtp(partnerId: string, email: string, code: string): Promise<boolean>;
-    cleanupExpiredOtps(): Promise<void>;
 }

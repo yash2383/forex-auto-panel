@@ -69,14 +69,49 @@ export declare class AuthService {
             role: string;
             partnerId: string;
             partnerSlug: string;
-            status: "ACTIVE" | "NEW" | "VIP" | "EXPIRED";
+            status: "NEW" | "ACTIVE" | "VIP" | "EXPIRED";
         };
         error?: undefined;
         status?: undefined;
     }>;
-    sendSignupOtp(email: string, partnerSlug?: string): Promise<{
+    getOtpSettings(): Promise<{
         success: boolean;
+        settings: {
+            id: string;
+            updatedAt: Date;
+            emailOtpEnabled: boolean;
+            otpLength: number;
+            otpExpiryMinutes: number;
+            supportContact: string;
+        };
+    }>;
+    updateOtpSettings(body: any): Promise<{
+        success: boolean;
+        settings: {
+            id: string;
+            updatedAt: Date;
+            emailOtpEnabled: boolean;
+            otpLength: number;
+            otpExpiryMinutes: number;
+            supportContact: string;
+        };
+    }>;
+    requestManualVerification(email: string): Promise<any>;
+    activateUser(userId: string): Promise<any>;
+    private handleOtpDispatch;
+    sendSignupOtp(email: string, partnerSlug?: string, password?: string, firstName?: string, lastName?: string, referralCode?: string): Promise<{
+        success: boolean;
+        otpSent: boolean;
+        error: string;
+        status: number;
+        message?: undefined;
+        userId?: undefined;
+        otp?: undefined;
+    } | {
+        success: boolean;
+        otpSent: boolean;
         message: string;
+        userId: any;
         otp: string | undefined;
         error?: undefined;
         status?: undefined;
@@ -84,10 +119,12 @@ export declare class AuthService {
         error: any;
         status: number;
         success?: undefined;
+        otpSent?: undefined;
         message?: undefined;
+        userId?: undefined;
         otp?: undefined;
     }>;
-    signup(email: string, password: string, otp: string, firstName?: string, lastName?: string, partnerSlug?: string, referralCode?: string): Promise<{
+    signup(email: string, password?: string, otp?: string, firstName?: string, lastName?: string, partnerSlug?: string, referralCode?: string): Promise<{
         error: any;
         status: number;
         token?: undefined;

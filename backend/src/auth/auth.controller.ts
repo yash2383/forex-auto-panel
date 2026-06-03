@@ -61,18 +61,18 @@ export class AuthController {
 
   @Post('send-otp')
   async sendOtp(
-    @Body() body: { email: string; partnerSlug?: string },
+    @Body() body: { email: string; partnerSlug?: string; password?: string; firstName?: string; lastName?: string; referralCode?: string },
     @Res() res: Response,
   ) {
     try {
-      const { email, partnerSlug } = body;
+      const { email, partnerSlug, password, firstName, lastName, referralCode } = body;
       if (!email) {
         return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Email is required' });
       }
 
-      const result = await this.authService.sendSignupOtp(email, partnerSlug);
+      const result = await this.authService.sendSignupOtp(email, partnerSlug, password, firstName, lastName, referralCode);
 
-      if ('error' in result) {
+      if (result && 'error' in result) {
         return res.status(result.status || 400).json({ message: result.error });
       }
 
@@ -85,18 +85,18 @@ export class AuthController {
 
   @Post('signup')
   async signup(
-    @Body() body: { email: string; password: string; otp: string; firstName?: string; lastName?: string; partnerSlug?: string; referralCode?: string },
+    @Body() body: { email: string; password?: string; otp?: string; firstName?: string; lastName?: string; partnerSlug?: string; referralCode?: string },
     @Res() res: Response,
   ) {
     try {
       const { email, password, otp, firstName, lastName, partnerSlug, referralCode } = body;
-      if (!email || !password || !otp) {
-        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Email, password, and verification code are required' });
+      if (!email) {
+        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Email is required' });
       }
 
       const result = await this.authService.signup(email, password, otp, firstName, lastName, partnerSlug, referralCode);
 
-      if ('error' in result) {
+      if (result && 'error' in result) {
         return res.status(result.status || 400).json({ message: result.error });
       }
 
@@ -106,6 +106,49 @@ export class AuthController {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
+
+  @Post('request-manual-verification')
+  async requestManualVerification(
+    @Body('email') email: string,
+    @Res() res: Response,
+  ) {
+    try {
+      if (!email) {
+        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Email is required' });
+      }
+      const result = await this.authService.requestManualVerification(email);
+      if (result && 'error' in result) {
+        return res.status(result.status || 400).json({ message: result.error });
+      }
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Request manual verification error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Get('otp-settings')
+  async getOtpSettings(@Res() res: Response) {
+    try {
+      const result = await this.authService.getOtpSettings();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Get OTP settings error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Post('otp-settings')
+  async updateOtpSettings(@Body() body: any, @Res() res: Response) {
+    try {
+      const result = await this.authService.updateOtpSettings(body);
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Update OTP settings error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
 
   @Get('me')
   @UseGuards(JwtAuthGuard)

@@ -1,13 +1,18 @@
 import { Controller, Get, Post, Put, Delete, Patch, Body, Param, Req, Res, HttpStatus, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AdminService } from './admin.service';
+import { AuthService } from '../auth/auth.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../common/guards/roles.guard';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AdminController {
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private authService: AuthService,
+  ) {}
+
 
   private getClientIp(req: Request): string {
     return (req.headers['x-forwarded-for'] as string) || '127.0.0.1';
@@ -536,4 +541,74 @@ export class AdminController {
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }
+
+  @Post('users/:id/approve-verification')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async approveVerification(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    try {
+      const user = (req as any).user;
+      const result = await this.authService.activateUser(id);
+
+      await this.adminService.prisma.securityEvent.create({
+        data: {
+          adminId: user.id,
+          userId: id,
+          action: 'USER_VERIFY_APPROVE',
+          reason: `Admin manually approved user verification for user ID ${id}`,
+          ipAddress: this.getClientIp(req),
+        },
+      });
+
+      return res.json({ success: true, user: result });
+    } catch (error: any) {
+      console.error('Approve verification error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
+    }
+  }
+
+  @Post('users/:id/retry-otp')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async retryOtp(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    try {
+      const adminUser = (req as any).user;
+      
+      const targetUser = await this.adminService.prisma.user.findUnique({
+        where: { id },
+        include: { partner: true },
+      });
+
+      if (!targetUser) {
+        return res.status(HttpStatus.NOT_FOUND).json({ message: 'User not found' });
+      }
+
+      const result = await this.authService.sendSignupOtp(
+        targetUser.email,
+        targetUser.partner.slug,
+      );
+
+      await this.adminService.prisma.securityEvent.create({
+        data: {
+          adminId: adminUser.id,
+          userId: id,
+          action: 'USER_VERIFY_RETRY_OTP',
+          reason: `Admin retried sending verification OTP to ${targetUser.email}`,
+          ipAddress: this.getClientIp(req),
+        },
+      });
+
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Retry OTP error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
+    }
+  }
 }
+

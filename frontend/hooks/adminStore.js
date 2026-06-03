@@ -106,48 +106,7 @@ export const useAdminStore = create((set, get) => ({
   searchQuery: "",
   setSearchQuery: (query) => set({ searchQuery: query }),
 
-  // OTP STATE & ACTIONS
-  otpRequests: [
-    {
-      id: "REQ1001",
-      userId: "2",
-      userName: "Rahul",
-      userEmail: "rahul@mail.com",
-      type: "Withdrawal",
-      amount: 15000,
-      status: "pending",
-      otpHash: null,
-      rawOtpForAdmin: null,
-      expiresAt: null,
-      isUsed: false,
-      riskFlag: "MEDIUM",
-      createdAt: Date.now() - 300000,
-      handledBy: null,
-      lastLogin: "May 28, 2026, 11:20 AM",
-      lastTx: "Withdrawal ₹5,000",
-      device: "Windows 11 Chrome"
-    },
-    {
-      id: "REQ1002",
-      userId: "1",
-      userName: "Harsh",
-      userEmail: "harsh@mail.com",
-      type: "Login",
-      amount: 0,
-      status: "pending",
-      otpHash: null,
-      rawOtpForAdmin: null,
-      expiresAt: null,
-      isUsed: false,
-      riskFlag: "LOW",
-      createdAt: Date.now() - 60000,
-      handledBy: null,
-      lastLogin: "May 28, 2026, 03:40 PM",
-      lastTx: "None",
-      device: "iPhone 15 Mobile"
-    }
-  ],
-  adminOtpCounts: {},
+
   referralSettings: null,
   initiatedPayments: [],
   initiatedPaymentMetrics: null,
@@ -398,6 +357,37 @@ export const useAdminStore = create((set, get) => ({
       console.error("blockUser error:", e);
     }
   },
+
+  approveUserVerification: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/users/${id}/approve-verification`, { method: "POST" });
+      if (res.ok) {
+        await get().fetchData();
+        return { success: true };
+      }
+      const data = await res.json().catch(() => ({}));
+      return { success: false, error: data.message || "Failed to approve verification" };
+    } catch (e) {
+      console.error("approveUserVerification API error:", e);
+      return { success: false, error: e.message };
+    }
+  },
+
+  retryUserOtp: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/users/${id}/retry-otp`, { method: "POST" });
+      if (res.ok) {
+        await get().fetchData();
+        return { success: true };
+      }
+      const data = await res.json().catch(() => ({}));
+      return { success: false, error: data.message || "Failed to retry OTP" };
+    } catch (e) {
+      console.error("retryUserOtp API error:", e);
+      return { success: false, error: e.message };
+    }
+  },
+
 
   // PAYMENTS ACTIONS VIA API
   verifyPayment: async (id) => {
@@ -912,6 +902,39 @@ export const useAdminStore = create((set, get) => ({
     }
   },
 
+  getOtpSettings: async () => {
+    try {
+      const res = await apiFetch("/api/auth/otp-settings");
+      if (res.ok) {
+        const data = await res.json();
+        return data.settings;
+      }
+      return null;
+    } catch (e) {
+      console.error("getOtpSettings error:", e);
+      return null;
+    }
+  },
+
+  saveOtpSettings: async (settings) => {
+    try {
+      const res = await apiFetch("/api/auth/otp-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) {
+        await get().fetchData();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("saveOtpSettings error:", e);
+      return false;
+    }
+  },
+
+
   addProfitDistribution: async (body) => {
     try {
       const res = await apiFetch("/api/admin/profit-distributions", {
@@ -975,66 +998,5 @@ export const useAdminStore = create((set, get) => ({
     }
   },
 
-  createOtpRequest: (req) => {
-    const newReq = {
-      id: `REQ${Math.floor(1000 + Math.random() * 9000)}`,
-      status: "pending",
-      otpHash: null,
-      rawOtpForAdmin: null,
-      expiresAt: null,
-      isUsed: false,
-      riskFlag: "LOW",
-      createdAt: Date.now(),
-      handledBy: null,
-      lastLogin: "May 28, 2026, 03:40 PM",
-      lastTx: req.type?.toLowerCase() === "withdrawal" ? `Withdrawal ₹${req.amount.toLocaleString()}` : "None",
-      device: req.device || "Windows Chrome",
-      ...req
-    };
-    set((state) => ({ otpRequests: [...state.otpRequests, newReq] }));
-    return { success: true };
-  },
 
-  generateOverrideOtp: (id) => {
-    let success = false;
-    const otp = Math.floor(100000 + Math.random() * 900000);
-    const otpHash = btoa(String(otp));
-    const expiresAt = Date.now() + 120000;
-    set((state) => {
-      success = true;
-      return {
-        otpRequests: state.otpRequests.map(r => r.id === id ? { 
-          ...r, 
-          status: "generated", 
-          otpHash, 
-          rawOtpForAdmin: otp, 
-          expiresAt, 
-          isUsed: false,
-          handledBy: "Super Admin"
-        } : r)
-      };
-    });
-    return { success };
-  },
-
-  verifyOtpRequest: (id, enteredOtp) => {
-    let success = false;
-    set((state) => {
-      const req = state.otpRequests.find(r => r.id === id);
-      if (!req) return {};
-      const inputHash = btoa(String(enteredOtp));
-      if (inputHash === req.otpHash) {
-        success = true;
-        return {
-          otpRequests: state.otpRequests.map(r => r.id === id ? { ...r, status: "verified", isUsed: true } : r)
-        };
-      }
-      return {};
-    });
-    return { success };
-  },
-
-  rejectOtpRequest: (id) => set((state) => ({
-    otpRequests: state.otpRequests.map(r => r.id === id ? { ...r, status: "rejected" } : r)
-  })),
 }));

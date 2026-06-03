@@ -1,0 +1,42 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.EVENT_ROUTES = void 0;
+const client_1 = require("@prisma/client");
+exports.EVENT_ROUTES = {
+    [client_1.NotificationEvent.PAYMENT_SUBMITTED]: '/dashboard/wallet',
+    [client_1.NotificationEvent.PAYMENT_APPROVED]: '/dashboard/wallet',
+    [client_1.NotificationEvent.PAYMENT_REJECTED]: '/dashboard/wallet',
+    [client_1.NotificationEvent.DEPOSIT_APPROVED]: '/dashboard/wallet',
+    [client_1.NotificationEvent.DEPOSIT_REJECTED]: '/dashboard/wallet',
+    [client_1.NotificationEvent.WITHDRAWAL_REQUESTED]: '/dashboard/wallet',
+    [client_1.NotificationEvent.WITHDRAWAL_APPROVED]: '/dashboard/wallet',
+    [client_1.NotificationEvent.WITHDRAWAL_REJECTED]: '/dashboard/wallet',
+    [client_1.NotificationEvent.TRADE_PUBLISHED]: '/dashboard/live-trades',
+    [client_1.NotificationEvent.TRADE_OPENED]: '/dashboard/live-trades',
+    [client_1.NotificationEvent.TRADE_CLOSED]: '/dashboard/past-trades',
+    [client_1.NotificationEvent.TRADE_CANCELLED]: '/dashboard/past-trades',
+    [client_1.NotificationEvent.TAKE_PROFIT_HIT]: '/dashboard/past-trades',
+    [client_1.NotificationEvent.STOP_LOSS_HIT]: '/dashboard/past-trades',
+    [client_1.NotificationEvent.SIGNAL_UPDATED]: '/dashboard/live-trades',
+    [client_1.NotificationEvent.PROFIT_DISTRIBUTED]: '/dashboard/profit-history',
+    [client_1.NotificationEvent.PLAN_ACTIVATED]: '/dashboard/subscription',
+    [client_1.NotificationEvent.PLAN_EXPIRING]: '/dashboard/subscription',
+    [client_1.NotificationEvent.PLAN_EXPIRED]: '/dashboard/subscription',
+    [client_1.NotificationEvent.PLAN_UPGRADED]: '/dashboard/subscription',
+    [client_1.NotificationEvent.PLAN_DOWNGRADED]: '/dashboard/subscription',
+    [client_1.NotificationEvent.REPORT_READY]: '/dashboard/reports',
+    [client_1.NotificationEvent.NEW_LOGIN]: '/dashboard',
+    [client_1.NotificationEvent.PASSWORD_CHANGED]: '/dashboard',
+    [client_1.NotificationEvent.EMAIL_CHANGED]: '/dashboard',
+    [client_1.NotificationEvent.ACCOUNT_BLOCKED]: '/dashboard',
+    [client_1.NotificationEvent.TWO_FACTOR_ENABLED]: '/dashboard',
+    [client_1.NotificationEvent.TWO_FACTOR_DISABLED]: '/dashboard',
+    [client_1.NotificationEvent.TICKET_CREATED]: '/dashboard/support',
+    [client_1.NotificationEvent.TICKET_REPLIED]: '/dashboard/support',
+    [client_1.NotificationEvent.TICKET_CLOSED]: '/dashboard/support',
+    [client_1.NotificationEvent.ADMIN_LOGIN]: '/admin/dashboard',
+    [client_1.NotificationEvent.ADMIN_CREATED]: '/admin/dashboard',
+    [client_1.NotificationEvent.ADMIN_REMOVED]: '/admin/dashboard',
+    [client_1.NotificationEvent.SYSTEM]: '/dashboard',
+};
+//# sourceMappingURL=routes.js.map

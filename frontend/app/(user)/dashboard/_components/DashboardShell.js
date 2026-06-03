@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { userNavItems } from "./dashboardData";
 import { useAdminStore } from "../../../../hooks/adminStore";
 import { apiFetch } from "../../../../lib/apiFetch";
+import NotificationDropdown from "../../components/NotificationDropdown";
 
 export default function DashboardShell({ children }) {
   const pathname = usePathname();
@@ -188,10 +189,7 @@ export default function DashboardShell({ children }) {
                 >
                   {theme === "light" ? <Sun className="h-5 w-5 text-yellow-500" /> : <Moon className="h-5 w-5" />}
                 </button>
-                <button className="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-400 text-xs font-black text-black">3</span>
-                </button>
+                <NotificationDropdown />
               </div>
             </div>
           </header>

@@ -1,0 +1,355 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { PrismaService } from '../prisma/prisma.service';
+import { NotificationDeliveryStatus, NotificationChannel } from '@prisma/client';
+import { NotificationsService } from './notifications.service';
+
+@Injectable()
+export class NotificationsCron {
+  private readonly logger = new Logger(NotificationsCron.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
+
+  /**
+   * Run cleanup, archiving, and daily analytics builder at 00:00 (midnight) daily
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async handleDailyMaintenance() {
+    this.logger.log('Starting Notification System Daily Maintenance...');
+    await this.cleanupExpiredTokens();
+    await this.archiveOldNotifications();
+    await this.aggregateDailyAnalytics();
+    await this.cleanupExpiredAudits();
+    this.logger.log('Notification System Daily Maintenance complete.');
+  }
+
+  /**
+   * 1. Clean inactive tokens or tokens failing more than 3 times
+   */
+  private async cleanupExpiredTokens() {
+    try {
+      this.logger.log('Cleaning up inactive device tokens...');
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const deletedCount = await this.prisma.deviceToken.deleteMany({
+        where: {
+          OR: [
+            { failureCount: { gte: 3 } },
+            { isActive: false, createdAt: { lt: thirtyDaysAgo } },
+          ],
+        },
+      });
+
+      this.logger.log(`Pruned ${deletedCount.count} expired device tokens.`);
+    } catch (err) {
+      this.logger.error('Failed to cleanup expired device tokens', err.stack);
+    }
+  }
+
+  /**
+   * 2. Archive notifications older than 180 days
+   * Implementation order: Copy -> Verify success -> Delete original
+   */
+  private async archiveOldNotifications() {
+    try {
+      this.logger.log('Archiving notifications older than 180 days...');
+      const limitDate = new Date();
+      limitDate.setDate(limitDate.getDate() - 180);
+
+      // Find old notifications
+      const oldNotifications = await this.prisma.notification.findMany({
+        where: {
+          createdAt: { lt: limitDate },
+        },
+        take: 1000, // Batch it to avoid memory exhaustion
+      });
+
+      if (oldNotifications.length === 0) {
+        this.logger.log('No notifications found to archive.');
+        return;
+      }
+
+      this.logger.log(`Found ${oldNotifications.length} notifications to archive. Copying...`);
+
+      // Copy using transaction
+      await this.prisma.$transaction(async (tx) => {
+        // Prepare archive records
+        const archives = oldNotifications.map((notif) => ({
+          id: notif.id,
+          userId: notif.userId,
+          adminId: notif.adminId,
+          partnerId: notif.partnerId,
+          title: notif.title,
+          body: notif.body,
+          type: notif.type,
+          priority: notif.priority,
+          severity: notif.severity,
+          category: notif.category,
+          status: notif.status,
+          link: notif.link,
+          idempotencyKey: notif.idempotencyKey,
+          metadata: notif.metadata || undefined,
+          createdAt: notif.createdAt,
+        }));
+
+        // Batch insert archives
+        await tx.notificationArchive.createMany({
+          data: archives,
+          skipDuplicates: true, // safe if ran multiple times
+        });
+
+        // Delete from original table (cascades to NotificationRead, NotificationDelivery, NotificationAction)
+        const deleteResult = await tx.notification.deleteMany({
+          where: {
+            id: {
+              in: oldNotifications.map((n) => n.id),
+            },
+          },
+        });
+
+        this.logger.log(`Successfully archived and deleted ${deleteResult.count} notifications.`);
+      });
+    } catch (err) {
+      this.logger.error('Failed to archive old notifications', err.stack);
+    }
+  }
+
+  /**
+   * 3. Aggregate Yesterday's Analytics per Partner
+   */
+  private async aggregateDailyAnalytics() {
+    try {
+      this.logger.log("Building yesterday's daily analytics...");
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const startOfYesterday = new Date(yesterday.setHours(0, 0, 0, 0));
+      const endOfYesterday = new Date(yesterday.setHours(23, 59, 59, 999));
+
+      // Get all active partners to group analytics
+      const partners = await this.prisma.partner.findMany({ select: { id: true } });
+      const partnerIds = [null, ...partners.map((p) => p.id)];
+
+      for (const partnerId of partnerIds) {
+        // Fetch counts for this partner from yesterday's notifications and deliveries
+        const metrics = await this.prisma.notificationDelivery.groupBy({
+          by: ['channel', 'status'],
+          where: {
+            createdAt: {
+              gte: startOfYesterday,
+              lte: endOfYesterday,
+            },
+            notification: {
+              partnerId: partnerId,
+            },
+          },
+          _count: {
+            _all: true,
+          },
+        });
+
+        // Aggregate channel sends & failures
+        let pushSent = 0;
+        let emailSent = 0;
+        let bellSent = 0;
+        let socketSent = 0;
+        let smsSent = 0;
+        let failed = 0;
+
+        for (const metric of metrics) {
+          const count = metric._count._all;
+          if (metric.status === NotificationDeliveryStatus.FAILED) {
+            failed += count;
+          } else if (metric.status === NotificationDeliveryStatus.DELIVERED || metric.status === NotificationDeliveryStatus.SENT) {
+            if (metric.channel === NotificationChannel.PUSH) pushSent += count;
+            if (metric.channel === NotificationChannel.EMAIL) emailSent += count;
+            if (metric.channel === NotificationChannel.BELL) bellSent += count;
+            if (metric.channel === NotificationChannel.SOCKET) socketSent += count;
+            if (metric.channel === NotificationChannel.SMS) smsSent += count;
+          }
+        }
+
+        // Aggregate User Action Metrics (opens, clicks, reads, dismissals)
+        const readCount = await this.prisma.notificationRead.count({
+          where: {
+            readAt: {
+              gte: startOfYesterday,
+              lte: endOfYesterday,
+            },
+            notification: {
+              partnerId: partnerId,
+            },
+          },
+        });
+
+        const actionMetrics = await this.prisma.notificationAction.groupBy({
+          by: ['actionType'],
+          where: {
+            clickedAt: {
+              gte: startOfYesterday,
+              lte: endOfYesterday,
+            },
+            notification: {
+              partnerId: partnerId,
+            },
+          },
+          _count: {
+            _all: true,
+          },
+        });
+
+        let opened = 0;
+        let clicked = 0;
+        let dismissed = 0;
+
+        for (const action of actionMetrics) {
+          const count = action._count._all;
+          if (action.actionType === 'OPENED') opened += count;
+          if (action.actionType === 'CLICKED') clicked += count;
+          if (action.actionType === 'DISMISSED') dismissed += count;
+        }
+
+        // Upsert into analytics
+        await this.prisma.notificationAnalytics.upsert({
+          where: partnerId
+            ? { partnerId_date: { partnerId, date: startOfYesterday } }
+            : { date: startOfYesterday },
+          update: {
+            pushSent,
+            emailSent,
+            bellSent,
+            socketSent,
+            smsSent,
+            opened,
+            clicked,
+            read: readCount,
+            dismissed,
+            failed,
+          },
+          create: {
+            partnerId,
+            date: startOfYesterday,
+            pushSent,
+            emailSent,
+            bellSent,
+            socketSent,
+            smsSent,
+            opened,
+            clicked,
+            read: readCount,
+            dismissed,
+            failed,
+          },
+        });
+      }
+
+      this.logger.log("Successfully compiled yesterday's analytics.");
+    } catch (err) {
+      this.logger.error("Failed to compile yesterday's analytics", err.stack);
+    }
+  }
+
+  /**
+   * 4. Audit Retention Policy: Purge audits older than 730 days
+   */
+  private async cleanupExpiredAudits() {
+    try {
+      this.logger.log('Cleaning up expired admin action audits (older than 730 days)...');
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setDate(twoYearsAgo.getDate() - 730);
+
+      const result = await this.prisma.notificationAdminAudit.deleteMany({
+        where: {
+          createdAt: { lt: twoYearsAgo },
+        },
+      });
+
+      this.logger.log(`Pruned ${result.count} expired admin audit logs.`);
+    } catch (err) {
+      this.logger.error('Failed to cleanup expired admin audit logs', err.stack);
+    }
+  }
+
+  /**
+   * Stuck Broadcast Recovery: Check every 15 minutes for broadcasts in SENDING status 
+   * that have not logged a heartbeat in the last 1 hour.
+   */
+  @Cron('0 */15 * * * *')
+  async handleStuckBroadcasts() {
+    try {
+      this.logger.log('Checking for stuck broadcasts...');
+      const oneHourAgo = new Date();
+      oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+
+      const stuckExecutions = await this.prisma.broadcastExecution.findMany({
+        where: {
+          completedAt: null,
+          lastHeartbeatAt: { lt: oneHourAgo },
+          broadcast: { status: 'SENDING' },
+        },
+      });
+
+      if (stuckExecutions.length === 0) {
+        this.logger.log('No stuck executions found.');
+        return;
+      }
+
+      this.logger.warn(`Found ${stuckExecutions.length} stuck executions. Restoring...`);
+
+      for (const exec of stuckExecutions) {
+        await this.prisma.broadcastExecution.update({
+          where: { id: exec.id },
+          data: { completedAt: new Date() },
+        });
+
+        await this.prisma.notificationBroadcast.update({
+          where: { id: exec.broadcastId },
+          data: { status: 'PARTIALLY_FAILED', completedAt: new Date() },
+        });
+
+        this.logger.warn(`Broadcast ${exec.broadcastId} marked as PARTIALLY_FAILED due to lack of heartbeat.`);
+      }
+    } catch (err) {
+      this.logger.error('Failed to process stuck broadcasts recovery check', err.stack);
+    }
+  }
+
+  /**
+   * Pending Deliveries Reconciliation: Scan and re-enqueue any PENDING PUSH, EMAIL, or SMS deliveries.
+   */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async reconcilePendingDeliveries() {
+    try {
+      this.logger.log('Starting reconciliation of pending deliveries...');
+      const twoMinutesAgo = new Date();
+      twoMinutesAgo.setMinutes(twoMinutesAgo.getMinutes() - 2);
+
+      const pendingDeliveries = await this.prisma.notificationDelivery.findMany({
+        where: {
+          status: 'PENDING',
+          createdAt: { lt: twoMinutesAgo },
+          channel: { in: ['PUSH', 'EMAIL', 'SMS'] },
+        },
+        select: { id: true },
+        take: 500,
+      });
+
+      if (pendingDeliveries.length === 0) {
+        this.logger.log('No pending deliveries found to reconcile.');
+        return;
+      }
+
+      this.logger.log(`Found ${pendingDeliveries.length} pending deliveries. Re-enqueuing...`);
+      const deliveryIds = pendingDeliveries.map(d => d.id);
+      const result = await this.notificationsService.bulkRetryDeliveries(deliveryIds);
+      
+      this.logger.log(`Reconciled ${result.count}/${deliveryIds.length} pending deliveries successfully.`);
+    } catch (err) {
+      this.logger.error('Failed to reconcile pending deliveries', err.stack);
+    }
+  }
+}

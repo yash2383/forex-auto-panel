@@ -1,12 +1,16 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, NotificationEvent } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TradeEngineService implements OnModuleInit {
   private readonly logger = new Logger('TradeEngine');
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   onModuleInit() {
     this.logger.log('Starting Trade Engine Background Worker...');
@@ -108,6 +112,11 @@ export class TradeEngineService implements OnModuleInit {
           });
 
           this.logger.log(`Closed trade ${trade.id} for ${trade.user.email} with PnL: ₹${pnl.toFixed(4)}`);
+
+          this.notificationsService.sendToUser(trade.userId, NotificationEvent.TRADE_CLOSED, {
+            pair: trade.pair,
+            pnl: pnl.toFixed(2),
+          }).catch(err => this.logger.error(`Failed to send auto-trade close notification for user ${trade.userId}`, err.stack));
         } else {
           // Just update current price and PnL
           await this.prisma.trade.update({
@@ -172,8 +181,8 @@ export class TradeEngineService implements OnModuleInit {
         const quantity = tradeAmount.div(entryPrice);
 
         // Deduct balance and create trade in transaction
-        await this.prisma.$transaction(async (tx: any) => {
-          await tx.trade.create({
+        const spawnedTrade = await this.prisma.$transaction(async (tx: any) => {
+          const t = await tx.trade.create({
             data: {
               userId: user.id,
               partnerId: user.partnerId,
@@ -196,7 +205,15 @@ export class TradeEngineService implements OnModuleInit {
               availableBalance: new Prisma.Decimal(Number(user.wallet!.availableBalance) - amount),
             },
           });
+
+          return t;
         });
+
+        this.notificationsService.sendToUser(user.id, NotificationEvent.TRADE_OPENED, {
+          type: spawnedTrade.type,
+          pair: spawnedTrade.pair,
+          entryPrice: Number(spawnedTrade.entryPrice),
+        }).catch(err => this.logger.error(`Failed to send auto-trade open notification for user ${user.id}`, err.stack));
 
         this.logger.log(`Auto-spawned active trade for ${user.email}: ${pair} ${type} at ₹${entryPrice.toFixed(4)}`);
       }

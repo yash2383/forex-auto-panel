@@ -1,12 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, NotificationEvent } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword } from '../common/crypto.util';
 import { createTransactionGroup, reverseTransactionGroup } from '../common/ledger.util';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AdminService {
-  constructor(public prisma: PrismaService) {}
+  constructor(
+    public prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async getData() {
     const [
@@ -327,6 +331,12 @@ export class AdminService {
     }
 
     const updatedUser = await this.prisma.user.update({ where: { id: userId }, data: updateData });
+
+    if (updateData.status === 'BLOCKED') {
+      this.notificationsService.sendToUser(userId, NotificationEvent.ACCOUNT_BLOCKED, {}).catch(err => 
+        console.error(`Failed to send ACCOUNT_BLOCKED notification for user ${userId}`, err)
+      );
+    }
 
     if (deposit !== undefined) {
       const cleanDeposit = Number(String(deposit).replace(/[^\d.-]/g, ''));
@@ -805,6 +815,16 @@ export class AdminService {
       return updatedPayment;
     });
 
+    if (result) {
+      this.notificationsService.sendToUser(result.userId, NotificationEvent.PAYMENT_APPROVED, {
+        amount: Number(result.amount),
+      }).catch(err => console.error(`Failed to send PAYMENT_APPROVED for user ${result.userId}:`, err));
+
+      this.notificationsService.sendToUser(result.userId, NotificationEvent.PLAN_ACTIVATED, {
+        planName: result.planName,
+      }).catch(err => console.error(`Failed to send PLAN_ACTIVATED for user ${result.userId}:`, err));
+    }
+
     return { success: true, payment: result };
   }
 
@@ -816,6 +836,10 @@ export class AdminService {
     const updatedPayment = await this.prisma.payment.update({
       where: { id: paymentId }, data: { status: 'REJECTED', remark: remark || 'Declined by admin' },
     });
+
+    this.notificationsService.sendToUser(updatedPayment.userId, NotificationEvent.PAYMENT_REJECTED, {
+      amount: Number(updatedPayment.amount),
+    }).catch(err => console.error(`Failed to send PAYMENT_REJECTED for user ${updatedPayment.userId}:`, err));
 
     await this.prisma.securityEvent.create({
       data: {
@@ -895,6 +919,12 @@ export class AdminService {
         return updatedWithdrawal;
       });
 
+      if (result) {
+        this.notificationsService.sendToUser(result.userId, NotificationEvent.WITHDRAWAL_APPROVED, {
+          amount: Number(result.amount),
+        }).catch(err => console.error(`Failed to send WITHDRAWAL_APPROVED for user ${result.userId}:`, err));
+      }
+
       return { success: true, withdrawal: result };
     } catch (e: any) {
       return { error: e.message || 'Approval failed', status: 400 };
@@ -939,6 +969,13 @@ export class AdminService {
 
         return updatedWithdrawal;
       });
+
+      if (result) {
+        this.notificationsService.sendToUser(result.userId, NotificationEvent.WITHDRAWAL_REJECTED, {
+          amount: Number(result.amount),
+          reason: 'Declined by admin',
+        }).catch(err => console.error(`Failed to send WITHDRAWAL_REJECTED for user ${result.userId}:`, err));
+      }
 
       return { success: true, withdrawal: result };
     } catch (e: any) {
@@ -1029,6 +1066,12 @@ export class AdminService {
         return profitDist;
       });
 
+      if (result && result.status === 'PAID') {
+        this.notificationsService.sendToUser(result.userId, NotificationEvent.PROFIT_DISTRIBUTED, {
+          amount: Number(result.amount),
+        }).catch(err => console.error(`Failed to send PROFIT_DISTRIBUTED for user ${result.userId}:`, err));
+      }
+
       return { success: true, profitDistribution: result };
     } catch (e: any) {
       console.error('Manual profit dist error:', e);
@@ -1065,8 +1108,10 @@ export class AdminService {
           },
         });
 
+        const isPaidTransition = currentDist.status === 'PENDING' && updated.status === 'PAID';
+
         // Trigger ledger if status transitions from PENDING to PAID
-        if (currentDist.status === 'PENDING' && updated.status === 'PAID') {
+        if (isPaidTransition) {
           await createTransactionGroup(tx, {
             type: 'TRADE_PROFIT',
             description: `Manual Profit payout | Ref: ${updated.reference}`,
@@ -1078,10 +1123,16 @@ export class AdminService {
           });
         }
 
-        return updated;
+        return { updated, isPaidTransition };
       });
 
-      return { success: true, profitDistribution: result };
+      if (result && result.isPaidTransition) {
+        this.notificationsService.sendToUser(result.updated.userId, NotificationEvent.PROFIT_DISTRIBUTED, {
+          amount: Number(result.updated.amount),
+        }).catch(err => console.error(`Failed to send PROFIT_DISTRIBUTED for user ${result.updated.userId}:`, err));
+      }
+
+      return { success: true, profitDistribution: result.updated };
     } catch (e: any) {
       console.error('Update profit dist error:', e);
       return { error: e.message || 'Database error', status: 400 };
@@ -1373,6 +1424,13 @@ export class AdminService {
       // Release lock & record request ID
       this.isBulkDistributeRunning = false;
       if (requestId) this.processedRequestIds.add(requestId);
+
+      // Trigger notifications for all payouts
+      for (const payout of eligiblePayouts) {
+        this.notificationsService.sendToUser(payout.user.id, NotificationEvent.PROFIT_DISTRIBUTED, {
+          amount: payout.profitAmount,
+        }).catch(err => console.error(`Failed to send PROFIT_DISTRIBUTED weekly profit payout for user ${payout.user.id}:`, err));
+      }
 
       return {
         success: true,

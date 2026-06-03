@@ -38,7 +38,7 @@ export const adminNavGroups = [
   {
     title: "Communication",
     items: [
-      { icon: Bell, label: "Notifications", href: "/admin/dashboard?section=notifications", badge: "18" },
+      { icon: Bell, label: "Notifications", href: "/admin/notifications", badge: "18" },
       { icon: Megaphone, label: "Campaigns", href: "/admin/dashboard?section=campaigns" },
       { icon: PieChart, label: "Referrals", href: "/admin/dashboard?section=referrals" },
       { icon: ClipboardList, label: "Inquiries", href: "/admin/inquiries" },

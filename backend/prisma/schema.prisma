@@ -112,6 +112,139 @@ enum TransactionGroupType {
 }
 
 // ==========================================
+// NOTIFICATION ENUMS
+// ==========================================
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NotificationSeverity {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+enum NotificationCategory {
+  TRADE
+  PAYMENT
+  WITHDRAWAL
+  SUBSCRIPTION
+  PROFIT
+  REPORT
+  SECURITY
+  SUPPORT
+  SYSTEM
+}
+
+enum NotificationAudience {
+  ALL_USERS
+  ACTIVE_USERS
+  EXPIRED_USERS
+  VIP_USERS
+  CLUB_PLAN
+  INDIVIDUAL_PLAN
+  ADMINS
+  CUSTOM
+}
+
+enum BroadcastStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SCHEDULED
+  SENDING
+  PARTIALLY_FAILED
+  SENT
+  CANCELLED
+  REJECTED
+}
+
+enum NotificationDeliveryStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  OPENED
+  CLICKED
+}
+
+enum NotificationChannel {
+  BELL
+  PUSH
+  EMAIL
+  SOCKET
+  TOAST
+  SMS
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+  DELETED
+}
+
+enum NotificationScheduleStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum NotificationEvent {
+  PAYMENT_SUBMITTED
+  PAYMENT_APPROVED
+  PAYMENT_REJECTED
+
+  DEPOSIT_APPROVED
+  DEPOSIT_REJECTED
+
+  WITHDRAWAL_REQUESTED
+  WITHDRAWAL_APPROVED
+  WITHDRAWAL_REJECTED
+
+  TRADE_PUBLISHED
+  TRADE_OPENED
+  TRADE_CLOSED
+  TRADE_CANCELLED
+
+  TAKE_PROFIT_HIT
+  STOP_LOSS_HIT
+  SIGNAL_UPDATED
+
+  PROFIT_DISTRIBUTED
+
+  PLAN_ACTIVATED
+  PLAN_EXPIRING
+  PLAN_EXPIRED
+  PLAN_UPGRADED
+  PLAN_DOWNGRADED
+
+  REPORT_READY
+
+  NEW_LOGIN
+  PASSWORD_CHANGED
+  EMAIL_CHANGED
+  ACCOUNT_BLOCKED
+  TWO_FACTOR_ENABLED
+  TWO_FACTOR_DISABLED
+
+  TICKET_CREATED
+  TICKET_REPLIED
+  TICKET_CLOSED
+
+  ADMIN_LOGIN
+  ADMIN_CREATED
+  ADMIN_REMOVED
+  SYSTEM
+}
+
+// ==========================================
 // IDENTITY LAYER MODELS
 // ==========================================
 
@@ -129,6 +262,14 @@ model Admin {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   securityEvents  SecurityEvent[]
+
+  // Notification relations
+  notifications           Notification[]
+  broadcastsCreated       NotificationBroadcast[] @relation("BroadcastCreated")
+  broadcastsApproved      NotificationBroadcast[] @relation("BroadcastApproved")
+  broadcastsCancelled     NotificationBroadcast[] @relation("BroadcastCancelled")
+  notificationActions     NotificationAction[]
+  notificationAudits      NotificationAdminAudit[] @relation("AdminNotificationAudits")
 
   @@index([email])
 }
@@ -155,6 +296,13 @@ model Partner {
   ledgerEntries     LedgerEntry[]
   investmentPlans   InvestmentPlan[]
   userInvestments   UserInvestment[]
+
+  // Notification relations
+  notifications              Notification[]
+  notificationSchedules      NotificationSchedule[]
+  notificationBroadcasts     NotificationBroadcast[]
+  notificationAnalytics      NotificationAnalytics[]
+  notificationTemplates      NotificationTemplate[]
 
   @@index([domain])
 }
@@ -196,6 +344,13 @@ model User {
   profitDistributions ProfitDistribution[]
   investments    UserInvestment[]
   generatedReports GeneratedReport[]
+
+  // Notification relations
+  deviceTokens   DeviceToken[]
+  notifications  Notification[]
+  notificationReads NotificationRead[]
+  notificationPreferences UserNotificationPreference[]
+  notificationActions NotificationAction[]
 
   // Simulation settings
   autoTrading    Boolean          @default(false)
@@ -629,5 +784,315 @@ model OtpSettings {
   otpExpiryMinutes   Int         @default(10)
   supportContact     String      @default("+91 XXXXX XXXXX")
   updatedAt          DateTime    @updatedAt
+}
+
+// ==========================================
+// NOTIFICATION SYSTEM
+// ==========================================
+
+model DeviceToken {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  browser      String?
+  platform     String?
+  isActive     Boolean  @default(true)
+  failureCount Int      @default(0)
+  lastUsedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([platform])
+  @@index([isActive])
+}
+
+model Notification {
+  id             String               @id @default(cuid())
+  userId         String?              // Null represents broadcast or admin-only
+  adminId        String?              // Null represents user-only
+  partnerId      String?              // Multi-tenancy isolation
+  title          String
+  body           String
+  type           NotificationEvent    // Event type Enum
+  priority       NotificationPriority @default(MEDIUM)
+  severity       NotificationSeverity @default(INFO)
+  category       NotificationCategory
+  status         NotificationStatus   @default(UNREAD)
+  link           String?
+  idempotencyKey String?              @unique
+  metadata       Json?
+  deletedAt      DateTime?            // Soft delete support
+  createdAt      DateTime             @default(now())
+
+  user           User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admin          Admin?               @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  partner        Partner?             @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  deliveries     NotificationDelivery[]
+  reads          NotificationRead[]
+  actions        NotificationAction[]
+
+  @@index([userId])
+  @@index([adminId])
+  @@index([partnerId])
+  @@index([createdAt])
+  @@index([type])
+  @@index([category])
+}
+
+model NotificationRead {
+  id             String       @id @default(cuid())
+  notificationId String
+  userId         String
+  readAt         DateTime     @default(now())
+
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId])
+  @@index([notificationId])
+}
+
+model NotificationAction {
+  id             String       @id @default(cuid())
+  notificationId String
+  userId         String?
+  adminId        String?
+  actionType     String       // OPENED, CLICKED, DISMISSED
+  clickedAt      DateTime     @default(now())
+
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admin          Admin?       @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@index([userId])
+  @@index([adminId])
+}
+
+model NotificationDelivery {
+  id             String                     @id @default(cuid())
+  notificationId String
+  channel        NotificationChannel
+  status         NotificationDeliveryStatus @default(PENDING)
+  error          String?
+  retryCount     Int                        @default(0)
+  lastRetryAt    DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime                   @default(now())
+
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  @@index([notificationId])
+  @@index([status])
+  @@index([channel])
+}
+
+model NotificationSchedule {
+  id          String                     @id @default(cuid())
+  partnerId   String?
+  title       String
+  body        String
+  event       NotificationEvent?
+  audience    NotificationAudience
+  scheduledAt DateTime
+  status      NotificationScheduleStatus @default(PENDING)
+  metadata    Json?
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+
+  partner     Partner?                      @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  channels    NotificationScheduleChannel[]
+
+  @@index([partnerId])
+}
+
+model NotificationScheduleChannel {
+  id          String               @id @default(cuid())
+  scheduleId  String
+  channel     NotificationChannel
+
+  schedule    NotificationSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, channel])
+}
+
+model NotificationBroadcast {
+  id                 String                        @id @default(cuid())
+  partnerId          String?
+  title              String
+  body               String
+  audience           NotificationAudience
+  status             BroadcastStatus               @default(DRAFT)
+  createdByAdminId   String
+  approvedByAdminId  String?
+  cancelledByAdminId String?
+  totalUsers         Int                           @default(0)
+  approvedAt         DateTime?
+  rejectedAt         DateTime?
+  cancelledAt        DateTime?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  sentAt             DateTime?
+  createdAt          DateTime                      @default(now())
+  version            Int                           @default(1)
+  approvalRequestId  String?                       @unique
+
+  partner            Partner?                      @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  createdByAdmin     Admin                         @relation("BroadcastCreated", fields: [createdByAdminId], references: [id], onDelete: Cascade)
+  approvedByAdmin    Admin?                        @relation("BroadcastApproved", fields: [approvedByAdminId], references: [id], onDelete: Cascade)
+  cancelledByAdmin   Admin?                        @relation("BroadcastCancelled", fields: [cancelledByAdminId], references: [id], onDelete: Cascade)
+  channels           NotificationBroadcastChannel[]
+  execution          BroadcastExecution?
+
+  @@index([partnerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model NotificationBroadcastChannel {
+  id          String                @id @default(cuid())
+  broadcastId String
+  channel     NotificationChannel
+
+  broadcast   NotificationBroadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+
+  @@unique([broadcastId, channel])
+}
+
+model BroadcastExecution {
+  id              String    @id @default(cuid())
+  broadcastId     String    @unique
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  lastHeartbeatAt DateTime?
+  targetUsers     Int       @default(0)
+  sentUsers       Int       @default(0)
+  successCount    Int       @default(0)
+  failedCount     Int       @default(0)
+  skippedCount    Int       @default(0)
+  chunkCount      Int       @default(0)
+  durationMs      Int?
+
+  broadcast       NotificationBroadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+}
+
+model NotificationAdminAudit {
+  id          String   @id @default(cuid())
+  adminId     String
+  action      String
+  entityType  String?
+  entityId    String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  admin       Admin @relation("AdminNotificationAudits", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model NotificationAnalytics {
+  id         String   @id @default(cuid())
+  partnerId  String?
+  date       DateTime
+  pushSent   Int      @default(0)
+  emailSent  Int      @default(0)
+  bellSent   Int      @default(0)
+  socketSent Int      @default(0)
+  smsSent    Int      @default(0)
+  opened     Int      @default(0)
+  clicked    Int      @default(0)
+  read       Int      @default(0)
+  dismissed  Int      @default(0)
+  failed     Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  partner    Partner? @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([date])
+  @@unique([partnerId, date])
+  @@index([partnerId])
+}
+
+model NotificationGlobalSetting {
+  id            String   @id @default(cuid())
+  pushEnabled   Boolean  @default(true)
+  emailEnabled  Boolean  @default(true)
+  socketEnabled Boolean  @default(true)
+  bellEnabled   Boolean  @default(true)
+  toastEnabled  Boolean  @default(true)
+  smsEnabled    Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
+}
+
+model NotificationEventSetting {
+  id            String            @id @default(cuid())
+  event         NotificationEvent @unique
+  enabled       Boolean           @default(true)
+  bellEnabled   Boolean           @default(true)
+  pushEnabled   Boolean           @default(true)
+  emailEnabled  Boolean           @default(true)
+  toastEnabled  Boolean           @default(true)
+  socketEnabled Boolean           @default(true)
+  smsEnabled    Boolean           @default(false)
+  updatedAt     DateTime          @updatedAt
+}
+
+model NotificationTemplate {
+  id        String            @id @default(cuid())
+  partnerId String?
+  event     NotificationEvent
+  channel   NotificationChannel
+  version   Int               @default(1)
+  title     String?           // custom title template
+  body      String            // custom body template
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  partner   Partner?          @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([event, channel, version])
+  @@unique([partnerId, event, channel, version])
+  @@index([partnerId])
+}
+
+model UserNotificationPreference {
+  id           String               @id @default(cuid())
+  userId       String
+  category     NotificationCategory
+  pushEnabled  Boolean              @default(true)
+  emailEnabled Boolean              @default(true)
+  bellEnabled  Boolean              @default(true)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@index([userId])
+}
+
+model NotificationArchive {
+  id             String    @id
+  userId         String?
+  adminId        String?
+  partnerId      String?
+  title          String
+  body           String
+  type           String
+  priority       String
+  severity       String
+  category       String
+  status         String
+  link           String?
+  idempotencyKey String?
+  metadata       Json?
+  createdAt      DateTime
+  archivedAt     DateTime  @default(now())
 }
 

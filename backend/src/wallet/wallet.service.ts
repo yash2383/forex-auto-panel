@@ -1,10 +1,14 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, NotificationEvent } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class WalletService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async getWalletData(userId: string) {
     const wallet = await this.prisma.wallet.findUnique({
@@ -99,6 +103,12 @@ export class WalletService {
 
       return withdrawal;
     });
+
+    if (result) {
+      this.notificationsService.sendToUser(userId, NotificationEvent.WITHDRAWAL_REQUESTED, {
+        amount: Number(result.amount),
+      }).catch(err => console.error(`Failed to send WITHDRAWAL_REQUESTED notification for user ${userId}`, err));
+    }
 
     return result;
   }

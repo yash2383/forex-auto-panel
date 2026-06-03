@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { adminNavGroups } from "./adminData";
 import { useAdminStore } from "../../../../hooks/adminStore";
 import { apiFetch } from "../../../../lib/apiFetch";
+import NotificationDropdown from "../../../(user)/components/NotificationDropdown";
 
 export default function AdminShell({ children }) {
   const pathname = usePathname();
@@ -489,10 +490,7 @@ export default function AdminShell({ children }) {
                 >
                   {theme === "light" ? <Sun className="h-5 w-5 text-yellow-500" /> : <Moon className="h-5 w-5" />}
                 </button>
-                <button className="relative shrink-0 flex h-11 w-11 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.03] text-white">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white">12</span>
-                </button>
+                <NotificationDropdown />
                 <div className="relative shrink-0">
                   <button 
                     onClick={() => setShowProfileMenu(!showProfileMenu)}

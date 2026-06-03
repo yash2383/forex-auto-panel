@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { Prisma, NotificationEvent } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TradeService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async listTrades(userId: string) {
     const [activeTrades, pastTrades] = await Promise.all([
@@ -114,6 +118,14 @@ export class TradeService {
       return trade;
     });
 
+    if (newTrade) {
+      this.notificationsService.sendToUser(userId, NotificationEvent.TRADE_OPENED, {
+        type: newTrade.type,
+        pair: newTrade.pair,
+        entryPrice: Number(newTrade.entryPrice),
+      }).catch(err => console.error(`Failed to send TRADE_OPENED notification for user ${userId}`, err));
+    }
+
     return {
       success: true,
       trade: {
@@ -207,6 +219,13 @@ export class TradeService {
         });
       }
     });
+
+    if (trade) {
+      this.notificationsService.sendToUser(userId, NotificationEvent.TRADE_CLOSED, {
+        pair: trade.pair,
+        pnl: Number(pnl).toFixed(2),
+      }).catch(err => console.error(`Failed to send TRADE_CLOSED notification for user ${userId}`, err));
+    }
 
     return { success: true };
   }

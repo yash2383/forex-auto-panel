@@ -14,6 +14,7 @@ import {
   DollarSign,
   Landmark,
   Coins,
+  Bell,
 } from "lucide-react";
 import { pastTrades } from "../../data/pastTrades";
 
@@ -26,6 +27,7 @@ export const userNavItems = [
   { icon: FileText, label: "Reports", href: "/dashboard/reports" },
   { icon: List, label: "Subscription", href: "/dashboard/subscription" },
   { icon: WalletIcon, label: "Wallet", href: "/dashboard/wallet" },
+  { icon: Bell, label: "Notifications", href: "/dashboard/notifications" },
   { icon: HelpCircle, label: "Support", href: "/dashboard/support" },
 ];
 

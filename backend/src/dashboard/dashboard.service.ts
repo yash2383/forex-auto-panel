@@ -1,9 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationEvent } from '@prisma/client';
 
 @Injectable()
 export class DashboardService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async getData(userId: string) {
     // Fetch user details along with wallet
@@ -181,6 +186,10 @@ export class DashboardService {
       },
     });
 
+    this.notificationsService.sendToUser(userId, NotificationEvent.PAYMENT_SUBMITTED, {
+      amount: Number(payment.amount),
+    }).catch(err => console.error(`Failed to send PAYMENT_SUBMITTED notification for user ${userId}`, err));
+
     if (initiationId) {
       try {
         await this.prisma.paymentInitiation.update({
@@ -250,6 +259,12 @@ export class DashboardService {
 
         return withdrawal;
       });
+
+      if (result) {
+        this.notificationsService.sendToUser(userId, NotificationEvent.WITHDRAWAL_REQUESTED, {
+          amount: Number(result.amount),
+        }).catch(err => console.error(`Failed to send WITHDRAWAL_REQUESTED notification for user ${userId}`, err));
+      }
 
       return { success: true, withdrawal: result };
     } catch (error: any) {

@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword, verifyPassword } from '../common/crypto.util';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationEvent } from '@prisma/client';
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   /**
    * Get full user profile in a single payload:
@@ -213,6 +218,9 @@ export class UserService {
       where: { id: userId },
       data: { passwordHash: hashPassword(newPassword) },
     });
+
+    this.notificationsService.sendToUser(userId, NotificationEvent.PASSWORD_CHANGED, {})
+      .catch(err => console.error(`Failed to send PASSWORD_CHANGED notification for user ${userId}`, err));
 
     return { success: true, message: 'Password changed successfully' };
   }

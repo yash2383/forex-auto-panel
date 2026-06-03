@@ -2,12 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword, verifyPassword, signJwt, verifyJwt } from '../common/crypto.util';
 import { OtpService } from './otp.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationEvent } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private otpService: OtpService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async login(email: string, password: string, clientIp: string) {
@@ -40,6 +43,12 @@ export class AuthService {
             ipAddress: clientIp,
           },
         });
+
+        // Trigger notification
+        this.notificationsService.sendToAdmin(admin.id, NotificationEvent.ADMIN_LOGIN, {
+          name: admin.name,
+          ipAddress: clientIp,
+        }).catch(err => console.error(`Failed to send ADMIN_LOGIN notification for admin ${admin.id}`, err));
 
         return {
           token,
@@ -173,6 +182,10 @@ export class AuthService {
         lastLoginIP: clientIp,
       },
     });
+
+    this.notificationsService.sendToUser(user.id, NotificationEvent.NEW_LOGIN, {
+      ipAddress: clientIp,
+    }).catch(err => console.error(`Failed to send NEW_LOGIN notification for user ${user.id}`, err));
 
     return {
       token,

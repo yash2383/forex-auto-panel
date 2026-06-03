@@ -227,6 +227,50 @@ let NotificationsController = class NotificationsController {
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
+    async registerDevice(req, body, res) {
+        try {
+            const user = req.user;
+            const { token, platform, browser } = body;
+            if (!token) {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Token is required' });
+            }
+            const existing = await this.prisma.deviceToken.findFirst({
+                where: { token },
+            });
+            let device;
+            if (existing) {
+                device = await this.prisma.deviceToken.update({
+                    where: { id: existing.id },
+                    data: {
+                        userId: user.id,
+                        platform: platform || existing.platform,
+                        browser: browser || existing.browser,
+                        isActive: true,
+                        failureCount: 0,
+                        lastUsedAt: new Date(),
+                    },
+                });
+            }
+            else {
+                device = await this.prisma.deviceToken.create({
+                    data: {
+                        token,
+                        userId: user.id,
+                        platform: platform || 'Web',
+                        browser: browser || 'Unknown',
+                        isActive: true,
+                        failureCount: 0,
+                        lastUsedAt: new Date(),
+                    },
+                });
+            }
+            return res.json({ success: true, device });
+        }
+        catch (error) {
+            console.error('Register device token error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
     async getAnalytics(res) {
         try {
             const stats = await this.notificationsService.getAdminAnalytics();
@@ -694,6 +738,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], NotificationsController.prototype, "updatePreferences", null);
+__decorate([
+    (0, common_1.Post)('devices'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], NotificationsController.prototype, "registerDevice", null);
 __decorate([
     (0, common_1.Get)('admin/analytics'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),

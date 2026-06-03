@@ -8,6 +8,7 @@ import {
   NotificationDeliveryStatus,
 } from '@prisma/client';
 import { NotificationsGateway } from './notifications.gateway';
+import { sendFcmMessage } from './firebase-admin';
 
 // =========================================================================
 // HELPERS
@@ -139,18 +140,24 @@ export class PushProcessor {
       try {
         this.logger.log(`Sending FCM push to token ${device.token.substring(0, 10)}... for user ${userId}`);
         
+        // Execute real FCM dispatch
+        await sendFcmMessage(device.token, title, body, {
+          link: link || '',
+          ...payload,
+        });
+
         await this.prisma.deviceToken.update({
           where: { id: device.id },
           data: { lastUsedAt: new Date() },
         });
-      } catch (err) {
+      } catch (err: any) {
         this.logger.error(`FCM send failed for token ${device.id}: ${err.message}`);
         
         const isBadToken =
           err.code === 'messaging/invalid-registration-token' ||
           err.code === 'messaging/registration-token-not-registered' ||
-          err.message.includes('not registered') ||
-          err.message.includes('invalid');
+          err.message?.includes('not registered') ||
+          err.message?.includes('invalid');
 
         if (isBadToken) {
           this.logger.warn(`Deactivating invalid FCM token: ${device.id}`);

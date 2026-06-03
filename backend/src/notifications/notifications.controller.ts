@@ -259,6 +259,58 @@ export class NotificationsController {
     }
   }
 
+  @Post('devices')
+  async registerDevice(
+    @Req() req: Request,
+    @Body() body: { token: string; platform?: string; browser?: string },
+    @Res() res: Response,
+  ) {
+    try {
+      const user = (req as any).user;
+      const { token, platform, browser } = body;
+
+      if (!token) {
+        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Token is required' });
+      }
+
+      const existing = await this.prisma.deviceToken.findFirst({
+        where: { token },
+      });
+
+      let device;
+      if (existing) {
+        device = await this.prisma.deviceToken.update({
+          where: { id: existing.id },
+          data: {
+            userId: user.id,
+            platform: platform || existing.platform,
+            browser: browser || existing.browser,
+            isActive: true,
+            failureCount: 0,
+            lastUsedAt: new Date(),
+          },
+        });
+      } else {
+        device = await this.prisma.deviceToken.create({
+          data: {
+            token,
+            userId: user.id,
+            platform: platform || 'Web',
+            browser: browser || 'Unknown',
+            isActive: true,
+            failureCount: 0,
+            lastUsedAt: new Date(),
+          },
+        });
+      }
+
+      return res.json({ success: true, device });
+    } catch (error: any) {
+      console.error('Register device token error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
   // ── ADMIN CONTROLLERS ─────────────────────────────────────────────────────
   // ──────────────────────────────────────────────────────────────────────────

@@ -20,6 +20,7 @@ const bull_2 = require("@nestjs/bull");
 const prisma_service_1 = require("../prisma/prisma.service");
 const client_1 = require("@prisma/client");
 const notifications_gateway_1 = require("./notifications.gateway");
+const firebase_admin_1 = require("./firebase-admin");
 async function handleDeliveryFailure(prisma, dlqQueue, logger, job, deliveryId, queueName, error) {
     const maxAttempts = job.opts.attempts || 5;
     const isFinalAttempt = job.attemptsMade >= maxAttempts;
@@ -102,6 +103,10 @@ let PushProcessor = PushProcessor_1 = class PushProcessor {
         for (const device of tokens) {
             try {
                 this.logger.log(`Sending FCM push to token ${device.token.substring(0, 10)}... for user ${userId}`);
+                await (0, firebase_admin_1.sendFcmMessage)(device.token, title, body, {
+                    link: link || '',
+                    ...payload,
+                });
                 await this.prisma.deviceToken.update({
                     where: { id: device.id },
                     data: { lastUsedAt: new Date() },
@@ -111,8 +116,8 @@ let PushProcessor = PushProcessor_1 = class PushProcessor {
                 this.logger.error(`FCM send failed for token ${device.id}: ${err.message}`);
                 const isBadToken = err.code === 'messaging/invalid-registration-token' ||
                     err.code === 'messaging/registration-token-not-registered' ||
-                    err.message.includes('not registered') ||
-                    err.message.includes('invalid');
+                    err.message?.includes('not registered') ||
+                    err.message?.includes('invalid');
                 if (isBadToken) {
                     this.logger.warn(`Deactivating invalid FCM token: ${device.id}`);
                     await this.prisma.deviceToken.update({

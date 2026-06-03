@@ -23,6 +23,11 @@ export declare class NotificationsController {
         emailEnabled?: boolean;
         bellEnabled?: boolean;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
+    registerDevice(req: Request, body: {
+        token: string;
+        platform?: string;
+        browser?: string;
+    }, res: Response): Promise<Response<any, Record<string, any>>>;
     getAnalytics(res: Response): Promise<Response<any, Record<string, any>>>;
     getArchiveStats(res: Response): Promise<Response<any, Record<string, any>>>;
     getHealth(res: Response): Promise<Response<any, Record<string, any>>>;

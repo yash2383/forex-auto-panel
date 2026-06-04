@@ -1,7 +1,8 @@
 /**
- * calculateCheckoutPreview.js
+ * calculateCheckoutPreviewUI.js
  *
- * Single source of truth for all checkout pricing UI previews.
+ * Unified preview pricing calculation logic specifically for checkout UI rendering.
+ * NOTE: This is for UI preview displays only and is NOT authoritative for payments.
  *
  * Business rules (all configurable per plan):
  *   - plan.amount       → base entry fee (FIXED plans). null for FLEXIBLE plans.
@@ -19,7 +20,7 @@
  * @param {number} previewAmount  - User-entered preview amount (for FLEXIBLE plans)
  * @returns {object}
  */
-export function calculateCheckoutPreview(plan, previewAmount = 0) {
+export function calculateCheckoutPreviewUI(plan, previewAmount = 0) {
   const isFlexible = plan.pricingType === "FLEXIBLE" || plan.amount == null;
   const base = isFlexible ? Number(previewAmount) || 0 : Number(plan.amount) || 0;
   const profitFeePercent = Number(plan.weeklyProfit) || 0;

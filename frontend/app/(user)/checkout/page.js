@@ -21,16 +21,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminStore } from "../../../hooks/adminStore";
 import { apiFetch } from "../../../lib/apiFetch";
-import { calculateCheckoutPreview } from "../../../lib/calculateCheckoutPreview";
+import { calculateCheckoutPreviewUI } from "../../../lib/calculateCheckoutPreviewUI";
 
 // Pricing plans are dynamically loaded from the database via Zustand store.
-
-const instructions = [
-  ["Make Exact Payment", "Please pay the exact amount shown above. Different amounts may be auto-rejected."],
-  ["Use USDT Only", "Please send USDT only. UPI, bank transfer, and other payment methods are not accepted."],
-  ["Submit Transaction ID", "Enter the correct USDT transaction ID to help us verify your payment quickly."],
-  ["Wait for Verification", "Your payment will be verified within 5-30 minutes after submission."],
-];
+// instructions are dynamically computed based on selectedMethod inside the component
 
 const PLAN_MIN_AMOUNTS = {
   club: 10,
@@ -367,8 +361,57 @@ export default function CheckoutPage() {
   const [paymentError, setPaymentError] = useState("");
   const [initiationId, setInitiationId] = useState(null);
   const [amountInput, setAmountInput] = useState("");
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [selectedMethod, setSelectedMethod] = useState(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const instructions = useMemo(() => {
+    if (selectedMethod?.key === "UPI") {
+      return [
+        [
+          "Make Exact Payment",
+          "Please transfer the exact amount shown above."
+        ],
+        [
+          "Use The Displayed UPI ID",
+          "Send payment only to the UPI ID displayed on this page."
+        ],
+        [
+          "Submit UTR Number",
+          "Enter the correct UTR / transaction reference number."
+        ],
+        [
+          "Wait for Verification",
+          "Verification usually takes 5–30 minutes after submission."
+        ]
+      ];
+    }
+    return [
+      [
+        "Make Exact Payment",
+        "Please pay the exact amount shown above. Different amounts may be auto-rejected."
+      ],
+      [
+        "Use USDT Only",
+        "Please send USDT only using the selected network."
+      ],
+      [
+        "Submit Transaction ID",
+        "Enter the correct blockchain transaction ID (TXID)."
+      ],
+      [
+        "Wait for Verification",
+        "Verification usually takes 5–30 minutes after submission."
+      ]
+    ];
+  }, [selectedMethod]);
+
+  useEffect(() => {
+    if (!mounted) return;
     const params = new URLSearchParams(window.location.search);
     const requestedPlan = params.get("plan") || "individual";
     const selectedStep = ["payment", "status"].includes(params.get("step")) ? params.get("step") : "payment";
@@ -379,32 +422,56 @@ export default function CheckoutPage() {
 
     const isAuthenticated = localStorage.getItem("tradebot-authenticated") === "true";
     if (!isAuthenticated) {
-      router.replace(`/login?next=${encodeURIComponent(`/checkout?plan=${requestedPlan}&step=${selectedStep}`)}`);
+      setTimeout(() => {
+        router.replace(`/login?next=${encodeURIComponent(`/checkout?plan=${requestedPlan}&step=${selectedStep}`)}`);
+      }, 0);
       return;
     }
 
     setPlanLoading(true);
     setPlanError(null);
 
-    apiFetch(`/api/plans/${requestedPlan}`)
-      .then(async (res) => {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestedPlan);
+    const fetchUrl = isUuid ? `/api/plans/${requestedPlan}` : `/api/plans/slug/${requestedPlan}`;
+
+    Promise.all([
+      apiFetch(fetchUrl).then(async (res) => {
         if (!res.ok) {
           throw new Error("Plan not found");
         }
         const data = await res.json();
         if (data && data.plan) {
-          setFetchedPlan(data.plan);
-          setPlanLoading(false);
+          return data.plan;
         } else {
           throw new Error("Invalid plan details received");
         }
+      }),
+      apiFetch("/api/plans/payment-methods").then(async (res) => {
+        if (!res.ok) {
+          throw new Error("Failed to fetch payment methods");
+        }
+        const data = await res.json();
+        if (data && data.methods) {
+          return data.methods.filter(m => m.enabled);
+        } else {
+          throw new Error("Invalid payment methods data");
+        }
       })
-      .catch((err) => {
-        console.error(err);
-        setPlanError("Failed to fetch plan details. Please check your plan selection.");
-        setPlanLoading(false);
-      });
-  }, [router]);
+    ])
+    .then(([planData, methods]) => {
+      setFetchedPlan(planData);
+      setPaymentMethods(methods);
+      if (methods.length > 0) {
+        setSelectedMethod(methods[0]);
+      }
+      setPlanLoading(false);
+    })
+    .catch((err) => {
+      console.error(err);
+      setPlanError(err.message || "Failed to initialize checkout. Please check your plan selection.");
+      setPlanLoading(false);
+    });
+  }, [mounted, router]);
 
   useEffect(() => {
     if (!fetchedPlan) return;
@@ -452,7 +519,7 @@ export default function CheckoutPage() {
 
   const pricing = useMemo(() => {
     if (!fetchedPlan) return null;
-    return calculateCheckoutPreview(fetchedPlan, amountInput);
+    return calculateCheckoutPreviewUI(fetchedPlan, amountInput);
   }, [fetchedPlan, amountInput]);
 
   const ready = !planLoading && fetchedPlan !== null;
@@ -526,6 +593,26 @@ export default function CheckoutPage() {
     );
   }
 
+  if (!planLoading && fetchedPlan && paymentMethods.length === 0) {
+    return (
+      <main className="min-h-screen bg-[#050505] px-4 pb-20 pt-28 text-white">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-red-500/25 bg-[#0A0A0A]/95 p-8 text-center shadow-[0_0_80px_-30px_rgba(239,68,68,0.4)]">
+          <XCircle className="mx-auto h-12 w-12 text-red-400" />
+          <h2 className="mt-6 text-2xl font-semibold text-white">Payments Temporarily Unavailable</h2>
+          <p className="mt-2 text-sm text-neutral-400 leading-relaxed">
+            Payments are temporarily unavailable. Please contact support.
+          </p>
+          <button
+            onClick={() => router.push("/dashboard/support")}
+            className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-green-500 px-6 text-sm font-bold text-black transition hover:bg-green-400"
+          >
+            Contact Support
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#050505] px-4 pb-20 pt-28 text-white sm:px-6 lg:px-8">
       <section className="mx-auto max-w-7xl">
@@ -533,7 +620,7 @@ export default function CheckoutPage() {
           <div>
             <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-green-300">
               <LockKeyhole className="h-4 w-4" />
-              Secure payment processing via USDT
+              Secure payment processing via {selectedMethod?.key || "USDT"}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
               {step === "payment" ? "Complete Your Payment" : "Payment Under Review"}
@@ -551,47 +638,142 @@ export default function CheckoutPage() {
         {step === "payment" && (
           <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
             <section className="space-y-5">
+              {paymentMethods.length > 1 && (
+                <div className="rounded-2xl border border-white/10 bg-[#0A0A0A]/95 p-5 sm:p-6">
+                  <h2 className="text-lg font-semibold text-white">Choose Payment Method</h2>
+                  <p className="mt-1 text-sm text-neutral-500 mb-4">Select your preferred payment rail below.</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {paymentMethods.map((m) => {
+                      const isSelected = selectedMethod?.key === m.key;
+                      return (
+                        <button
+                          key={m.key}
+                          type="button"
+                          onClick={() => setSelectedMethod(m)}
+                          className={`flex items-center gap-3 rounded-xl border p-4 text-left transition ${
+                            isSelected
+                              ? "border-green-500 bg-green-500/5 text-white"
+                              : "border-white/10 bg-white/[0.02] text-neutral-400 hover:border-white/20 hover:text-white"
+                          }`}
+                        >
+                          <span className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                            isSelected ? "border-green-500 bg-green-500 text-black" : "border-neutral-600"
+                          }`}>
+                            {isSelected && <Check className="h-3 w-3 stroke-[3px]" />}
+                          </span>
+                          <div>
+                            <p className="text-sm font-bold text-white">{m.key === "USDT" ? "USDT (Crypto)" : "UPI (Indian Rupees)"}</p>
+                            <p className="text-xs text-neutral-500">{m.key === "USDT" ? "Pay using USDT (TRC20)" : "Pay via GPay, PhonePe, UPI"}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-5">
                 <div className="flex gap-3">
                   <Info className="mt-0.5 h-5 w-5 shrink-0 text-green-300" />
                   <p className="text-sm leading-relaxed text-neutral-300">
-                    Complete the payment using USDT and submit only your transaction ID for verification.
+                    Complete the payment using {selectedMethod?.key || "USDT"} and submit only your transaction reference for verification.
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-[#0A0A0A]/95 p-5 sm:p-6">
-                <h2 className="text-lg font-semibold text-white">1. Pay Using USDT</h2>
-                <p className="mt-1 text-sm text-neutral-500">Send USDT to the wallet address below. Only USDT payments are accepted.</p>
-                <div className="mt-5 grid gap-5 md:grid-cols-[210px_1fr]">
-                  <QrPattern />
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-xs font-semibold text-neutral-500">USDT Wallet Address</p>
-                      <button
-                        type="button"
-                        onClick={copyWalletAddress}
-                        className="mt-2 flex h-11 w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 text-left text-sm font-semibold text-white">
-                        TXYZ123ABC456DEF789GHI
-                        <Copy className="h-4 w-4 text-neutral-500" />
-                      </button>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-neutral-500">Network</p>
-                      <p className="mt-1 text-lg font-bold tracking-tight text-white">TRC20</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-neutral-500">Amount to Pay</p>
-                      <p className="mt-1 text-3xl font-bold tracking-tight text-green-300">
-                        {pricing ? `$${pricing.entryFee.toLocaleString()} ${pricing.currency}` : "Loading..."}
+              {selectedMethod?.key === "USDT" ? (
+                <div className="rounded-2xl border border-white/10 bg-[#0A0A0A]/95 p-5 sm:p-6">
+                  <h2 className="text-lg font-semibold text-white">1. Pay Using USDT</h2>
+                  <p className="mt-1 text-sm text-neutral-500">Send USDT to the wallet address below. Only USDT payments are accepted.</p>
+                  <div className="mt-5 grid gap-5 md:grid-cols-[210px_1fr]">
+                    {selectedMethod?.usdtQrCode ? (
+                      <div className="flex justify-center bg-white p-3 rounded-xl aspect-square w-full max-w-[190px] shadow-[0_0_30px_rgba(255,255,255,0.08)]">
+                        <img
+                          src={selectedMethod.usdtQrCode.startsWith('http') || selectedMethod.usdtQrCode.startsWith('data:') ? selectedMethod.usdtQrCode : `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '')}${selectedMethod.usdtQrCode}`}
+                          className="h-full w-full object-contain"
+                          alt="USDT QR Code"
+                        />
+                      </div>
+                    ) : (
+                      <QrPattern />
+                    )}
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-xs font-semibold text-neutral-500">USDT Wallet Address</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(selectedMethod?.walletAddress || "");
+                            alert("USDT Wallet address copied to clipboard!");
+                          }}
+                          className="mt-2 flex h-11 w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 text-left text-sm font-semibold text-white">
+                          {selectedMethod?.walletAddress || ""}
+                          <Copy className="h-4 w-4 text-neutral-500" />
+                        </button>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-neutral-500">Network</p>
+                        <p className="mt-1 text-lg font-bold tracking-tight text-white">{selectedMethod?.network || "TRC20"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-neutral-500">Amount to Pay</p>
+                        <p className="mt-1 text-3xl font-bold tracking-tight text-green-300">
+                          {pricing ? `$${pricing.entryFee.toLocaleString()} USDT` : "Loading..."}
+                        </p>
+                      </div>
+                      <p className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-relaxed text-neutral-400">
+                        Note: Please send the exact USDT amount and use the correct network.
                       </p>
                     </div>
-                    <p className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-relaxed text-neutral-400">
-                      Note: Please send the exact USDT amount and use the correct network.
-                    </p>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-[#0A0A0A]/95 p-5 sm:p-6">
+                  <h2 className="text-lg font-semibold text-white">1. Pay Via UPI</h2>
+                  <p className="mt-1 text-sm text-neutral-500">Scan the QR code below or pay directly to the UPI ID.</p>
+                  <div className="mt-5 grid gap-5 md:grid-cols-[210px_1fr]">
+                    {selectedMethod?.upiQrCode ? (
+                      <div className="flex justify-center bg-white p-3 rounded-xl aspect-square w-full max-w-[190px] shadow-[0_0_30px_rgba(255,255,255,0.08)]">
+                        <img
+                          src={selectedMethod.upiQrCode.startsWith('http') || selectedMethod.upiQrCode.startsWith('data:') ? selectedMethod.upiQrCode : `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '')}${selectedMethod.upiQrCode}`}
+                          className="h-full w-full object-contain"
+                          alt="UPI QR Code"
+                        />
+                      </div>
+                    ) : (
+                      <QrPattern />
+                    )}
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-xs font-semibold text-neutral-500">UPI ID</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(selectedMethod?.upiId || "");
+                            alert("UPI ID copied to clipboard!");
+                          }}
+                          className="mt-2 flex h-11 w-full items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 text-left text-sm font-semibold text-white">
+                          {selectedMethod?.upiId || ""}
+                          <Copy className="h-4 w-4 text-neutral-500" />
+                        </button>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-neutral-500">Account Name</p>
+                        <p className="mt-1 text-lg font-bold tracking-tight text-white">{selectedMethod?.upiName || ""}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-neutral-500">Amount to Pay</p>
+                        <p className="mt-1 text-3xl font-bold tracking-tight text-green-300">
+                          {pricing ? `₹${pricing.entryFee.toLocaleString()} INR` : "Loading..."}
+                        </p>
+                      </div>
+                      <p className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-relaxed text-neutral-400">
+                        Note: Please make the exact payment and enter your transaction reference/UTR below.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <form
                 className="rounded-2xl border border-white/10 bg-[#0A0A0A]/95 p-5 sm:p-6"
@@ -600,26 +782,41 @@ export default function CheckoutPage() {
                   if (isSubmittingPayment) return;
 
                   const formData = new FormData(event.currentTarget);
-                  const txnHash = String(formData.get("txnHash") || "").trim();
-                  if (txnHash) {
-                    setIsSubmittingPayment(true);
-                    setPaymentError("");
-                    const created = await addPayment({
-                      user: paymentUser.name,
-                      email: paymentUser.email,
-                      plan: `${plan.name} ${plan.planType}`,
-                      amount: pricing?.entryFee || 0,
-                      txnHash,
-                      screenshot: screenshotPreview,
-                      network: "TRC20",
-                      paymentType: "USDT",
-                      initiationId
-                    });
-                    setIsSubmittingPayment(false);
-                    if (!created) {
-                      setPaymentError("Payment submission failed. Please check your login and try again.");
+                  let txnHash = String(formData.get("txnHash") || "").trim();
+                  
+                  if (!txnHash) {
+                    setPaymentError("Transaction reference is required.");
+                    return;
+                  }
+
+                  if (selectedMethod?.key === "UPI") {
+                    const cleanedRef = txnHash.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+                    if (cleanedRef.length < 8) {
+                      setPaymentError("Invalid UPI UTR reference. It must be at least 8 alphanumeric characters.");
                       return;
                     }
+                    txnHash = cleanedRef;
+                  } else {
+                    txnHash = txnHash.replace(/[^A-Za-z0-9]/gi, "").toUpperCase();
+                  }
+
+                  setIsSubmittingPayment(true);
+                  setPaymentError("");
+                  const created = await addPayment({
+                    user: paymentUser.name,
+                    email: paymentUser.email,
+                    plan: `${plan.name} ${plan.planType}`,
+                    amount: pricing?.entryFee || 0,
+                    txnHash,
+                    screenshot: screenshotPreview,
+                    network: selectedMethod?.key === "UPI" ? "UPI" : selectedMethod?.network || "TRC20",
+                    paymentType: selectedMethod?.key || "USDT",
+                    initiationId
+                  });
+                  setIsSubmittingPayment(false);
+                  if (!created) {
+                    setPaymentError("Payment submission failed. Please check your login and try again.");
+                    return;
                   }
                   moveToStep("status");
                 }}>
@@ -627,7 +824,9 @@ export default function CheckoutPage() {
                 <p className="mt-1 text-sm text-neutral-500">After payment, provide the transaction details below.</p>
 
                 <label className="mt-5 block">
-                  <span className="text-sm font-semibold text-white">Deposit Amount (USDT)</span>
+                  <span className="text-sm font-semibold text-white">
+                    Deposit Amount ({selectedMethod?.key === "UPI" ? "INR" : "USDT"})
+                  </span>
                   <input
                     name="amount"
                     required
@@ -655,12 +854,14 @@ export default function CheckoutPage() {
                 </label>
 
                 <label className="mt-4 block">
-                  <span className="text-sm font-semibold text-white">USDT Transaction ID</span>
+                  <span className="text-sm font-semibold text-white">
+                    {selectedMethod?.key === "UPI" ? "UPI Transaction Reference (UTR)" : "USDT Transaction ID"}
+                  </span>
                   <input
                     name="txnHash"
                     required
                     type="text"
-                    placeholder="Enter USDT transaction ID"
+                    placeholder={selectedMethod?.key === "UPI" ? "Enter 12-digit UPI UTR" : "Enter USDT transaction ID"}
                     className="mt-2 h-12 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white outline-none placeholder:text-neutral-600 focus:border-green-500/50"
                   />
                 </label>
@@ -728,7 +929,17 @@ export default function CheckoutPage() {
                     <SummaryRow label="Capital Range" value={plan.capital} />
                     <SummaryRow label="Profit Fee" value={plan.profitFee} highlight />
                     <SummaryRow label="Plan Type" value={plan.planType} />
-                    <SummaryRow label="Amount to Pay" value={pricing ? `$${pricing.entryFee.toLocaleString()} ${pricing.currency}` : "Loading..."} highlight />
+                    <SummaryRow 
+                      label="Amount to Pay" 
+                      value={
+                        pricing 
+                          ? selectedMethod?.key === "UPI"
+                            ? `₹${pricing.entryFee.toLocaleString()} INR`
+                            : `$${pricing.entryFee.toLocaleString()} USDT`
+                          : "Loading..."
+                      } 
+                      highlight 
+                    />
                   </div>
                   {pricing?.platformFeeNote && (
                     <p className="mt-3 text-xs text-neutral-400 italic">
@@ -747,7 +958,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
                 <div className="mt-4 space-y-2 text-sm text-neutral-300">
-                  {["USDT Only", "Transaction ID Verification", "Safe & Trusted Platform"].map((item) => (
+                  {[`${selectedMethod?.key || "USDT"} Only`, "Transaction ID Verification", "Safe & Trusted Platform"].map((item) => (
                     <p key={item} className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-green-300" />
                       {item}

@@ -20,7 +20,7 @@ export default function AdminLogin() {
     const checkSession = async () => {
       const user = useAdminStore.getState().currentUser;
       if (user && ["SUPER_ADMIN", "MANAGER", "VIEWER"].includes(user.role)) {
-        router.push("/admin/dashboard");
+        setTimeout(() => router.push("/admin/dashboard"), 0);
       }
     };
     checkSession();

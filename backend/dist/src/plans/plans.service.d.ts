@@ -23,7 +23,7 @@ export declare class PlansService {
             sortOrder: number;
         }[];
     }>;
-    getPlanById(idOrSlug: string): Promise<{
+    getPlanById(id: string): Promise<{
         plan: {
             amount: number | null;
             weeklyProfit: number;
@@ -44,6 +44,49 @@ export declare class PlansService {
             sortOrder: number;
         };
     } | null>;
+    getPlanBySlug(slug: string): Promise<{
+        plan: {
+            amount: number | null;
+            weeklyProfit: number;
+            durationDays: number;
+            id: string;
+            status: string;
+            createdAt: Date;
+            name: string;
+            updatedAt: Date;
+            desc: string;
+            isActive: boolean;
+            subtitle: string;
+            capitalLabel: string;
+            features: string[];
+            btnText: string;
+            isPopular: boolean;
+            pricingType: string;
+            sortOrder: number;
+        };
+    } | null>;
+    getPaymentMethods(): Promise<{
+        success: boolean;
+        methods: ({
+            key: string;
+            enabled: boolean;
+            walletAddress: string;
+            network: string;
+            usdtQrCode: string;
+            upiId?: undefined;
+            upiName?: undefined;
+            upiQrCode?: undefined;
+        } | {
+            key: string;
+            enabled: boolean;
+            upiId: string;
+            upiName: string;
+            upiQrCode: string;
+            walletAddress?: undefined;
+            network?: undefined;
+            usdtQrCode?: undefined;
+        })[];
+    }>;
     getAllPlans(): Promise<{
         plans: {
             id: string;

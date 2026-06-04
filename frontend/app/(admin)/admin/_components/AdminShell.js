@@ -23,6 +23,10 @@ export default function AdminShell({ children }) {
   const [showResults, setShowResults] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load Zustand auth parameters
   const currentUser = useAdminStore((s) => s.currentUser);
@@ -38,6 +42,7 @@ export default function AdminShell({ children }) {
   const transactions = useAdminStore((s) => s.transactions || []);
 
   useEffect(() => {
+    if (!mounted) return;
     const authenticate = async () => {
       // Direct return if on login page to avoid redirect loops
       if (pathname === "/admin/login") {
@@ -47,7 +52,7 @@ export default function AdminShell({ children }) {
 
       const isAuthenticated = localStorage.getItem("tradebot-authenticated") === "true";
       if (!isAuthenticated) {
-        router.push("/admin/login");
+        setTimeout(() => router.push("/admin/login"), 0);
         return;
       }
 
@@ -61,19 +66,19 @@ export default function AdminShell({ children }) {
           localStorage.removeItem("tradebot-authenticated");
           document.cookie = "tradebot-token=; path=/; max-age=0; SameSite=Lax";
           useAdminStore.setState({ currentUser: null });
-          router.push("/admin/login");
+          setTimeout(() => router.push("/admin/login"), 0);
           return;
         }
         
         setAuthLoading(false);
       } catch (err) {
         console.error("Auth check error:", err);
-        router.push("/admin/login");
+        setTimeout(() => router.push("/admin/login"), 0);
       }
     };
 
     authenticate();
-  }, [router, fetchData, pathname]);
+  }, [mounted, router, fetchData, pathname]);
 
 
 

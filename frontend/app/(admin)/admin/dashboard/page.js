@@ -1358,15 +1358,19 @@ function AdminSectionPage({
   }
 
   // Settings Panel specific states
-  const [upiIdInput, setUpiIdInput] = useState(activeSettings.upiId);
-  const [usdtNetwork, setUsdtNetwork] = useState(activeSettings.usdt.network);
-  const [usdtAddress, setUsdtAddress] = useState(activeSettings.usdt.walletAddress);
-  const [platformFee, setPlatformFee] = useState(activeSettings.financials.platformFee);
-  const [referralFee, setReferralFee] = useState(activeSettings.financials.referralFee);
-  const [upiEnabled, setUpiEnabled] = useState(activeSettings.paymentModes.upi);
-  const [bankEnabled, setBankEnabled] = useState(activeSettings.paymentModes.bank);
-  const [usdtEnabled, setUsdtEnabled] = useState(activeSettings.paymentModes.usdt);
-  const [maintenanceMode, setMaintenanceMode] = useState(activeSettings.system.maintenanceMode);
+  const [upiIdInput, setUpiIdInput] = useState(activeSettings.upiId || "");
+  const [upiNameInput, setUpiNameInput] = useState(activeSettings.upiName || "");
+  const [upiQrCodeInput, setUpiQrCodeInput] = useState(activeSettings.upiQrCode || "");
+  const [usdtNetwork, setUsdtNetwork] = useState(activeSettings.usdt?.network || "TRC20");
+  const [usdtAddress, setUsdtAddress] = useState(activeSettings.usdt?.walletAddress || "");
+  const [usdtQrCodeInput, setUsdtQrCodeInput] = useState(activeSettings.usdt?.usdtQrCode || "");
+  const [platformFee, setPlatformFee] = useState(activeSettings.financials?.platformFee || 30);
+  const [referralFee, setReferralFee] = useState(activeSettings.financials?.referralFee || 10);
+  const [upiEnabled, setUpiEnabled] = useState(activeSettings.paymentModes?.upi ?? false);
+  const [bankEnabled, setBankEnabled] = useState(activeSettings.paymentModes?.bank ?? false);
+  const [usdtEnabled, setUsdtEnabled] = useState(activeSettings.paymentModes?.usdt ?? true);
+  const [activePaymentConfigTab, setActivePaymentConfigTab] = useState("USDT");
+  const [maintenanceMode, setMaintenanceMode] = useState(activeSettings.system?.maintenanceMode ?? false);
 
   const [individualProfitPct, setIndividualProfitPct] = useState(activeSettings.profitDist?.individualProfitPct ?? 5.00);
   const [clubProfitPct, setClubProfitPct] = useState(activeSettings.profitDist?.clubProfitPct ?? 7.00);
@@ -1407,19 +1411,32 @@ function AdminSectionPage({
   const [refAutoApprove, setRefAutoApprove] = useState(activeReferralSettings?.autoApprove || false);
 
   useEffect(() => {
-    setUpiIdInput(activeSettings.upiId);
-    setUsdtNetwork(activeSettings.usdt.network);
-    setUsdtAddress(activeSettings.usdt.walletAddress);
-    setPlatformFee(activeSettings.financials.platformFee);
-    setReferralFee(activeSettings.financials.referralFee);
-    setUpiEnabled(activeSettings.paymentModes.upi);
-    setBankEnabled(activeSettings.paymentModes.bank);
-    setUsdtEnabled(activeSettings.paymentModes.usdt);
-    setMaintenanceMode(activeSettings.system.maintenanceMode);
+    setUpiIdInput(activeSettings.upiId || "");
+    setUpiNameInput(activeSettings.upiName || "");
+    setUpiQrCodeInput(activeSettings.upiQrCode || "");
+    setUsdtNetwork(activeSettings.usdt?.network || "TRC20");
+    setUsdtAddress(activeSettings.usdt?.walletAddress || "");
+    setUsdtQrCodeInput(activeSettings.usdt?.usdtQrCode || "");
+    setPlatformFee(activeSettings.financials?.platformFee || 30);
+    setReferralFee(activeSettings.financials?.referralFee || 10);
+    const hasUpi = activeSettings.paymentModes?.upi ?? false;
+    const hasUsdt = activeSettings.paymentModes?.usdt ?? true;
+    setUpiEnabled(hasUpi);
+    setBankEnabled(activeSettings.paymentModes?.bank ?? false);
+    setUsdtEnabled(hasUsdt);
+    setMaintenanceMode(activeSettings.system?.maintenanceMode ?? false);
     setIndividualProfitPct(activeSettings.profitDist?.individualProfitPct ?? 5.00);
     setClubProfitPct(activeSettings.profitDist?.clubProfitPct ?? 7.00);
     setEnableBulkDist(activeSettings.profitDist?.enableBulkDist ?? true);
     setAllowDuplicateDist(activeSettings.profitDist?.allowDuplicateDist ?? false);
+
+    if (hasUsdt) {
+      setActivePaymentConfigTab("USDT");
+    } else if (hasUpi) {
+      setActivePaymentConfigTab("UPI");
+    } else {
+      setActivePaymentConfigTab("");
+    }
   }, [activeSettings]);
 
   useEffect(() => {
@@ -1441,10 +1458,33 @@ function AdminSectionPage({
   };
 
   const handleSave = () => {
+    if (upiEnabled) {
+      if (!upiIdInput || !upiIdInput.trim()) {
+        alert("UPI ID is required when UPI is enabled.");
+        return;
+      }
+      if (!upiNameInput || !upiNameInput.trim()) {
+        alert("UPI Account Name is required when UPI is enabled.");
+        return;
+      }
+    }
+    if (usdtEnabled) {
+      if (!usdtAddress || !usdtAddress.trim()) {
+        alert("USDT Wallet Address is required when USDT is enabled.");
+        return;
+      }
+      if (!usdtNetwork || !usdtNetwork.trim()) {
+        alert("USDT Network is required when USDT is enabled.");
+        return;
+      }
+    }
+
     onSaveSettings({
-      upiId: "",
-      paymentModes: { upi: false, bank: false, usdt: true },
-      usdt: { network: usdtNetwork, walletAddress: usdtAddress },
+      upiId: upiIdInput,
+      upiName: upiNameInput,
+      upiQrCode: upiQrCodeInput,
+      paymentModes: { upi: upiEnabled, bank: bankEnabled, usdt: usdtEnabled },
+      usdt: { network: usdtNetwork, walletAddress: usdtAddress, usdtQrCode: usdtQrCodeInput },
       financials: { platformFee: Number(platformFee), referralFee: Number(referralFee) },
       system: { maintenanceMode: maintenanceMode },
       profitDist: {
@@ -1974,74 +2014,283 @@ function AdminSectionPage({
             </div>
 
             <div className="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {/* Payment Toggles */}
+              {/* Payment Methods */}
               <div className="space-y-4">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-green-300">Enabled Modes</h3>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-green-300">Payment Methods</h3>
                 <div className="space-y-3">
-                  <label className="flex items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.015] p-3 text-sm text-neutral-300 hover:bg-white/[0.03]">
-                    <span>UPI Gateway</span>
-                    <input type="checkbox" disabled checked={false} className="h-4 w-4 accent-green-500" />
-                  </label>
-                  <label className="flex items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.015] p-3 text-sm text-neutral-300 hover:bg-white/[0.03]">
-                    <span>Bank Transfer</span>
-                    <input type="checkbox" disabled checked={false} className="h-4 w-4 accent-green-500" />
-                  </label>
-                  <label className="flex items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.015] p-3 text-sm text-neutral-300 hover:bg-white/[0.03]">
-                    <span>USDT</span>
-                    <input type="checkbox" disabled checked className="h-4 w-4 accent-green-500" />
-                  </label>
+                  {/* UPI Gateway Card */}
+                  <div
+                    onClick={() => {
+                      if (upiEnabled) {
+                        setActivePaymentConfigTab("UPI");
+                      }
+                    }}
+                    className={`flex flex-col gap-2 rounded-xl border p-4 transition ${
+                      upiEnabled ? "cursor-pointer" : "opacity-50"
+                    } ${
+                      activePaymentConfigTab === "UPI" && upiEnabled
+                        ? "border-green-500 bg-green-500/5 text-white"
+                        : "border-white/[0.08] bg-white/[0.015] text-neutral-400 hover:border-white/20 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-white">UPI Gateway</span>
+                      <input 
+                        type="checkbox" 
+                        disabled={!canEditSettings} 
+                        checked={upiEnabled} 
+                        onClick={(e) => e.stopPropagation()} 
+                        onChange={(e) => {
+                          setUpiEnabled(e.target.checked);
+                          if (e.target.checked) {
+                            setActivePaymentConfigTab("UPI");
+                          } else if (activePaymentConfigTab === "UPI") {
+                            if (usdtEnabled) {
+                              setActivePaymentConfigTab("USDT");
+                            } else {
+                              setActivePaymentConfigTab("");
+                            }
+                          }
+                        }} 
+                        className="h-4 w-4 accent-green-500" 
+                      />
+                    </div>
+                    <p className="text-xs text-neutral-500">Enable local bank payments in India via UPI.</p>
+                  </div>
+
+                  {/* USDT (Crypto) Card */}
+                  <div
+                    onClick={() => {
+                      if (usdtEnabled) {
+                        setActivePaymentConfigTab("USDT");
+                      }
+                    }}
+                    className={`flex flex-col gap-2 rounded-xl border p-4 transition ${
+                      usdtEnabled ? "cursor-pointer" : "opacity-50"
+                    } ${
+                      activePaymentConfigTab === "USDT" && usdtEnabled
+                        ? "border-green-500 bg-green-500/5 text-white"
+                        : "border-white/[0.08] bg-white/[0.015] text-neutral-400 hover:border-white/20 hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-white">USDT (Crypto)</span>
+                      <input 
+                        type="checkbox" 
+                        disabled={!canEditSettings} 
+                        checked={usdtEnabled} 
+                        onClick={(e) => e.stopPropagation()} 
+                        onChange={(e) => {
+                          setUsdtEnabled(e.target.checked);
+                          if (e.target.checked) {
+                            setActivePaymentConfigTab("USDT");
+                          } else if (activePaymentConfigTab === "USDT") {
+                            if (upiEnabled) {
+                              setActivePaymentConfigTab("UPI");
+                            } else {
+                              setActivePaymentConfigTab("");
+                            }
+                          }
+                        }} 
+                        className="h-4 w-4 accent-green-500" 
+                      />
+                    </div>
+                    <p className="text-xs text-neutral-500">Enable blockchain USDT deposits (TRC20/ERC20).</p>
+                  </div>
                 </div>
               </div>
 
               {/* UPI Form */}
-              <div className="hidden">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-green-300">🏦 UPI Configuration</h3>
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-neutral-400">UPI Address ID</span>
-                  <input
-                    type="text"
-                    value={upiIdInput}
-                    disabled={!upiEnabled || !canEditSettings}
-                    onChange={(e) => setUpiIdInput(e.target.value)}
-                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
-                  />
-                </label>
-                <div className="rounded-lg border border-dashed border-white/[0.12] bg-white/[0.01] p-3 text-center">
-                  <span className="block text-xs font-semibold text-neutral-400 mb-2">Static QR Preview</span>
-                  <div className="mx-auto flex h-24 w-24 items-center justify-center rounded bg-white text-black font-bold text-[10px]">
-                    [ UPI QR ]
+              {activePaymentConfigTab === "UPI" && upiEnabled && (
+                <div className={`space-y-4 ${!canEditSettings ? "opacity-40" : ""}`}>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-green-300">🏦 UPI Configuration</h3>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold text-neutral-400">UPI Address ID</span>
+                    <input
+                      type="text"
+                      value={upiIdInput}
+                      disabled={!canEditSettings}
+                      onChange={(e) => setUpiIdInput(e.target.value)}
+                      placeholder="e.g. pay@upi"
+                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold text-neutral-400">UPI Account Name</span>
+                    <input
+                      type="text"
+                      value={upiNameInput}
+                      disabled={!canEditSettings}
+                      onChange={(e) => setUpiNameInput(e.target.value)}
+                      placeholder="e.g. Nexus Capital"
+                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
+                    />
+                  </label>
+                  <div className="block">
+                    <span className="mb-2 block text-xs font-semibold text-neutral-400">UPI QR Code Image</span>
+                    {upiQrCodeInput ? (
+                      <div className="relative mb-2 flex flex-col items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 p-3">
+                        <img 
+                          src={upiQrCodeInput.startsWith('http') || upiQrCodeInput.startsWith('data:') ? upiQrCodeInput : `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '')}${upiQrCodeInput}`} 
+                          alt="QR Code Preview" 
+                          className="max-h-32 object-contain" 
+                        />
+                        <button
+                          type="button"
+                          disabled={!canEditSettings}
+                          onClick={() => setUpiQrCodeInput("")}
+                          className="text-xs text-red-400 hover:text-red-300 font-semibold disabled:opacity-50"
+                        >
+                          Remove QR Code
+                        </button>
+                      </div>
+                    ) : (
+                      <label className={`flex h-24 w-full cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-white/20 bg-black/10 hover:border-green-500/50 ${(!canEditSettings) ? "cursor-not-allowed opacity-50" : ""}`}>
+                        <span className="text-xs text-neutral-400 font-semibold">Click to upload QR Code</span>
+                        <span className="text-[10px] text-neutral-600 mt-1">PNG, JPG up to 5MB</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={!canEditSettings}
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            
+                            const reader = new FileReader();
+                            reader.onloadend = async () => {
+                              const base64 = reader.result;
+                              try {
+                                const res = await apiFetch("/api/admin/upload-qr", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ image: base64 })
+                                });
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  if (data.url) {
+                                    setUpiQrCodeInput(data.url);
+                                  }
+                                } else {
+                                  const err = await res.json().catch(() => null);
+                                  alert(err?.message || "Failed to upload image");
+                                }
+                              } catch (err) {
+                                alert("Failed to upload image due to a network error");
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                    )}
                   </div>
-                  <button type="button" disabled={!upiEnabled || !canEditSettings} className="mt-2 text-xs font-bold text-green-300 hover:underline">Upload New QR</button>
                 </div>
-              </div>
+              )}
 
               {/* USDT Config */}
-              <div className={`space-y-4 ${!canEditSettings ? "opacity-40" : ""}`}>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-green-300">🪙 USDT Configuration</h3>
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-neutral-400">Network Type</span>
-                  <select
-                    value={usdtNetwork}
-                    disabled={!canEditSettings}
-                    onChange={(e) => setUsdtNetwork(e.target.value)}
-                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50"
-                  >
-                    <option value="TRC20">TRC20 (Tron Network - Low Fee)</option>
-                    <option value="ERC20">ERC20 (Ethereum Network)</option>
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-neutral-400">USDT Wallet Address</span>
-                  <input
-                    type="text"
-                    value={usdtAddress}
-                    disabled={!canEditSettings}
-                    onChange={(e) => setUsdtAddress(e.target.value)}
-                    placeholder="Enter wallet destination"
-                    className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
-                  />
-                </label>
-              </div>
+              {activePaymentConfigTab === "USDT" && usdtEnabled && (
+                <div className={`space-y-4 ${!canEditSettings ? "opacity-40" : ""}`}>
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-green-300">🪙 USDT Configuration</h3>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold text-neutral-400">Network Type</span>
+                    <select
+                      value={usdtNetwork}
+                      disabled={!canEditSettings}
+                      onChange={(e) => setUsdtNetwork(e.target.value)}
+                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50"
+                    >
+                      <option value="TRC20">TRC20 (Tron Network - Low Fee)</option>
+                      <option value="ERC20">ERC20 (Ethereum Network)</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-semibold text-neutral-400">USDT Wallet Address</span>
+                    <input
+                      type="text"
+                      value={usdtAddress}
+                      disabled={!canEditSettings}
+                      onChange={(e) => setUsdtAddress(e.target.value)}
+                      placeholder="Enter wallet destination"
+                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
+                    />
+                  </label>
+                  <div className="block">
+                    <span className="mb-2 block text-xs font-semibold text-neutral-400">USDT QR Code Image</span>
+                    {usdtQrCodeInput ? (
+                      <div className="relative mb-2 flex flex-col items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 p-3">
+                        <img 
+                          src={usdtQrCodeInput.startsWith('http') || usdtQrCodeInput.startsWith('data:') ? usdtQrCodeInput : `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '')}${usdtQrCodeInput}`} 
+                          alt="QR Code Preview" 
+                          className="max-h-32 object-contain" 
+                        />
+                        <button
+                          type="button"
+                          disabled={!canEditSettings}
+                          onClick={() => setUsdtQrCodeInput("")}
+                          className="text-xs text-red-400 hover:text-red-300 font-semibold disabled:opacity-50"
+                        >
+                          Remove QR Code
+                        </button>
+                      </div>
+                    ) : (
+                      <label className={`flex h-24 w-full cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-white/20 bg-black/10 hover:border-green-500/50 ${(!canEditSettings) ? "cursor-not-allowed opacity-50" : ""}`}>
+                        <span className="text-xs text-neutral-400 font-semibold">Click to upload QR Code</span>
+                        <span className="text-[10px] text-neutral-600 mt-1">PNG, JPG up to 5MB</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={!canEditSettings}
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            
+                            const reader = new FileReader();
+                            reader.onloadend = async () => {
+                              const base64 = reader.result;
+                              try {
+                                const res = await apiFetch("/api/admin/upload-qr", {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ image: base64 })
+                                });
+                                if (res.ok) {
+                                  const data = await res.json();
+                                  if (data.url) {
+                                    setUsdtQrCodeInput(data.url);
+                                  }
+                                } else {
+                                  const err = await res.json().catch(() => null);
+                                  alert(err?.message || "Failed to upload image");
+                                }
+                              } catch (err) {
+                                alert("Failed to upload image due to a network error");
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Placeholder when none enabled */}
+              {!(upiEnabled || usdtEnabled) && (
+                <div className="md:col-span-2 flex h-full min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-5 text-center text-neutral-500">
+                  <span>No payment methods are currently active.</span>
+                  <span className="text-xs mt-1 text-neutral-600">Enable a payment mode on the left to configure it.</span>
+                </div>
+              )}
+
+              {/* Placeholder when tab mismatch */}
+              {(upiEnabled || usdtEnabled) && !(activePaymentConfigTab === "UPI" && upiEnabled) && !(activePaymentConfigTab === "USDT" && usdtEnabled) && (
+                <div className="md:col-span-2 flex h-full min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-5 text-center text-neutral-500">
+                  <span>Select an enabled payment method from the left to configure it.</span>
+                </div>
+              )}
             </div>
           </section>
 

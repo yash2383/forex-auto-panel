@@ -42,8 +42,35 @@ let PlansController = class PlansController {
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
+    async getPaymentMethods(res) {
+        try {
+            const result = await this.plansService.getPaymentMethods();
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Fetch payment methods error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async getPlanBySlug(slug, res) {
+        try {
+            const result = await this.plansService.getPlanBySlug(slug);
+            if (!result) {
+                return res.status(common_1.HttpStatus.NOT_FOUND).json({ message: 'Plan not found' });
+            }
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Fetch plan by slug error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
     async getPlanById(id, res) {
         try {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+            if (!isUuid) {
+                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Invalid plan ID format (UUID expected)' });
+            }
             const result = await this.plansService.getPlanById(id);
             if (!result) {
                 return res.status(common_1.HttpStatus.NOT_FOUND).json({ message: 'Plan not found' });
@@ -103,6 +130,21 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], PlansController.prototype, "getAllPlans", null);
+__decorate([
+    (0, common_1.Get)('payment-methods'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], PlansController.prototype, "getPaymentMethods", null);
+__decorate([
+    (0, common_1.Get)('slug/:slug'),
+    __param(0, (0, common_1.Param)('slug')),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], PlansController.prototype, "getPlanBySlug", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, common_1.Param)('id')),

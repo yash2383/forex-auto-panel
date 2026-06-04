@@ -18,6 +18,9 @@ export declare class AdminController {
     deletePlan(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     getSettings(res: Response): Promise<Response<any, Record<string, any>>>;
     updateSettings(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    uploadQr(req: Request, body: {
+        image: string;
+    }, res: Response): Promise<Response<any, Record<string, any>>>;
     getReferralSettings(res: Response): Promise<Response<any, Record<string, any>>>;
     updateReferralSettings(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     getReferrals(res: Response): Promise<Response<any, Record<string, any>>>;

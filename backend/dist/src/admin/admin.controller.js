@@ -166,10 +166,24 @@ let AdminController = class AdminController {
         try {
             const user = req.user;
             const result = await this.adminService.updateSettings(user.id, body, this.getClientIp(req));
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
             return res.json(result);
         }
         catch (error) {
             console.error('Save settings error:', error);
+            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+        }
+    }
+    async uploadQr(req, body, res) {
+        try {
+            const result = await this.adminService.uploadQrCode(body.image);
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('QR upload error:', error);
             return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
         }
     }
@@ -592,6 +606,16 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "updateSettings", null);
+__decorate([
+    (0, common_1.Post)('upload-qr'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "uploadQr", null);
 __decorate([
     (0, common_1.Get)('referral-settings'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),

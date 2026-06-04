@@ -32,9 +32,38 @@ export class PlansController {
     }
   }
 
+  @Get('payment-methods')
+  async getPaymentMethods(@Res() res: Response) {
+    try {
+      const result = await this.plansService.getPaymentMethods();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Fetch payment methods error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Get('slug/:slug')
+  async getPlanBySlug(@Param('slug') slug: string, @Res() res: Response) {
+    try {
+      const result = await this.plansService.getPlanBySlug(slug);
+      if (!result) {
+        return res.status(HttpStatus.NOT_FOUND).json({ message: 'Plan not found' });
+      }
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Fetch plan by slug error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
   @Get(':id')
   async getPlanById(@Param('id') id: string, @Res() res: Response) {
     try {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      if (!isUuid) {
+        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid plan ID format (UUID expected)' });
+      }
       const result = await this.plansService.getPlanById(id);
       if (!result) {
         return res.status(HttpStatus.NOT_FOUND).json({ message: 'Plan not found' });

@@ -148,6 +148,23 @@ let DashboardService = class DashboardService {
                 finalAmount = Number(plan.amount);
             }
         }
+        if (planId) {
+            const existing = await this.prisma.paymentInitiation.findFirst({
+                where: {
+                    userId,
+                    planId,
+                    status: 'initiated',
+                    createdAt: {
+                        gt: new Date(Date.now() - 30 * 60 * 1000),
+                    },
+                },
+                orderBy: { createdAt: 'desc' },
+            });
+            if (existing) {
+                console.log('Payment initiation reuse short-circuit: returning existing active initiation', existing.id);
+                return { success: true, initiationId: existing.id };
+            }
+        }
         const initiation = await this.prisma.paymentInitiation.create({
             data: {
                 userId,
@@ -155,6 +172,7 @@ let DashboardService = class DashboardService {
                 planId: planId || null,
                 amount: finalAmount,
                 paymentGateway: paymentGateway || 'usdt',
+                paymentType: paymentGateway === 'upi' ? 'UPI' : 'USDT',
                 source: source || 'Direct',
                 status: 'initiated',
             },
@@ -163,6 +181,25 @@ let DashboardService = class DashboardService {
     }
     async deposit(actor, body) {
         const { planName, amount, txnHash, utr, paymentType, network, initiationId, idempotencyKey, email, screenshot, remark, } = body;
+        let finalTxnHash = txnHash ? String(txnHash).trim().toUpperCase() : null;
+        let finalUtr = utr ? String(utr).trim().toUpperCase() : null;
+        if (paymentType === 'UPI') {
+            const reference = finalUtr || finalTxnHash;
+            if (!reference) {
+                return { error: 'UPI Transaction Reference (UTR) is required', status: 400 };
+            }
+            const cleanedRef = reference.replace(/[^A-Z0-9]/g, '');
+            if (cleanedRef.length < 8) {
+                return { error: 'Invalid UPI UTR reference. It must be at least 8 alphanumeric characters.', status: 400 };
+            }
+            finalUtr = cleanedRef;
+            finalTxnHash = cleanedRef;
+        }
+        else if (paymentType === 'USDT' || !paymentType) {
+            if (finalTxnHash) {
+                finalTxnHash = finalTxnHash.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            }
+        }
         if (!planName || amount === undefined || amount === null || isNaN(Number(amount)) || Number(amount) <= 0) {
             return { error: 'Plan name and a positive amount are required', status: 400 };
         }
@@ -225,8 +262,15 @@ let DashboardService = class DashboardService {
                 }
             }
             else if (matchedPlan.pricingType === 'FLEXIBLE') {
-                if (Number(amount) <= 0) {
-                    return { error: 'A positive deposit amount is required for flexible pricing plans.', status: 400 };
+                const PLAN_MIN_AMOUNTS = {
+                    club: 10,
+                    individual: 1000,
+                    custom: 5000,
+                };
+                const slug = matchedPlan.name.split(' ')[0].toLowerCase();
+                const minAllowed = PLAN_MIN_AMOUNTS[slug] || 1;
+                if (Number(amount) < minAllowed) {
+                    return { error: `Invalid payment amount. The ${matchedPlan.name} plan requires a minimum deposit of $${minAllowed} USDT.`, status: 400 };
                 }
             }
         }
@@ -308,8 +352,8 @@ let DashboardService = class DashboardService {
                         currency: 'INR',
                         paymentType: paymentType || 'USDT',
                         network: network || null,
-                        txnHash: txnHash || null,
-                        utr: utr || null,
+                        txnHash: finalTxnHash || null,
+                        utr: finalUtr || null,
                         screenshot: screenshot || null,
                         remark: remark || null,
                         status: 'PENDING',
@@ -326,6 +370,7 @@ let DashboardService = class DashboardService {
                             converted: true,
                             followUpStatus: 'CONVERTED',
                             amount: Number(amount),
+                            paymentType: paymentType || 'USDT',
                         },
                     });
                 }

@@ -89,7 +89,9 @@ export const useAdminStore = create((set, get) => ({
   ],
   settings: {
     upiId: "",
-    usdt: { network: "TRC20", walletAddress: "" },
+    upiName: "",
+    upiQrCode: "",
+    usdt: { network: "TRC20", walletAddress: "", usdtQrCode: "" },
     financials: { platformFee: 30, referralFee: 10 },
     system: { maintenanceMode: false },
     paymentModes: { upi: false, bank: false, usdt: true }
@@ -414,6 +416,7 @@ export const useAdminStore = create((set, get) => ({
         upiId: data.upiId,
         usdtAddress: data.usdt?.walletAddress,
         usdtNetwork: data.usdt?.network,
+        usdtQrCode: data.usdt?.usdtQrCode,
         platformFee: data.financials?.platformFee,
         referralFee: data.financials?.referralFee,
         maintenance: data.system?.maintenanceMode,
@@ -421,6 +424,10 @@ export const useAdminStore = create((set, get) => ({
         clubProfitPct: data.profitDist?.clubProfitPct,
         enableBulkDist: data.profitDist?.enableBulkDist,
         allowDuplicateDist: data.profitDist?.allowDuplicateDist,
+        upiEnabled: data.paymentModes?.upi,
+        usdtEnabled: data.paymentModes?.usdt,
+        upiName: data.upiName,
+        upiQrCode: data.upiQrCode,
       };
       const res = await apiFetch("/api/admin/settings", {
         method: "POST",

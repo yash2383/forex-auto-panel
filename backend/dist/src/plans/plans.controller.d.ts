@@ -5,6 +5,8 @@ export declare class PlansController {
     constructor(plansService: PlansService);
     getPlans(res: Response): Promise<Response<any, Record<string, any>>>;
     getAllPlans(res: Response): Promise<Response<any, Record<string, any>>>;
+    getPaymentMethods(res: Response): Promise<Response<any, Record<string, any>>>;
+    getPlanBySlug(slug: string, res: Response): Promise<Response<any, Record<string, any>>>;
     getPlanById(id: string, res: Response): Promise<Response<any, Record<string, any>>>;
     createPlan(body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     updatePlan(id: string, body: any, res: Response): Promise<Response<any, Record<string, any>>>;

@@ -117,9 +117,9 @@ export declare class DashboardService {
             userId: string;
             idempotencyKey: string | null;
             amount: Prisma.Decimal;
+            paymentType: import("@prisma/client").$Enums.PaymentType;
             planName: string;
             currency: string;
-            paymentType: import("@prisma/client").$Enums.PaymentType;
             network: string | null;
             txnHash: string | null;
             utr: string | null;

@@ -13,18 +13,8 @@ export class PlansService {
     return { plans };
   }
 
-  async getPlanById(idOrSlug: string) {
-    let plan = null;
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
-    if (isUuid) {
-      plan = await this.prisma.plan.findUnique({ where: { id: idOrSlug } });
-    }
-
-    if (!plan) {
-      const activePlans = await this.prisma.plan.findMany({ where: { isActive: true } });
-      plan = activePlans.find(p => p.name.split(" ")[0].toLowerCase() === idOrSlug.toLowerCase());
-    }
-
+  async getPlanById(id: string) {
+    const plan = await this.prisma.plan.findUnique({ where: { id } });
     if (!plan || !plan.isActive) return null;
     return {
       plan: {
@@ -33,6 +23,43 @@ export class PlansService {
         weeklyProfit: Number(plan.weeklyProfit),
         durationDays: Number(plan.durationDays),
       },
+    };
+  }
+
+  async getPlanBySlug(slug: string) {
+    const activePlans = await this.prisma.plan.findMany({ where: { isActive: true } });
+    const plan = activePlans.find(p => p.name.split(" ")[0].toLowerCase() === slug.toLowerCase());
+    if (!plan) return null;
+    return {
+      plan: {
+        ...plan,
+        amount: plan.amount !== null ? Number(plan.amount) : null,
+        weeklyProfit: Number(plan.weeklyProfit),
+        durationDays: Number(plan.durationDays),
+      },
+    };
+  }
+
+  async getPaymentMethods() {
+    const settings = await this.prisma.systemSettings.findFirst();
+    return {
+      success: true,
+      methods: [
+        {
+          key: "USDT",
+          enabled: settings?.usdtEnabled ?? true,
+          walletAddress: settings?.usdtAddress || 'TXYZ123ABC456DEF789GHI',
+          network: settings?.usdtNetwork || 'TRC20',
+          usdtQrCode: settings?.usdtQrCode || '',
+        },
+        {
+          key: "UPI",
+          enabled: settings?.upiEnabled ?? !!settings?.upiId,
+          upiId: settings?.upiId || '',
+          upiName: settings?.upiName || '',
+          upiQrCode: settings?.upiQrCode || '',
+        }
+      ]
     };
   }
 

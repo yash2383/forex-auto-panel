@@ -123,9 +123,12 @@ export declare class AdminService {
         }[];
         settings: {
             upiId: string;
+            upiName: string;
+            upiQrCode: string;
             usdt: {
                 network: string;
                 walletAddress: string;
+                usdtQrCode: string;
             };
             financials: {
                 platformFee: number;
@@ -377,6 +380,11 @@ export declare class AdminService {
             upiId: string | null;
             usdtAddress: string | null;
             usdtNetwork: string;
+            upiEnabled: boolean;
+            usdtEnabled: boolean;
+            upiName: string | null;
+            upiQrCode: string | null;
+            usdtQrCode: string | null;
             referralFeePct: Prisma.Decimal;
             platformFeePct: Prisma.Decimal;
             maintenance: boolean;
@@ -400,6 +408,11 @@ export declare class AdminService {
             upiId: string | null;
             usdtAddress: string | null;
             usdtNetwork: string;
+            upiEnabled: boolean;
+            usdtEnabled: boolean;
+            upiName: string | null;
+            upiQrCode: string | null;
+            usdtQrCode: string | null;
             referralFeePct: Prisma.Decimal;
             platformFeePct: Prisma.Decimal;
             maintenance: boolean;
@@ -646,9 +659,9 @@ export declare class AdminService {
             userId: string;
             idempotencyKey: string | null;
             amount: Prisma.Decimal;
+            paymentType: import("@prisma/client").$Enums.PaymentType;
             planName: string;
             currency: string;
-            paymentType: import("@prisma/client").$Enums.PaymentType;
             network: string | null;
             txnHash: string | null;
             utr: string | null;
@@ -676,9 +689,9 @@ export declare class AdminService {
             userId: string;
             idempotencyKey: string | null;
             amount: Prisma.Decimal;
+            paymentType: import("@prisma/client").$Enums.PaymentType;
             planName: string;
             currency: string;
-            paymentType: import("@prisma/client").$Enums.PaymentType;
             network: string | null;
             txnHash: string | null;
             utr: string | null;
@@ -1056,6 +1069,7 @@ export declare class AdminService {
             planId: string | null;
             amount: Prisma.Decimal;
             paymentGateway: string | null;
+            paymentType: string | null;
             source: string | null;
             checkoutOpenedAt: Date;
             lastActivityAt: Date;
@@ -1084,6 +1098,7 @@ export declare class AdminService {
             planId: string | null;
             amount: Prisma.Decimal;
             paymentGateway: string | null;
+            paymentType: string | null;
             source: string | null;
             checkoutOpenedAt: Date;
             lastActivityAt: Date;
@@ -1093,6 +1108,17 @@ export declare class AdminService {
             remarks: string | null;
             converted: boolean;
         };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    uploadQrCode(base64Image: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        url?: undefined;
+    } | {
+        success: boolean;
+        url: string;
         error?: undefined;
         status?: undefined;
     }>;

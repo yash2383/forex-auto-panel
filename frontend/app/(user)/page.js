@@ -1083,7 +1083,7 @@ export default function Home() {
               <button
                 className="z-10 overflow-hidden transition-all duration-300 ease-out hover:scale-105 active:scale-95 hover:border-green-500/50 text-white bg-[#0A0A0A] border-white/20 border rounded-xl pt-3 pr-8 pb-3 pl-8 relative hover:shadow-[0_0_30px_rgba(34,197,94,0.3)] shadow-[0_0_20px_rgba(34,197,94,0.15)]">
                 <span className="relative z-10 inline-flex items-center gap-2 font-semibold">
-                  Get Started &rarr;
+                  Get Started
                   <svg className="h-5 w-5 transition-transform duration-200 ease-out group-hover:translate-x-1" fill="none"
                     stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 5l7 7-7 7"></path>

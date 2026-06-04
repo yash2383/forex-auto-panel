@@ -180,9 +180,23 @@ export class AdminController {
     try {
       const user = (req as any).user;
       const result = await this.adminService.updateSettings(user.id, body, this.getClientIp(req));
+      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
       return res.json(result);
     } catch (error: any) {
       console.error('Save settings error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Post('upload-qr')
+  @Roles('SUPER_ADMIN')
+  async uploadQr(@Req() req: Request, @Body() body: { image: string }, @Res() res: Response) {
+    try {
+      const result = await this.adminService.uploadQrCode(body.image);
+      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('QR upload error:', error);
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }

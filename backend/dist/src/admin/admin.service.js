@@ -205,11 +205,13 @@ let AdminService = class AdminService {
             totalProfit: `₹${totalProfit.toLocaleString('en-IN')}`,
         };
         const settings = {
-            upiId: dbSettings?.upiId || 'tradebot@upi',
-            usdt: { network: dbSettings?.usdtNetwork || 'TRC20', walletAddress: dbSettings?.usdtAddress || 'TXYZ123ABC456DEF789GHI' },
+            upiId: dbSettings?.upiId || '',
+            upiName: dbSettings?.upiName || '',
+            upiQrCode: dbSettings?.upiQrCode || '',
+            usdt: { network: dbSettings?.usdtNetwork || 'TRC20', walletAddress: dbSettings?.usdtAddress || '', usdtQrCode: dbSettings?.usdtQrCode || '' },
             financials: { platformFee: Number(dbSettings?.platformFeePct || 30), referralFee: Number(dbSettings?.referralFeePct || 10) },
             system: { maintenanceMode: dbSettings?.maintenance || false },
-            paymentModes: { upi: !!dbSettings?.upiId, bank: false, usdt: dbSettings ? !!dbSettings.usdtAddress : true },
+            paymentModes: { upi: dbSettings?.upiEnabled ?? false, bank: false, usdt: dbSettings?.usdtEnabled ?? true },
             profitDist: {
                 individualProfitPct: Number(dbSettings?.individualProfitPct ?? 5.00),
                 clubProfitPct: Number(dbSettings?.clubProfitPct ?? 7.00),
@@ -489,7 +491,23 @@ let AdminService = class AdminService {
         return { success: true, settings };
     }
     async updateSettings(adminId, body, clientIp) {
-        const { upiId, usdtAddress, usdtNetwork, platformFee, referralFee, maintenance, individualProfitPct, clubProfitPct, enableBulkDist, allowDuplicateDist } = body;
+        const { upiId, usdtAddress, usdtNetwork, platformFee, referralFee, maintenance, individualProfitPct, clubProfitPct, enableBulkDist, allowDuplicateDist, upiEnabled, usdtEnabled, upiName, upiQrCode, usdtQrCode } = body;
+        if (upiEnabled === true) {
+            if (!upiId || !upiId.trim()) {
+                return { error: 'UPI ID is required when UPI payment rail is enabled', status: 400 };
+            }
+            if (!upiName || !upiName.trim()) {
+                return { error: 'UPI Account Name is required when UPI payment rail is enabled', status: 400 };
+            }
+        }
+        if (usdtEnabled === true) {
+            if (!usdtAddress || !usdtAddress.trim()) {
+                return { error: 'USDT Wallet Address is required when USDT payment rail is enabled', status: 400 };
+            }
+            if (!usdtNetwork || !usdtNetwork.trim()) {
+                return { error: 'USDT Network is required when USDT payment rail is enabled', status: 400 };
+            }
+        }
         if (individualProfitPct !== undefined) {
             const indVal = Number(individualProfitPct);
             if (isNaN(indVal) || indVal < 0 || indVal > 100) {
@@ -511,6 +529,11 @@ let AdminService = class AdminService {
                     upiId: upiId !== undefined ? upiId : existing.upiId,
                     usdtAddress: usdtAddress !== undefined ? usdtAddress : existing.usdtAddress,
                     usdtNetwork: usdtNetwork !== undefined ? usdtNetwork : existing.usdtNetwork,
+                    upiEnabled: upiEnabled !== undefined ? Boolean(upiEnabled) : existing.upiEnabled,
+                    usdtEnabled: usdtEnabled !== undefined ? Boolean(usdtEnabled) : existing.usdtEnabled,
+                    upiName: upiName !== undefined ? upiName : existing.upiName,
+                    upiQrCode: upiQrCode !== undefined ? upiQrCode : existing.upiQrCode,
+                    usdtQrCode: usdtQrCode !== undefined ? usdtQrCode : existing.usdtQrCode,
                     platformFeePct: platformFee !== undefined ? Number(platformFee) : existing.platformFeePct,
                     referralFeePct: referralFee !== undefined ? Number(referralFee) : existing.referralFeePct,
                     maintenance: maintenance !== undefined ? Boolean(maintenance) : existing.maintenance,
@@ -524,7 +547,14 @@ let AdminService = class AdminService {
         else {
             settings = await this.prisma.systemSettings.create({
                 data: {
-                    upiId: upiId || null, usdtAddress: usdtAddress || null, usdtNetwork: usdtNetwork || 'TRC20',
+                    upiId: upiId || null,
+                    usdtAddress: usdtAddress || null,
+                    usdtNetwork: usdtNetwork || 'TRC20',
+                    upiEnabled: upiEnabled !== undefined ? Boolean(upiEnabled) : true,
+                    usdtEnabled: usdtEnabled !== undefined ? Boolean(usdtEnabled) : true,
+                    upiName: upiName || '',
+                    upiQrCode: upiQrCode || '',
+                    usdtQrCode: usdtQrCode || '',
                     platformFeePct: platformFee !== undefined ? Number(platformFee) : 30.00,
                     referralFeePct: referralFee !== undefined ? Number(referralFee) : 10.00,
                     maintenance: maintenance !== undefined ? Boolean(maintenance) : false,
@@ -1688,6 +1718,35 @@ let AdminService = class AdminService {
             },
         });
         return { success: true, initiatedPayment: updated };
+    }
+    async uploadQrCode(base64Image) {
+        if (!base64Image) {
+            return { error: 'No image data provided', status: 400 };
+        }
+        const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (!matches || matches.length !== 3) {
+            return { error: 'Invalid image format. Must be a base64 encoded image.', status: 400 };
+        }
+        const mimeType = matches[1];
+        const base64Data = matches[2];
+        if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(mimeType)) {
+            return { error: 'Invalid image type. Only PNG, JPEG, JPG, and WEBP are allowed.', status: 400 };
+        }
+        const extension = mimeType.split('/')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+        if (buffer.length > 5 * 1024 * 1024) {
+            return { error: 'File size too large. Max 5MB.', status: 400 };
+        }
+        const fs = require('fs');
+        const path = require('path');
+        const uploadDir = path.join(process.cwd(), 'uploads', 'payment-methods');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        const fileName = `upi-qr-${Date.now()}.${extension}`;
+        const filePath = path.join(uploadDir, fileName);
+        fs.writeFileSync(filePath, buffer);
+        return { success: true, url: `/uploads/payment-methods/${fileName}` };
     }
 };
 exports.AdminService = AdminService;

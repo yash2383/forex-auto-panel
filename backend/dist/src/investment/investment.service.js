@@ -102,7 +102,9 @@ let InvestmentService = class InvestmentService {
         });
     }
     async updatePlan(planId, data) {
-        const plan = await this.prisma.investmentPlan.findUnique({ where: { id: planId } });
+        const plan = await this.prisma.investmentPlan.findUnique({
+            where: { id: planId },
+        });
         if (!plan) {
             throw new common_1.NotFoundException('Investment plan not found.');
         }
@@ -114,7 +116,8 @@ let InvestmentService = class InvestmentService {
                 throw new common_1.BadRequestException('Invalid min/max investment bounds.');
             }
         }
-        if (data.weeklyProfit !== undefined && (data.weeklyProfit < 0 || data.weeklyProfit > 100)) {
+        if (data.weeklyProfit !== undefined &&
+            (data.weeklyProfit < 0 || data.weeklyProfit > 100)) {
             throw new common_1.BadRequestException('Weekly profit rate must be between 0% and 100%.');
         }
         return this.prisma.investmentPlan.update({
@@ -123,7 +126,9 @@ let InvestmentService = class InvestmentService {
         });
     }
     async deletePlan(planId) {
-        const plan = await this.prisma.investmentPlan.findUnique({ where: { id: planId } });
+        const plan = await this.prisma.investmentPlan.findUnique({
+            where: { id: planId },
+        });
         if (!plan) {
             throw new common_1.NotFoundException('Investment plan not found.');
         }

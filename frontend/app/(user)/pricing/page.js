@@ -121,13 +121,13 @@ export default function PricingPage() {
   const handlePlanSelect = async (plan) => {
     const planId = plan.id;
     const minAmounts = { club: 10, individual: 1000, custom: 5000 };
-    const planSlug = plan.name.split(" ")[0].toLowerCase();
+    const planSlug = plan.slug || plan.name.split(" ")[0].toLowerCase();
     const amount = (plan.amount != null && Number(plan.amount) > 0)
       ? Number(plan.amount)
       : (minAmounts[planSlug] || 0);
 
     if (!currentUser) {
-      router.push(`/signup?next=${encodeURIComponent(`/checkout?plan=${planId}`)}`);
+      router.push(`/signup?next=${encodeURIComponent(`/checkout?plan=${planSlug}`)}`);
       return;
     }
     try {
@@ -138,14 +138,14 @@ export default function PricingPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.initiationId) {
-          router.push(`/checkout?plan=${planId}&initId=${data.initiationId}`);
+          router.push(`/checkout?plan=${planSlug}&initId=${data.initiationId}`);
           return;
         }
       }
     } catch (e) {
       console.error(e);
     }
-    router.push(`/checkout?plan=${planId}`);
+    router.push(`/checkout?plan=${planSlug}`);
   };
 
   useEffect(() => {
@@ -166,10 +166,10 @@ export default function PricingPage() {
       tone = "cyan";
     }
 
-    const planSlug = plan.name.split(" ")[0].toLowerCase();
+    const planSlug = plan.slug || plan.name.split(" ")[0].toLowerCase();
     const href = currentUser
-      ? `/checkout?plan=${plan.id}`
-      : `/signup?next=${encodeURIComponent(`/checkout?plan=${plan.id}`)}`;
+      ? `/checkout?plan=${planSlug}`
+      : `/signup?next=${encodeURIComponent(`/checkout?plan=${planSlug}`)}`;
 
     return {
       name: plan.name,

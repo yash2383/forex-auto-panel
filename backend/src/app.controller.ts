@@ -1,4 +1,10 @@
-import { Controller, Get, Post, Body, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  BadRequestException,
+} from '@nestjs/common';
 import { AppService } from './app.service';
 
 @Controller()
@@ -12,10 +18,18 @@ export class AppController {
 
   @Post('contact')
   async submitInquiry(
-    @Body() body: { name: string; email: string; subject: string; message: string },
+    @Body()
+    body: {
+      name: string;
+      email: string;
+      subject: string;
+      message: string;
+    },
   ) {
     if (!body.name || !body.email || !body.subject || !body.message) {
-      throw new BadRequestException('All fields (name, email, subject, message) are required');
+      throw new BadRequestException(
+        'All fields (name, email, subject, message) are required',
+      );
     }
     return this.appService.createInquiry(body);
   }

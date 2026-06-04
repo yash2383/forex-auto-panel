@@ -440,16 +440,22 @@ model SystemSettings {
 }
 
 model Plan {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
+  slug         String    @unique
   name         String
   subtitle     String
   capitalLabel String
   desc         String
   features     String[]
-  btnText      String   @default("Get Started")
-  status       String   @default("Active")
-  isPopular    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  btnText      String    @default("Get Started")
+  status       String    @default("Active")
+  isPopular    Boolean   @default(false)
+  amount       Decimal?  @db.Decimal(18, 4)
+  pricingType  String    @default("FIXED") @db.VarChar(20)
+  weeklyProfit Decimal   @default(5) @db.Decimal(5, 2)
+  durationDays Int       @default(30)
+  sortOrder    Int       @default(0)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
-

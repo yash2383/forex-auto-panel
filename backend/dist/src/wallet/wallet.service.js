@@ -63,7 +63,9 @@ let WalletService = class WalletService {
             }
             const sequence = await tx.withdrawal.count();
             const withdrawalId = `WD-${String(sequence + 1001).padStart(6, '0')}`;
-            const detailsStr = typeof accountDetails === 'object' ? JSON.stringify(accountDetails) : String(accountDetails);
+            const detailsStr = typeof accountDetails === 'object'
+                ? JSON.stringify(accountDetails)
+                : String(accountDetails);
             const nextAvailable = available - amount;
             const nextPending = Number(wallet.pendingWithdrawals) + amount;
             await tx.wallet.update({
@@ -89,9 +91,11 @@ let WalletService = class WalletService {
             return withdrawal;
         });
         if (result) {
-            this.notificationsService.sendToUser(userId, client_1.NotificationEvent.WITHDRAWAL_REQUESTED, {
+            this.notificationsService
+                .sendToUser(userId, client_1.NotificationEvent.WITHDRAWAL_REQUESTED, {
                 amount: Number(result.amount),
-            }).catch(err => console.error(`Failed to send WITHDRAWAL_REQUESTED notification for user ${userId}`, err));
+            })
+                .catch((err) => console.error(`Failed to send WITHDRAWAL_REQUESTED notification for user ${userId}`, err));
         }
         return result;
     }

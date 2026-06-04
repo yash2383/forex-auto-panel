@@ -1,9 +1,32 @@
-import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Req, Res, HttpStatus, UseGuards, Query, ForbiddenException, ConflictException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Req,
+  Res,
+  HttpStatus,
+  UseGuards,
+  Query,
+  ForbiddenException,
+  ConflictException,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../common/guards/roles.guard';
-import { NotificationCategory, NotificationStatus, NotificationAudience, NotificationChannel, BroadcastStatus, NotificationEvent } from '@prisma/client';
+import {
+  NotificationCategory,
+  NotificationStatus,
+  NotificationAudience,
+  NotificationChannel,
+  BroadcastStatus,
+  NotificationEvent,
+} from '@prisma/client';
 import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { NotificationsService } from './notifications.service';
 
@@ -49,7 +72,10 @@ export class NotificationsController {
         deletedAt: null,
       };
 
-      if (status && Object.values(NotificationStatus).includes(status as NotificationStatus)) {
+      if (
+        status &&
+        Object.values(NotificationStatus).includes(status as NotificationStatus)
+      ) {
         whereClause.status = status as NotificationStatus;
       }
 
@@ -85,7 +111,9 @@ export class NotificationsController {
       });
     } catch (error: any) {
       console.error('Fetch notifications error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -106,15 +134,24 @@ export class NotificationsController {
         },
       });
 
-      return res.json({ success: true, message: 'All notifications marked as read' });
+      return res.json({
+        success: true,
+        message: 'All notifications marked as read',
+      });
     } catch (error: any) {
       console.error('Mark read all notifications error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
   @Patch(':id/read')
-  async readNotification(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
+  async readNotification(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     try {
       const user = (req as any).user;
       const ownership = this.getOwnershipClause(user);
@@ -128,7 +165,9 @@ export class NotificationsController {
       });
 
       if (!notification) {
-        return res.status(HttpStatus.NOT_FOUND).json({ message: 'Notification not found' });
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .json({ message: 'Notification not found' });
       }
 
       const updated = await this.prisma.notification.update({
@@ -139,12 +178,18 @@ export class NotificationsController {
       return res.json({ success: true, notification: updated });
     } catch (error: any) {
       console.error('Mark read notification error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
   @Delete(':id')
-  async deleteNotification(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
+  async deleteNotification(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     try {
       const user = (req as any).user;
       const ownership = this.getOwnershipClause(user);
@@ -158,7 +203,9 @@ export class NotificationsController {
       });
 
       if (!notification) {
-        return res.status(HttpStatus.NOT_FOUND).json({ message: 'Notification not found' });
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .json({ message: 'Notification not found' });
       }
 
       await this.prisma.notification.update({
@@ -166,10 +213,15 @@ export class NotificationsController {
         data: { deletedAt: new Date(), status: NotificationStatus.ARCHIVED },
       });
 
-      return res.json({ success: true, message: 'Notification soft-deleted successfully' });
+      return res.json({
+        success: true,
+        message: 'Notification soft-deleted successfully',
+      });
     } catch (error: any) {
       console.error('Delete notification error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -178,7 +230,9 @@ export class NotificationsController {
     try {
       const user = (req as any).user;
       if (user.role !== 'USER') {
-        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Preferences only available for user role' });
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ message: 'Preferences only available for user role' });
       }
 
       const dbPrefs = await this.prisma.userNotificationPreference.findMany({
@@ -186,8 +240,8 @@ export class NotificationsController {
       });
 
       const categories = Object.values(NotificationCategory);
-      const preferences = categories.map(cat => {
-        const dbPref = dbPrefs.find(p => p.category === cat);
+      const preferences = categories.map((cat) => {
+        const dbPref = dbPrefs.find((p) => p.category === cat);
         return {
           category: cat,
           pushEnabled: dbPref?.pushEnabled ?? true,
@@ -199,7 +253,9 @@ export class NotificationsController {
       return res.json({ preferences });
     } catch (error: any) {
       console.error('Fetch preferences error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -218,12 +274,19 @@ export class NotificationsController {
     try {
       const user = (req as any).user;
       if (user.role !== 'USER') {
-        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Preferences only available for user role' });
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ message: 'Preferences only available for user role' });
       }
 
       const { category, pushEnabled, emailEnabled, bellEnabled } = body;
-      if (!category || !Object.values(NotificationCategory).includes(category)) {
-        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid category' });
+      if (
+        !category ||
+        !Object.values(NotificationCategory).includes(category)
+      ) {
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ message: 'Invalid category' });
       }
 
       const existing = await this.prisma.userNotificationPreference.findFirst({
@@ -235,9 +298,12 @@ export class NotificationsController {
         updated = await this.prisma.userNotificationPreference.update({
           where: { id: existing.id },
           data: {
-            pushEnabled: pushEnabled !== undefined ? pushEnabled : existing.pushEnabled,
-            emailEnabled: emailEnabled !== undefined ? emailEnabled : existing.emailEnabled,
-            bellEnabled: bellEnabled !== undefined ? bellEnabled : existing.bellEnabled,
+            pushEnabled:
+              pushEnabled !== undefined ? pushEnabled : existing.pushEnabled,
+            emailEnabled:
+              emailEnabled !== undefined ? emailEnabled : existing.emailEnabled,
+            bellEnabled:
+              bellEnabled !== undefined ? bellEnabled : existing.bellEnabled,
           },
         });
       } else {
@@ -255,7 +321,9 @@ export class NotificationsController {
       return res.json({ success: true, preference: updated });
     } catch (error: any) {
       console.error('Update preferences error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -270,7 +338,9 @@ export class NotificationsController {
       const { token, platform, browser } = body;
 
       if (!token) {
-        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Token is required' });
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ message: 'Token is required' });
       }
 
       const existing = await this.prisma.deviceToken.findFirst({
@@ -307,7 +377,9 @@ export class NotificationsController {
       return res.json({ success: true, device });
     } catch (error: any) {
       console.error('Register device token error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -323,7 +395,9 @@ export class NotificationsController {
       return res.json(stats);
     } catch (err: any) {
       console.error('Get admin analytics error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -335,7 +409,9 @@ export class NotificationsController {
       return res.json(stats);
     } catch (err: any) {
       console.error('Get archive stats error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -347,7 +423,9 @@ export class NotificationsController {
       return res.json(health);
     } catch (err: any) {
       console.error('Get queue health error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -367,38 +445,56 @@ export class NotificationsController {
       return res.json({ broadcasts });
     } catch (err: any) {
       console.error('Get broadcasts error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
   @Get('admin/audience-preview')
   @Roles('SUPER_ADMIN', 'MANAGER')
-  async getAudiencePreview(@Query('segment') segment: NotificationAudience, @Res() res: Response) {
+  async getAudiencePreview(
+    @Query('segment') segment: NotificationAudience,
+    @Res() res: Response,
+  ) {
     try {
       if (!Object.values(NotificationAudience).includes(segment)) {
-        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid segment.' });
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ message: 'Invalid segment.' });
       }
-      const preview = await this.notificationsService.getAudiencePreviewDetails(segment);
+      const preview =
+        await this.notificationsService.getAudiencePreviewDetails(segment);
       return res.json(preview);
     } catch (err: any) {
       console.error('Audience preview details error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
   @Post('admin/broadcasts/preview')
   @Roles('SUPER_ADMIN', 'MANAGER')
-  async previewBroadcast(@Body() body: { audience: NotificationAudience }, @Res() res: Response) {
-
+  async previewBroadcast(
+    @Body() body: { audience: NotificationAudience },
+    @Res() res: Response,
+  ) {
     try {
       if (!Object.values(NotificationAudience).includes(body.audience)) {
-        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid audience.' });
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ message: 'Invalid audience.' });
       }
-      const preview = await this.notificationsService.previewBroadcast(body.audience);
+      const preview = await this.notificationsService.previewBroadcast(
+        body.audience,
+      );
       return res.json(preview);
     } catch (err: any) {
       console.error('Preview broadcast error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -419,9 +515,14 @@ export class NotificationsController {
     try {
       const user = (req as any).user;
       if (!body.title || !body.body || !body.audience || !body.channels) {
-        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Missing required fields.' });
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ message: 'Missing required fields.' });
       }
-      const result = await this.notificationsService.createBroadcast(user.id, body);
+      const result = await this.notificationsService.createBroadcast(
+        user.id,
+        body,
+      );
 
       // Auditing
       const ipAddress = (req.headers['x-forwarded-for'] as string) || req.ip;
@@ -439,7 +540,9 @@ export class NotificationsController {
       return res.json(result);
     } catch (err: any) {
       console.error('Create broadcast error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -458,7 +561,9 @@ export class NotificationsController {
       const { action, approvalRequestId } = body;
 
       if (!Object.values(BroadcastAction).includes(action)) {
-        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid action.' });
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ message: 'Invalid action.' });
       }
 
       const broadcast = await this.prisma.notificationBroadcast.findUnique({
@@ -466,14 +571,18 @@ export class NotificationsController {
       });
 
       if (!broadcast) {
-        return res.status(HttpStatus.NOT_FOUND).json({ message: 'Broadcast not found.' });
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .json({ message: 'Broadcast not found.' });
       }
 
       if (
         broadcast.status === BroadcastStatus.SENT ||
         broadcast.status === BroadcastStatus.CANCELLED
       ) {
-        throw new ConflictException(`Cannot execute action on a broadcast that is already ${broadcast.status.toLowerCase()}.`);
+        throw new ConflictException(
+          `Cannot execute action on a broadcast that is already ${broadcast.status.toLowerCase()}.`,
+        );
       }
 
       // Auditing metrics
@@ -482,16 +591,30 @@ export class NotificationsController {
 
       if (action === BroadcastAction.APPROVE) {
         if (user.role !== 'SUPER_ADMIN') {
-          return res.status(HttpStatus.FORBIDDEN).json({ message: 'Only SUPER_ADMIN can approve broadcasts.' });
+          return res
+            .status(HttpStatus.FORBIDDEN)
+            .json({ message: 'Only SUPER_ADMIN can approve broadcasts.' });
         }
         if (broadcast.status === BroadcastStatus.SENDING) {
-          if (approvalRequestId && broadcast.approvalRequestId === approvalRequestId) {
-            return res.json({ success: true, message: 'Broadcast execution initiated (idempotent).' });
+          if (
+            approvalRequestId &&
+            broadcast.approvalRequestId === approvalRequestId
+          ) {
+            return res.json({
+              success: true,
+              message: 'Broadcast execution initiated (idempotent).',
+            });
           }
-          throw new ConflictException('Broadcast has already been approved and is currently sending.');
+          throw new ConflictException(
+            'Broadcast has already been approved and is currently sending.',
+          );
         }
 
-        const result = await this.notificationsService.approveAndSendBroadcast(id, user.id, approvalRequestId);
+        const result = await this.notificationsService.approveAndSendBroadcast(
+          id,
+          user.id,
+          approvalRequestId,
+        );
 
         await this.notificationsService.logAdminAudit(
           user.id,
@@ -507,7 +630,9 @@ export class NotificationsController {
       }
 
       if (broadcast.status === BroadcastStatus.SENDING) {
-        throw new ConflictException('Cannot cancel or reject a broadcast that is already in progress.');
+        throw new ConflictException(
+          'Cannot cancel or reject a broadcast that is already in progress.',
+        );
       }
 
       const statusMap = {
@@ -519,15 +644,20 @@ export class NotificationsController {
         where: { id },
         data: {
           status: statusMap[action],
-          rejectedAt: action === BroadcastAction.REJECT ? new Date() : undefined,
-          cancelledAt: action === BroadcastAction.CANCEL ? new Date() : undefined,
-          cancelledByAdminId: action === BroadcastAction.CANCEL ? user.id : undefined,
+          rejectedAt:
+            action === BroadcastAction.REJECT ? new Date() : undefined,
+          cancelledAt:
+            action === BroadcastAction.CANCEL ? new Date() : undefined,
+          cancelledByAdminId:
+            action === BroadcastAction.CANCEL ? user.id : undefined,
         },
       });
 
       await this.notificationsService.logAdminAudit(
         user.id,
-        action === BroadcastAction.REJECT ? 'REJECT_BROADCAST' : 'CANCEL_BROADCAST',
+        action === BroadcastAction.REJECT
+          ? 'REJECT_BROADCAST'
+          : 'CANCEL_BROADCAST',
         'Broadcast',
         id,
         undefined,
@@ -535,13 +665,18 @@ export class NotificationsController {
         userAgent,
       );
 
-      return res.json({ success: true, message: `Broadcast status updated to ${statusMap[action]}.` });
+      return res.json({
+        success: true,
+        message: `Broadcast status updated to ${statusMap[action]}.`,
+      });
     } catch (err: any) {
       console.error('Broadcast action error:', err);
       if (err instanceof ConflictException) {
         return res.status(HttpStatus.CONFLICT).json({ message: err.message });
       }
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: err.message || 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: err.message || 'Internal server error' });
     }
   }
 
@@ -560,8 +695,11 @@ export class NotificationsController {
   ) {
     try {
       const limit = Math.min(100, Math.max(1, parseInt(limitRaw, 10)));
-      const isActive = isActiveRaw !== undefined ? isActiveRaw === 'true' : undefined;
-      const failureCount = failureCountRaw ? parseInt(failureCountRaw, 10) : undefined;
+      const isActive =
+        isActiveRaw !== undefined ? isActiveRaw === 'true' : undefined;
+      const failureCount = failureCountRaw
+        ? parseInt(failureCountRaw, 10)
+        : undefined;
 
       const result = await this.notificationsService.getAdminDevices(
         { userId, platform, browser, isActive, failureCount, lastUsedBefore },
@@ -571,7 +709,9 @@ export class NotificationsController {
       return res.json(result);
     } catch (err: any) {
       console.error('Get devices error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -586,23 +726,37 @@ export class NotificationsController {
   ) {
     try {
       const limit = Math.min(100, Math.max(1, parseInt(limitRaw, 10)));
-      const result = await this.notificationsService.getAdminDeliveries({ status, channel }, limit, cursor);
+      const result = await this.notificationsService.getAdminDeliveries(
+        { status, channel },
+        limit,
+        cursor,
+      );
       return res.json(result);
     } catch (err: any) {
       console.error('Get deliveries error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
   @Post('admin/deliveries/retry')
   @Roles('SUPER_ADMIN')
-  async retryDeliveries(@Body() body: { deliveryIds: string[] }, @Req() req: Request, @Res() res: Response) {
+  async retryDeliveries(
+    @Body() body: { deliveryIds: string[] },
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     try {
       const user = (req as any).user;
       if (!body.deliveryIds || !Array.isArray(body.deliveryIds)) {
-        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid deliveryIds.' });
+        return res
+          .status(HttpStatus.BAD_REQUEST)
+          .json({ message: 'Invalid deliveryIds.' });
       }
-      const result = await this.notificationsService.bulkRetryDeliveries(body.deliveryIds);
+      const result = await this.notificationsService.bulkRetryDeliveries(
+        body.deliveryIds,
+      );
 
       // Auditing
       const ipAddress = (req.headers['x-forwarded-for'] as string) || req.ip;
@@ -620,7 +774,9 @@ export class NotificationsController {
       return res.json(result);
     } catch (err: any) {
       console.error('Retry deliveries error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: err.message || 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: err.message || 'Internal server error' });
     }
   }
 
@@ -647,7 +803,9 @@ export class NotificationsController {
       return res.json(result);
     } catch (err: any) {
       console.error('Retry DLQ error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -674,7 +832,9 @@ export class NotificationsController {
       return res.json(result);
     } catch (err: any) {
       console.error('Clear DLQ error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -722,19 +882,26 @@ export class NotificationsController {
       return res.json({ global, events: resultEvents });
     } catch (err: any) {
       console.error('Fetch settings error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
   @Post('admin/settings')
   @Roles('SUPER_ADMIN')
-  async updateSettings(@Body() body: any, @Req() req: Request, @Res() res: Response) {
+  async updateSettings(
+    @Body() body: any,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     try {
       const user = (req as any).user;
       const { global, events } = body;
 
       if (global) {
-        const existing = await this.prisma.notificationGlobalSetting.findFirst();
+        const existing =
+          await this.prisma.notificationGlobalSetting.findFirst();
         if (existing) {
           await this.prisma.notificationGlobalSetting.update({
             where: { id: existing.id },
@@ -752,9 +919,10 @@ export class NotificationsController {
 
       if (events && Array.isArray(events)) {
         for (const ev of events) {
-          const existingEvent = await this.prisma.notificationEventSetting.findUnique({
-            where: { event: ev.event },
-          });
+          const existingEvent =
+            await this.prisma.notificationEventSetting.findUnique({
+              where: { event: ev.event },
+            });
           if (existingEvent) {
             await this.prisma.notificationEventSetting.update({
               where: { id: existingEvent.id },
@@ -798,36 +966,66 @@ export class NotificationsController {
         userAgent,
       );
 
-      return res.json({ success: true, message: 'Settings updated successfully' });
+      return res.json({
+        success: true,
+        message: 'Settings updated successfully',
+      });
     } catch (err: any) {
       console.error('Update settings error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
   @Put('admin/settings/events/:id')
   @Roles('SUPER_ADMIN')
-  async updateEventSetting(@Param('id') id: string, @Body() body: any, @Req() req: Request, @Res() res: Response) {
+  async updateEventSetting(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     try {
       const user = (req as any).user;
-      
+
       const existing = await this.prisma.notificationEventSetting.findUnique({
         where: { id },
       });
       if (!existing) {
-        return res.status(HttpStatus.NOT_FOUND).json({ message: 'Event setting not found' });
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .json({ message: 'Event setting not found' });
       }
 
       const updated = await this.prisma.notificationEventSetting.update({
         where: { id },
         data: {
           enabled: body.enabled !== undefined ? body.enabled : existing.enabled,
-          bellEnabled: body.bellEnabled !== undefined ? body.bellEnabled : existing.bellEnabled,
-          pushEnabled: body.pushEnabled !== undefined ? body.pushEnabled : existing.pushEnabled,
-          emailEnabled: body.emailEnabled !== undefined ? body.emailEnabled : existing.emailEnabled,
-          toastEnabled: body.toastEnabled !== undefined ? body.toastEnabled : existing.toastEnabled,
-          socketEnabled: body.socketEnabled !== undefined ? body.socketEnabled : existing.socketEnabled,
-          smsEnabled: body.smsEnabled !== undefined ? body.smsEnabled : existing.smsEnabled,
+          bellEnabled:
+            body.bellEnabled !== undefined
+              ? body.bellEnabled
+              : existing.bellEnabled,
+          pushEnabled:
+            body.pushEnabled !== undefined
+              ? body.pushEnabled
+              : existing.pushEnabled,
+          emailEnabled:
+            body.emailEnabled !== undefined
+              ? body.emailEnabled
+              : existing.emailEnabled,
+          toastEnabled:
+            body.toastEnabled !== undefined
+              ? body.toastEnabled
+              : existing.toastEnabled,
+          socketEnabled:
+            body.socketEnabled !== undefined
+              ? body.socketEnabled
+              : existing.socketEnabled,
+          smsEnabled:
+            body.smsEnabled !== undefined
+              ? body.smsEnabled
+              : existing.smsEnabled,
         },
       });
 
@@ -846,7 +1044,9 @@ export class NotificationsController {
       return res.json({ success: true, event: updated });
     } catch (err: any) {
       console.error('Update event setting error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -858,13 +1058,19 @@ export class NotificationsController {
       return res.json({ templates });
     } catch (err: any) {
       console.error('Fetch templates error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
   @Post('admin/templates')
   @Roles('SUPER_ADMIN')
-  async updateTemplates(@Body() body: { templates: any[] }, @Req() req: Request, @Res() res: Response) {
+  async updateTemplates(
+    @Body() body: { templates: any[] },
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     try {
       const user = (req as any).user;
       const { templates } = body;
@@ -913,10 +1119,15 @@ export class NotificationsController {
         userAgent,
       );
 
-      return res.json({ success: true, message: 'Templates saved successfully' });
+      return res.json({
+        success: true,
+        message: 'Templates saved successfully',
+      });
     } catch (err: any) {
       console.error('Update templates error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -967,7 +1178,9 @@ export class NotificationsController {
       });
     } catch (err: any) {
       console.error('Fetch audits error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -985,13 +1198,17 @@ export class NotificationsController {
       });
 
       if (!audit) {
-        return res.status(HttpStatus.NOT_FOUND).json({ message: 'Audit log not found' });
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .json({ message: 'Audit log not found' });
       }
 
       return res.json({ audit });
     } catch (err: any) {
       console.error('Fetch audit details error:', err);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 }

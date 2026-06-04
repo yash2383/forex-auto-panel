@@ -71,7 +71,7 @@ export declare class ReportsService {
             reference: string;
             amount: number;
             type: string;
-            status: string;
+            status: import("@prisma/client").$Enums.DistributionStatus;
             distributionDate: string;
             note: string;
         }[];

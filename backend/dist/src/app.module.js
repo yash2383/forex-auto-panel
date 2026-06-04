@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
+const core_1 = require("@nestjs/core");
 const schedule_1 = require("@nestjs/schedule");
 const bull_1 = require("@nestjs/bull");
 const throttler_1 = require("@nestjs/throttler");
@@ -24,7 +25,9 @@ const investment_module_1 = require("./investment/investment.module");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const notifications_module_1 = require("./notifications/notifications.module");
+const observability_module_1 = require("./observability/observability.module");
 const dev_module_1 = require("./dev/dev.module");
+const maintenance_guard_1 = require("./common/guards/maintenance.guard");
 const optionalModules = [];
 if (process.env.NODE_ENV !== 'production') {
     optionalModules.push(dev_module_1.DevModule);
@@ -59,10 +62,17 @@ exports.AppModule = AppModule = __decorate([
             wallet_module_1.WalletModule,
             investment_module_1.InvestmentModule,
             notifications_module_1.NotificationsModule,
+            observability_module_1.ObservabilityModule,
             ...optionalModules,
         ],
         controllers: [app_controller_1.AppController],
-        providers: [app_service_1.AppService],
+        providers: [
+            app_service_1.AppService,
+            {
+                provide: core_1.APP_GUARD,
+                useClass: maintenance_guard_1.MaintenanceGuard,
+            },
+        ],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

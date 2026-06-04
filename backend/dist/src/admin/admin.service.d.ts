@@ -1,10 +1,17 @@
+import { OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-export declare class AdminService {
+import { ObservabilityService } from '../observability/observability.service';
+export declare class AdminService implements OnModuleInit {
     prisma: PrismaService;
     private readonly notificationsService;
-    constructor(prisma: PrismaService, notificationsService: NotificationsService);
+    private readonly observabilityService;
+    private readonly logger;
+    constructor(prisma: PrismaService, notificationsService: NotificationsService, observabilityService: ObservabilityService);
+    onModuleInit(): Promise<void>;
+    validateSettingsOnStartup(): Promise<void>;
+    private slugify;
     getData(): Promise<{
         stats: {
             totalUsers: string;
@@ -155,9 +162,14 @@ export declare class AdminService {
             userId: any;
             userName: any;
             userEmail: any;
-            amount: any;
+            amount: number;
+            netProfit: number;
+            grossProfit: number;
+            platformCut: number;
+            investmentAmount: number;
             type: any;
             status: any;
+            weekKey: any;
             note: any;
             distributionDate: any;
             createdAt: any;
@@ -184,6 +196,7 @@ export declare class AdminService {
         }[];
         plans: {
             id: any;
+            slug: any;
             name: any;
             subtitle: any;
             capitalLabel: any;
@@ -319,6 +332,7 @@ export declare class AdminService {
             weeklyProfit: Prisma.Decimal;
             amount: Prisma.Decimal | null;
             isActive: boolean;
+            slug: string;
             subtitle: string;
             capitalLabel: string;
             features: string[];
@@ -348,6 +362,7 @@ export declare class AdminService {
             weeklyProfit: Prisma.Decimal;
             amount: Prisma.Decimal | null;
             isActive: boolean;
+            slug: string;
             subtitle: string;
             capitalLabel: string;
             features: string[];
@@ -392,6 +407,15 @@ export declare class AdminService {
             clubProfitPct: Prisma.Decimal;
             enableBulkDist: boolean;
             allowDuplicateDist: boolean;
+            platformProfitCut: Prisma.Decimal;
+            referralBonusMultiplier: Prisma.Decimal;
+            referralEnabled: boolean;
+            autoApproveReferralCommission: boolean;
+            referralCommissionRate: Prisma.Decimal;
+            minimumEligibleDeposit: Prisma.Decimal;
+            enableBulkDistribution: boolean;
+            allowDuplicateWeeklyPayouts: boolean;
+            maintenanceMode: boolean;
         } | null;
     }>;
     updateSettings(adminId: string, body: any, clientIp: string): Promise<{
@@ -420,9 +444,121 @@ export declare class AdminService {
             clubProfitPct: Prisma.Decimal;
             enableBulkDist: boolean;
             allowDuplicateDist: boolean;
+            platformProfitCut: Prisma.Decimal;
+            referralBonusMultiplier: Prisma.Decimal;
+            referralEnabled: boolean;
+            autoApproveReferralCommission: boolean;
+            referralCommissionRate: Prisma.Decimal;
+            minimumEligibleDeposit: Prisma.Decimal;
+            enableBulkDistribution: boolean;
+            allowDuplicateWeeklyPayouts: boolean;
+            maintenanceMode: boolean;
         };
         error?: undefined;
         status?: undefined;
+    }>;
+    updateFinancialSettings(adminId: string, body: any, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        settings?: undefined;
+    } | {
+        success: boolean;
+        settings: {
+            id: string;
+            partnerId: string | null;
+            updatedAt: Date;
+            upiId: string | null;
+            usdtAddress: string | null;
+            usdtNetwork: string;
+            upiEnabled: boolean;
+            usdtEnabled: boolean;
+            upiName: string | null;
+            upiQrCode: string | null;
+            usdtQrCode: string | null;
+            referralFeePct: Prisma.Decimal;
+            platformFeePct: Prisma.Decimal;
+            maintenance: boolean;
+            individualProfitPct: Prisma.Decimal;
+            clubProfitPct: Prisma.Decimal;
+            enableBulkDist: boolean;
+            allowDuplicateDist: boolean;
+            platformProfitCut: Prisma.Decimal;
+            referralBonusMultiplier: Prisma.Decimal;
+            referralEnabled: boolean;
+            autoApproveReferralCommission: boolean;
+            referralCommissionRate: Prisma.Decimal;
+            minimumEligibleDeposit: Prisma.Decimal;
+            enableBulkDistribution: boolean;
+            allowDuplicateWeeklyPayouts: boolean;
+            maintenanceMode: boolean;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    updateDistributionSettings(adminId: string, body: any, clientIp: string): Promise<{
+        success: boolean;
+        settings: {
+            id: string;
+            partnerId: string | null;
+            updatedAt: Date;
+            upiId: string | null;
+            usdtAddress: string | null;
+            usdtNetwork: string;
+            upiEnabled: boolean;
+            usdtEnabled: boolean;
+            upiName: string | null;
+            upiQrCode: string | null;
+            usdtQrCode: string | null;
+            referralFeePct: Prisma.Decimal;
+            platformFeePct: Prisma.Decimal;
+            maintenance: boolean;
+            individualProfitPct: Prisma.Decimal;
+            clubProfitPct: Prisma.Decimal;
+            enableBulkDist: boolean;
+            allowDuplicateDist: boolean;
+            platformProfitCut: Prisma.Decimal;
+            referralBonusMultiplier: Prisma.Decimal;
+            referralEnabled: boolean;
+            autoApproveReferralCommission: boolean;
+            referralCommissionRate: Prisma.Decimal;
+            minimumEligibleDeposit: Prisma.Decimal;
+            enableBulkDistribution: boolean;
+            allowDuplicateWeeklyPayouts: boolean;
+            maintenanceMode: boolean;
+        };
+    }>;
+    updateSystemSettings(adminId: string, body: any, clientIp: string): Promise<{
+        success: boolean;
+        settings: {
+            id: string;
+            partnerId: string | null;
+            updatedAt: Date;
+            upiId: string | null;
+            usdtAddress: string | null;
+            usdtNetwork: string;
+            upiEnabled: boolean;
+            usdtEnabled: boolean;
+            upiName: string | null;
+            upiQrCode: string | null;
+            usdtQrCode: string | null;
+            referralFeePct: Prisma.Decimal;
+            platformFeePct: Prisma.Decimal;
+            maintenance: boolean;
+            individualProfitPct: Prisma.Decimal;
+            clubProfitPct: Prisma.Decimal;
+            enableBulkDist: boolean;
+            allowDuplicateDist: boolean;
+            platformProfitCut: Prisma.Decimal;
+            referralBonusMultiplier: Prisma.Decimal;
+            referralEnabled: boolean;
+            autoApproveReferralCommission: boolean;
+            referralCommissionRate: Prisma.Decimal;
+            minimumEligibleDeposit: Prisma.Decimal;
+            enableBulkDistribution: boolean;
+            allowDuplicateWeeklyPayouts: boolean;
+            maintenanceMode: boolean;
+        };
     }>;
     getReferralSettings(): Promise<{
         success: boolean;
@@ -763,25 +899,42 @@ export declare class AdminService {
     }>;
     private isBulkDistributeRunning;
     private processedRequestIds;
+    private getWeekKey;
+    previewDistribution(body: any): Promise<{
+        success: boolean;
+        weekKey: any;
+        platformCutPct: number;
+        eligibleUsers: number;
+        totalInvestment: number;
+        totalGrossProfit: number;
+        totalPlatformCut: number;
+        totalNetProfit: number;
+        breakdown: any[];
+    }>;
     bulkDistributeProfit(adminId: string, clientIp: string, body: any): Promise<{
         error: string;
         status: number;
         success?: undefined;
+        weekKey?: undefined;
         summary?: undefined;
         skipped?: undefined;
     } | {
         success: boolean;
+        weekKey: any;
         summary: {
             totalProcessed: number;
             eligible: number;
-            estimatedAmount: number;
             successCount: number;
             failedCount: number;
             skippedCount: number;
+            totalInvestment: number;
+            totalGrossProfit: number;
+            totalPlatformCut: number;
+            totalNetProfit: number;
             success?: undefined;
             failed?: undefined;
             skipped?: undefined;
-            totalAmount?: undefined;
+            weekKey?: undefined;
             batchId?: undefined;
         };
         skipped: {
@@ -799,12 +952,15 @@ export declare class AdminService {
             success: number;
             failed: number;
             skipped: number;
-            totalAmount: number;
             eligible?: undefined;
-            estimatedAmount?: undefined;
             successCount?: undefined;
             failedCount?: undefined;
             skippedCount?: undefined;
+            totalInvestment?: undefined;
+            totalGrossProfit?: undefined;
+            totalPlatformCut?: undefined;
+            totalNetProfit?: undefined;
+            weekKey?: undefined;
             batchId?: undefined;
         };
         skipped: {
@@ -815,6 +971,7 @@ export declare class AdminService {
         };
         error?: undefined;
         status?: undefined;
+        weekKey?: undefined;
     } | {
         success: boolean;
         summary: {
@@ -822,10 +979,13 @@ export declare class AdminService {
             success: number;
             failed: number;
             skipped: number;
-            totalAmount: number;
+            weekKey: any;
             batchId: any;
+            totalInvestment: number;
+            totalGrossProfit: number;
+            totalPlatformCut: number;
+            totalNetProfit: number;
             eligible?: undefined;
-            estimatedAmount?: undefined;
             successCount?: undefined;
             failedCount?: undefined;
             skippedCount?: undefined;
@@ -838,6 +998,7 @@ export declare class AdminService {
         };
         error?: undefined;
         status?: undefined;
+        weekKey?: undefined;
     } | {
         success: boolean;
         error: any;
@@ -846,12 +1007,15 @@ export declare class AdminService {
             success: number;
             failed: number;
             skipped: number;
-            totalAmount: number;
             eligible?: undefined;
-            estimatedAmount?: undefined;
             successCount?: undefined;
             failedCount?: undefined;
             skippedCount?: undefined;
+            totalInvestment?: undefined;
+            totalGrossProfit?: undefined;
+            totalPlatformCut?: undefined;
+            totalNetProfit?: undefined;
+            weekKey?: undefined;
             batchId?: undefined;
         };
         skipped: {
@@ -861,6 +1025,18 @@ export declare class AdminService {
             inactiveUser: string[];
         };
         status?: undefined;
+        weekKey?: undefined;
+    }>;
+    reverseDistribution(adminId: string, batchId: string, reason: string, clientIp: string): Promise<{
+        success: boolean;
+        message: string;
+        error?: undefined;
+        status?: undefined;
+    } | {
+        error: any;
+        status: number;
+        success?: undefined;
+        message?: undefined;
     }>;
     getUserDetail(adminId: string, userId: string): Promise<{
         error: string;

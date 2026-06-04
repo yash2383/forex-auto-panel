@@ -2,68 +2,16 @@ import { PrismaService } from '../prisma/prisma.service';
 export declare class PlansService {
     private prisma;
     constructor(prisma: PrismaService);
+    private slugify;
+    private serializePlan;
     getActivePlans(): Promise<{
-        plans: {
-            id: string;
-            status: string;
-            createdAt: Date;
-            name: string;
-            updatedAt: Date;
-            desc: string;
-            weeklyProfit: import("@prisma/client/runtime/library").Decimal;
-            amount: import("@prisma/client/runtime/library").Decimal | null;
-            isActive: boolean;
-            subtitle: string;
-            capitalLabel: string;
-            features: string[];
-            btnText: string;
-            isPopular: boolean;
-            pricingType: string;
-            durationDays: number;
-            sortOrder: number;
-        }[];
+        plans: any[];
     }>;
     getPlanById(id: string): Promise<{
-        plan: {
-            amount: number | null;
-            weeklyProfit: number;
-            durationDays: number;
-            id: string;
-            status: string;
-            createdAt: Date;
-            name: string;
-            updatedAt: Date;
-            desc: string;
-            isActive: boolean;
-            subtitle: string;
-            capitalLabel: string;
-            features: string[];
-            btnText: string;
-            isPopular: boolean;
-            pricingType: string;
-            sortOrder: number;
-        };
+        plan: any;
     } | null>;
     getPlanBySlug(slug: string): Promise<{
-        plan: {
-            amount: number | null;
-            weeklyProfit: number;
-            durationDays: number;
-            id: string;
-            status: string;
-            createdAt: Date;
-            name: string;
-            updatedAt: Date;
-            desc: string;
-            isActive: boolean;
-            subtitle: string;
-            capitalLabel: string;
-            features: string[];
-            btnText: string;
-            isPopular: boolean;
-            pricingType: string;
-            sortOrder: number;
-        };
+        plan: any;
     } | null>;
     getPaymentMethods(): Promise<{
         success: boolean;
@@ -98,6 +46,7 @@ export declare class PlansService {
             weeklyProfit: import("@prisma/client/runtime/library").Decimal;
             amount: import("@prisma/client/runtime/library").Decimal | null;
             isActive: boolean;
+            slug: string;
             subtitle: string;
             capitalLabel: string;
             features: string[];
@@ -119,6 +68,7 @@ export declare class PlansService {
             weeklyProfit: import("@prisma/client/runtime/library").Decimal;
             amount: import("@prisma/client/runtime/library").Decimal | null;
             isActive: boolean;
+            slug: string;
             subtitle: string;
             capitalLabel: string;
             features: string[];
@@ -140,6 +90,7 @@ export declare class PlansService {
             weeklyProfit: import("@prisma/client/runtime/library").Decimal;
             amount: import("@prisma/client/runtime/library").Decimal | null;
             isActive: boolean;
+            slug: string;
             subtitle: string;
             capitalLabel: string;
             features: string[];
@@ -161,6 +112,7 @@ export declare class PlansService {
             weeklyProfit: import("@prisma/client/runtime/library").Decimal;
             amount: import("@prisma/client/runtime/library").Decimal | null;
             isActive: boolean;
+            slug: string;
             subtitle: string;
             capitalLabel: string;
             features: string[];

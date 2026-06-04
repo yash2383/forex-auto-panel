@@ -44,7 +44,7 @@ const createLabels = {
   plans: "Add Plan",
 };
 
-const exportOnlySections = new Set(["pnl-reports", "reports", "activity-logs"]);
+const exportOnlySections = new Set(["pnl-reports", "reports"]);
 
 const actionStyles = {
   view: "border-white/[0.08] bg-white/[0.025] text-white hover:bg-white/[0.08]",
@@ -174,13 +174,7 @@ const sectionContent = {
     metrics: [["Referral %", "10%"], ["Platform Fee", "4%"], ["Payment QR", "Active"], ["Configs", "16"]],
     headers: ["Setting", "Current Value", "Owner", "Status"],
   },
-  "activity-logs": {
-    permissionKey: "activity-logs",
-    title: "Activity Logs",
-    description: "Track all actions performed on the platform for transparency and security.",
-    metrics: [["Logs Today", "642"], ["Admin Actions", "84"], ["User Actions", "558"], ["Alerts", "3"]],
-    headers: ["Auditor Name", "Logged Action", "Target Module", "Timestamp", "IP Address"],
-  },
+
   transactions: {
     permissionKey: "payments",
     title: "Transaction History",
@@ -602,10 +596,7 @@ function ActivityFeed() {
           </div>
         ))}
       </div>
-      <a href="/admin/dashboard?section=activity-logs" className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-green-300">
-        View all activity
-        <ArrowRight className="h-4 w-4" />
-      </a>
+
     </section>
   );
 }
@@ -874,7 +865,7 @@ function AdminSectionPage({
   const payments = useAdminStore((s) => s.payments);
   const trades = useAdminStore((s) => s.trades);
   const settings = useAdminStore((s) => s.settings);
-  const logs = useAdminStore((s) => s.logs);
+
   const admins = useAdminStore((s) => s.admins);
   const partners = useAdminStore((s) => s.partners);
   const notifications = useAdminStore((s) => s.notifications || []);
@@ -911,8 +902,7 @@ function AdminSectionPage({
     }
   }, [section.permissionKey, pnlReports, fetchPnlReports]);
 
-  // Search/Filters for Activity Logs section
-  const [logModuleFilter, setLogModuleFilter] = useState("all");
+
   const sectionMetrics = useMemo(() => {
     const pk = section.permissionKey;
     const ttl = section.title;
@@ -1054,20 +1044,7 @@ function AdminSectionPage({
       ];
     }
 
-    if (pk === "activity-logs") {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayLogs   = logs.filter((l) => new Date(l.time) >= today).length;
-      const adminLogs   = logs.filter((l) => l.actor && !l.actor.includes("@")).length;
-      const userLogs    = logs.length - adminLogs;
-      const alertLogs   = logs.filter((l) => l.action && l.action.toLowerCase().includes("block")).length;
-      return [
-        ["Logs Today",    todayLogs.toLocaleString()],
-        ["Admin Actions", adminLogs.toLocaleString()],
-        ["User Actions",  userLogs.toLocaleString()],
-        ["Alerts",        alertLogs.toLocaleString()],
-      ];
-    }
+
 
     if (pk === "settings") {
       const referralPct  = settings?.financials?.referralFee ?? "—";
@@ -1085,7 +1062,7 @@ function AdminSectionPage({
     return section.metrics ?? [];
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section, trades, generatedReports, withdrawals, pnlReports, users, payments,
-      transactions, notifications, campaigns, referrals, admins, plans, logs, settings]);
+      transactions, notifications, campaigns, referrals, admins, plans, settings]);
 
   let rows = [];
   if (section.permissionKey === "users") {
@@ -1262,20 +1239,7 @@ function AdminSectionPage({
       );
     }
     rows = list.map((r) => [r.referrer, r.user, r.deposit, r.reward, r.status, r.id]);
-  } else if (section.permissionKey === "activity-logs") {
-    let filteredLogs = logs;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      filteredLogs = logs.filter((l) =>
-        l.actor.toLowerCase().includes(q) ||
-        l.action.toLowerCase().includes(q) ||
-        l.module.toLowerCase().includes(q)
-      );
-    }
-    if (logModuleFilter !== "all") {
-      filteredLogs = filteredLogs.filter((l) => l.module.toLowerCase() === logModuleFilter.toLowerCase());
-    }
-    rows = filteredLogs.map((l) => [l.actor, l.action, l.module, l.time, l.ipAddress || "127.0.0.1", l.id]);
+
 
   } else if (section.title === "Withdrawal Requests") {
     let list = withdrawals;
@@ -1579,31 +1543,7 @@ function AdminSectionPage({
         </>
       )}
 
-      {section.permissionKey === "activity-logs" && (
-        <section className={`${adminPanel} p-4 flex flex-wrap gap-4 items-center justify-between`}>
-          <label className="flex h-10 min-w-[280px] items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-neutral-500">
-            <Search className="h-4 w-4" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-neutral-600"
-              placeholder="Search logs by operator or details..."
-            />
-          </label>
-          <div className="flex gap-3">
-            <select value={logModuleFilter} onChange={(e) => setLogModuleFilter(e.target.value)} className="h-10 rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-xs text-white outline-none">
-              <option value="all">All Modules</option>
-              <option value="payments">Payments</option>
-              <option value="users">Users</option>
-              <option value="trades">Trades</option>
-              <option value="settings">Settings</option>
-              <option value="partner">Partner</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-        </section>
-      )}
+
 
 
 
@@ -1612,23 +1552,21 @@ function AdminSectionPage({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-4">
               <h2 className="text-lg font-semibold text-white">Records</h2>
-              {section.permissionKey !== "activity-logs" && (
-                <label className="flex h-10 min-w-[280px] items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-neutral-500 focus-within:border-green-500/35 transition">
-                  <Search className="h-4 w-4" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-neutral-600"
-                    placeholder={`Search ${section.title.toLowerCase()}...`}
-                  />
-                  {searchQuery && (
-                    <button type="button" onClick={() => setSearchQuery("")} className="text-neutral-500 hover:text-white cursor-pointer">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )}
-                </label>
-              )}
+              <label className="flex h-10 min-w-[280px] items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-neutral-500 focus-within:border-green-500/35 transition">
+                <Search className="h-4 w-4" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-neutral-600"
+                  placeholder={`Search ${section.title.toLowerCase()}...`}
+                />
+                {searchQuery && (
+                  <button type="button" onClick={() => setSearchQuery("")} className="text-neutral-500 hover:text-white cursor-pointer">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </label>
               {section.permissionKey === "trades" && selectedTrades.length > 0 && (
                 <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/25 px-3 py-1.5 rounded-lg text-xs font-semibold text-green-300">
                   <span>{selectedTrades.length} selected</span>
@@ -1894,19 +1832,7 @@ function AdminSectionPage({
                           }
                         }
 
-                        // Activity logs dynamic status render
-                        if (section.permissionKey === "activity-logs") {
-                          const logItem = logs.find(l => l.id === itemId);
-                          if (logItem) {
-                            if (idx === 3) { // time column
-                              return (
-                                <td key={idx} className="px-4 py-4 text-xs text-neutral-400 font-mono">
-                                  {logItem.time}
-                                </td>
-                              );
-                            }
-                          }
-                        }
+
 
 
 
@@ -2296,7 +2222,16 @@ function AdminSectionPage({
 
           {/* Financial Settings */}
           <section className={`${adminPanel} p-5`}>
-            <h2 className="text-lg font-semibold text-white mb-4">💰 Financial Configuration</h2>
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/[0.06] pb-4 mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-white">💰 Financial Configuration</h2>
+              </div>
+              {canEditSettings && (
+                <button onClick={handleSave} className="h-10 rounded-lg bg-green-500 px-5 text-sm font-bold text-black hover:bg-green-400 transition">
+                  Save Financial Settings
+                </button>
+              )}
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold text-neutral-400">Platform Profit Cut %</span>
@@ -2389,6 +2324,11 @@ function AdminSectionPage({
                 <h2 className="text-lg font-semibold text-white">📈 Profit Distribution Configuration</h2>
                 <p className="mt-1 text-sm text-neutral-400">Configure weekly interest/profit percentages and distribution behaviors.</p>
               </div>
+              {canEditSettings && (
+                <button onClick={handleSave} className="h-10 rounded-lg bg-green-500 px-5 text-sm font-bold text-black hover:bg-green-400 transition">
+                  Save Profit Settings
+                </button>
+              )}
             </div>
 
             <div className="mt-6 space-y-6">
@@ -2468,7 +2408,16 @@ function AdminSectionPage({
 
           {/* System Control */}
           <section className={`${adminPanel} p-5`}>
-            <h2 className="text-lg font-semibold text-white mb-4">🔐 System Settings</h2>
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/[0.06] pb-4 mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-white">🔐 System Settings</h2>
+              </div>
+              {canEditSettings && (
+                <button onClick={handleSave} className="h-10 rounded-lg bg-green-500 px-5 text-sm font-bold text-black hover:bg-green-400 transition">
+                  Save System Settings
+                </button>
+              )}
+            </div>
             <div className="flex items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.015] p-4">
               <div>
                 <p className="text-sm font-semibold text-white">Maintenance Mode</p>
@@ -2515,7 +2464,11 @@ function AdminSectionPage({
                 <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 text-center">
                   <p className="text-xs text-neutral-400 uppercase font-semibold">{bulkSummary.dryRun ? "Est. Payout" : "Total Payout"}</p>
                   <p className="mt-2 text-xl font-bold font-mono text-green-300">
-                    ₹{(bulkSummary.dryRun ? bulkSummary.estimatedAmount : bulkSummary.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    ₹{Number(
+                      bulkSummary.totalNetProfit ??
+                      (bulkSummary.dryRun ? bulkSummary.estimatedAmount : bulkSummary.totalAmount) ??
+                      0
+                    ).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>

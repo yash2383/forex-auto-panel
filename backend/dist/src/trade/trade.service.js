@@ -68,7 +68,10 @@ let TradeService = class TradeService {
             return { error: 'User wallet not found', status: 404 };
         }
         if (user.trades.length >= 3) {
-            return { error: 'Maximum 3 active trades allowed simultaneously', status: 400 };
+            return {
+                error: 'Maximum 3 active trades allowed simultaneously',
+                status: 400,
+            };
         }
         const risk = user.riskSetting || 'MEDIUM';
         let amount = 500;
@@ -78,11 +81,15 @@ let TradeService = class TradeService {
             amount = 1000;
         const balance = user.wallet.realizedBalance;
         if (balance.lessThan(amount)) {
-            return { error: `Insufficient wallet balance. Required: ₹${amount}`, status: 400 };
+            return {
+                error: `Insufficient wallet balance. Required: ₹${amount}`,
+                status: 400,
+            };
         }
-        const pair = body?.pair || ['BTC/USDT', 'ETH/USDT', 'XAU/USDT', 'EUR/USD'][Math.floor(Math.random() * 4)];
+        const pair = body?.pair ||
+            ['BTC/USDT', 'ETH/USDT', 'XAU/USDT', 'EUR/USD'][Math.floor(Math.random() * 4)];
         const type = body?.type || (Math.random() > 0.5 ? 'BUY' : 'SELL');
-        let entryPriceVal = 1.0850;
+        let entryPriceVal = 1.085;
         if (pair === 'BTC/USDT')
             entryPriceVal = 68000 + (Math.random() - 0.5) * 500;
         else if (pair === 'ETH/USDT')
@@ -118,11 +125,13 @@ let TradeService = class TradeService {
             return trade;
         });
         if (newTrade) {
-            this.notificationsService.sendToUser(userId, client_1.NotificationEvent.TRADE_OPENED, {
+            this.notificationsService
+                .sendToUser(userId, client_1.NotificationEvent.TRADE_OPENED, {
                 type: newTrade.type,
                 pair: newTrade.pair,
                 entryPrice: Number(newTrade.entryPrice),
-            }).catch(err => console.error(`Failed to send TRADE_OPENED notification for user ${userId}`, err));
+            })
+                .catch((err) => console.error(`Failed to send TRADE_OPENED notification for user ${userId}`, err));
         }
         return {
             success: true,
@@ -150,7 +159,9 @@ let TradeService = class TradeService {
             return { error: 'Active trade not found', status: 404 };
         }
         const entryPrice = trade.entryPrice;
-        const currentPrice = trade.currentPrice.isZero() ? entryPrice : trade.currentPrice;
+        const currentPrice = trade.currentPrice.isZero()
+            ? entryPrice
+            : trade.currentPrice;
         const quantity = trade.quantity;
         const isBuy = trade.type === 'BUY';
         let pnl = currentPrice.minus(entryPrice).mul(quantity);
@@ -203,10 +214,12 @@ let TradeService = class TradeService {
             }
         });
         if (trade) {
-            this.notificationsService.sendToUser(userId, client_1.NotificationEvent.TRADE_CLOSED, {
+            this.notificationsService
+                .sendToUser(userId, client_1.NotificationEvent.TRADE_CLOSED, {
                 pair: trade.pair,
                 pnl: Number(pnl).toFixed(2),
-            }).catch(err => console.error(`Failed to send TRADE_CLOSED notification for user ${userId}`, err));
+            })
+                .catch((err) => console.error(`Failed to send TRADE_CLOSED notification for user ${userId}`, err));
         }
         return { success: true };
     }

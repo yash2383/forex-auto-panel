@@ -38,8 +38,13 @@ export class EmailService {
     }
   }
 
-  async sendOtpEmail(email: string, code: string, partnerName: string): Promise<boolean> {
-    const from = process.env.SMTP_FROM || `"Tradebot Support" <noreply@yourdomain.com>`;
+  async sendOtpEmail(
+    email: string,
+    code: string,
+    partnerName: string,
+  ): Promise<boolean> {
+    const from =
+      process.env.SMTP_FROM || `"Tradebot Support" <noreply@yourdomain.com>`;
     const subject = `Your Verification Code - ${partnerName}`;
     const text = `Hello,\n\nYour 6-digit verification code is: ${code}\n\nThis code will expire in 5 minutes.\n\nThank you,\n${partnerName} Team`;
     const html = `
@@ -58,7 +63,9 @@ export class EmailService {
 
     // Fallback if transporter is not initialized
     if (!this.transporter) {
-      this.logger.log(`[DEVELOPMENT OTP] Code [${code}] generated for [${email}] under [${partnerName}]`);
+      this.logger.log(
+        `[DEVELOPMENT OTP] Code [${code}] generated for [${email}] under [${partnerName}]`,
+      );
       return true;
     }
 
@@ -73,13 +80,16 @@ export class EmailService {
       this.logger.log(`OTP email sent successfully to ${email}`);
       return true;
     } catch (error: any) {
-      this.logger.error(`Failed to send SMTP email to ${email}: ${error.message}`);
+      this.logger.error(
+        `Failed to send SMTP email to ${email}: ${error.message}`,
+      );
       throw error;
     }
   }
 
   async sendWelcomeEmail(email: string, name: string): Promise<boolean> {
-    const from = process.env.SMTP_FROM || `"Tradebot Support" <noreply@yourdomain.com>`;
+    const from =
+      process.env.SMTP_FROM || `"Tradebot Support" <noreply@yourdomain.com>`;
     const subject = `Welcome to Tradebot, ${name}!`;
     const text = `Hello ${name},\n\nWelcome to Tradebot! Your account has been verified and activated successfully.\n\nYou can now access all investment and trading features on your dashboard.\n\nBest regards,\nTradebot Team`;
     const html = `
@@ -112,7 +122,9 @@ export class EmailService {
       this.logger.log(`Welcome email sent successfully to ${email}`);
       return true;
     } catch (error: any) {
-      this.logger.error(`Failed to send welcome SMTP email to ${email}: ${error.message}`);
+      this.logger.error(
+        `Failed to send welcome SMTP email to ${email}: ${error.message}`,
+      );
       return false;
     }
   }

@@ -91,8 +91,26 @@ enum WithdrawalStatus {
 
 enum ReferralStatus {
   PENDING
+  APPROVED
   PAID
   CANCELLED
+  REJECTED
+}
+
+enum LedgerType {
+  DEPOSIT
+  WITHDRAWAL
+  REFERRAL_COMMISSION
+  PROFIT_DISTRIBUTION
+  PROFIT_REVERSAL
+  ADJUSTMENT
+}
+
+enum DistributionStatus {
+  PENDING
+  COMPLETED
+  REVERSED
+  FAILED
 }
 
 enum OtpStatus {
@@ -344,6 +362,7 @@ model User {
   profitDistributions ProfitDistribution[]
   investments    UserInvestment[]
   generatedReports GeneratedReport[]
+  userPlans      UserPlan[]
 
   // Notification relations
   deviceTokens   DeviceToken[]
@@ -625,6 +644,8 @@ model Campaign {
 model SystemSettings {
   id                  String   @id @default(uuid())
   partnerId           String?  @unique // Null for global settings, populated for tenant overrides
+
+  // Payment gateway config
   upiId               String?
   usdtAddress         String?
   usdtNetwork         String   @default("TRC20")
@@ -633,6 +654,8 @@ model SystemSettings {
   upiName             String?  @default("")
   upiQrCode           String?  @default("")
   usdtQrCode          String?  @default("")
+
+  // Legacy fields kept for backward compat
   referralFeePct      Decimal  @default(10.00) @db.Decimal(5, 2)
   platformFeePct      Decimal  @default(30.00) @db.Decimal(5, 2)
   maintenance         Boolean  @default(false)
@@ -640,11 +663,30 @@ model SystemSettings {
   clubProfitPct       Decimal  @default(7.00) @db.Decimal(5, 2)
   enableBulkDist      Boolean  @default(true)
   allowDuplicateDist  Boolean  @default(false)
-  updatedAt           DateTime @updatedAt
+
+  // Financial engine settings
+  platformProfitCut            Decimal @default(30)   @db.Decimal(5, 2)
+  referralBonusMultiplier      Decimal @default(100)  @db.Decimal(5, 2) // 100% = 1.0× factor (reward = base × multiplier/100)
+
+  // Referral program
+  referralEnabled                  Boolean @default(true)
+  autoApproveReferralCommission    Boolean @default(true)
+  referralCommissionRate           Decimal @default(10)   @db.Decimal(5, 2)
+  minimumEligibleDeposit           Decimal @default(1000) @db.Decimal(18, 4)
+
+  // Distribution controls
+  enableBulkDistribution      Boolean @default(true)
+  allowDuplicateWeeklyPayouts Boolean @default(false)
+
+  // System
+  maintenanceMode Boolean @default(false)
+
+  updatedAt       DateTime @updatedAt
 }
 
 model Plan {
   id           String   @id @default(uuid())
+  slug         String   @unique
   name         String
   subtitle     String
   capitalLabel String
@@ -665,6 +707,7 @@ model Plan {
   updatedAt    DateTime @updatedAt
 
   paymentInitiations PaymentInitiation[]
+  userPlans          UserPlan[]
 }
 
 model TradeRecord {
@@ -686,35 +729,63 @@ model TradeRecord {
 }
 
 model ProfitDistribution {
-  id               String   @id @default(cuid())
-  reference        String   @unique
+  id               String             @id @default(cuid())
+  reference        String             @unique
   userId           String
-  amount           Float
-  type             String   // e.g. "Weekly Profit"
-  status           String   @default("PAID") // "PAID" or "PENDING"
-  note             String?  @default("")
-  distributionDate DateTime
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  planId           String?
   batchId          String?
 
-  user  User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  batch ProfitDistributionBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  // All monetary values use Decimal — no Float
+  investmentAmount Decimal            @default(0) @db.Decimal(18, 4)
+  grossProfit      Decimal            @default(0) @db.Decimal(18, 4)
+  platformCut      Decimal            @default(0) @db.Decimal(18, 4)
+  netProfit        Decimal            @default(0) @db.Decimal(18, 4)
 
+  type             String             @default("Weekly Profit")
+  status           DistributionStatus @default(COMPLETED)
+  note             String?            @default("")
+  distributionDate DateTime           @default(now())
+  weekKey          String             // e.g. "2025-W23"
+
+  // Reversal audit
+  reversedAt       DateTime?
+  reversedBy       String?            // admin ID
+
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batch            ProfitDistributionBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, weekKey])          // Idempotency guard — one payout per user per week
   @@index([userId])
+  @@index([batchId])
   @@index([reference])
 }
 
 model ProfitDistributionBatch {
-  id                  String               @id @default(cuid())
+  id                  String             @id @default(cuid())
   createdBy           String
   totalProcessed      Int
   successCount        Int
   failedCount         Int
   skippedCount        Int
-  totalAmount         Float
   dryRun              Boolean
-  createdAt           DateTime             @default(now())
+  createdAt           DateTime           @default(now())
+
+  // Financial aggregates (Decimal — no Float)
+  weekKey          String?
+  totalInvestment  Decimal            @default(0) @db.Decimal(18, 4)
+  totalGrossProfit Decimal            @default(0) @db.Decimal(18, 4)
+  totalPlatformCut Decimal            @default(0) @db.Decimal(18, 4)
+  totalNetProfit   Decimal            @default(0) @db.Decimal(18, 4)
+
+  status           DistributionStatus @default(COMPLETED)
+
+  // Reversal audit
+  reversedAt       DateTime?
+  reversedBy       String?            // admin ID
+
   profitDistributions ProfitDistribution[]
 }
 
@@ -1108,3 +1179,58 @@ model NotificationArchive {
   archivedAt     DateTime  @default(now())
 }
 
+// ==========================================
+// PLAN ASSIGNMENT HISTORY
+// ==========================================
+
+model UserPlan {
+  id        String    @id @default(cuid())
+  userId    String
+  planId    String
+  active    Boolean   @default(true)
+  startedAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan      Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, active])
+}
+
+// ==========================================
+// WALLET LEDGER (AUDIT TRAIL)
+// ==========================================
+
+model WalletLedger {
+  id          String     @id @default(cuid())
+  userId      String
+  type        LedgerType
+  entryType   EntryType
+  amount      Decimal    @db.Decimal(18, 4)
+  referenceId String?    // ProfitDistribution.id, Referral.id, Payment.id, etc.
+  note        String?
+  createdAt   DateTime   @default(now())
+
+  @@index([userId])
+  @@index([userId, type])
+  @@index([referenceId])
+}
+
+// ==========================================
+// FINANCIAL EVENT LOG (OPERATIONAL AUDIT)
+// ==========================================
+
+model FinancialEvent {
+  id          String   @id @default(cuid())
+  eventType   String   // PLAN_ASSIGNED, PROFIT_DISTRIBUTED, PROFIT_REVERSED, REFERRAL_APPROVED, etc.
+  userId      String?
+  actorId     String?  // Admin ID if admin-initiated
+  referenceId String?  // batchId, paymentId, referralId, etc.
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([referenceId])
+}

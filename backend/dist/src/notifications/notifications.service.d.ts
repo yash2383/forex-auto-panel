@@ -2,6 +2,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { Queue } from 'bull';
 import { NotificationEvent, NotificationChannel, NotificationAudience, Prisma } from '@prisma/client';
 import { NotificationsGateway } from './notifications.gateway';
+import { ObservabilityService } from '../observability/observability.service';
 export declare class NotificationsService {
     private readonly prisma;
     private readonly pushQueue;
@@ -10,9 +11,12 @@ export declare class NotificationsService {
     private readonly smsQueue;
     private readonly dlqQueue;
     private readonly gateway;
+    private readonly observabilityService;
     private readonly logger;
-    constructor(prisma: PrismaService, pushQueue: Queue, emailQueue: Queue, socketQueue: Queue, smsQueue: Queue, dlqQueue: Queue, gateway: NotificationsGateway);
+    private readonly MAX_RETRY_ENQUEUE_FAILURES;
+    constructor(prisma: PrismaService, pushQueue: Queue, emailQueue: Queue, socketQueue: Queue, smsQueue: Queue, dlqQueue: Queue, gateway: NotificationsGateway, observabilityService: ObservabilityService);
     private compileTemplate;
+    private enqueueWithTimeout;
     send(event: NotificationEvent, payload: Record<string, any>, userId?: string, partnerId?: string, idempotencyKey?: string, adminId?: string, customTitle?: string, customBody?: string, customChannels?: NotificationChannel[]): Promise<{
         id: string;
         partnerId: string | null;
@@ -23,9 +27,9 @@ export declare class NotificationsService {
         priority: import("@prisma/client").$Enums.NotificationPriority;
         link: string | null;
         userId: string | null;
+        type: import("@prisma/client").$Enums.NotificationEvent;
         idempotencyKey: string | null;
         adminId: string | null;
-        type: import("@prisma/client").$Enums.NotificationEvent;
         severity: import("@prisma/client").$Enums.NotificationSeverity;
         category: import("@prisma/client").$Enums.NotificationCategory;
         metadata: Prisma.JsonValue | null;
@@ -42,9 +46,9 @@ export declare class NotificationsService {
         priority: import("@prisma/client").$Enums.NotificationPriority;
         link: string | null;
         userId: string | null;
+        type: import("@prisma/client").$Enums.NotificationEvent;
         idempotencyKey: string | null;
         adminId: string | null;
-        type: import("@prisma/client").$Enums.NotificationEvent;
         severity: import("@prisma/client").$Enums.NotificationSeverity;
         category: import("@prisma/client").$Enums.NotificationCategory;
         metadata: Prisma.JsonValue | null;
@@ -60,9 +64,9 @@ export declare class NotificationsService {
         priority: import("@prisma/client").$Enums.NotificationPriority;
         link: string | null;
         userId: string | null;
+        type: import("@prisma/client").$Enums.NotificationEvent;
         idempotencyKey: string | null;
         adminId: string | null;
-        type: import("@prisma/client").$Enums.NotificationEvent;
         severity: import("@prisma/client").$Enums.NotificationSeverity;
         category: import("@prisma/client").$Enums.NotificationCategory;
         metadata: Prisma.JsonValue | null;

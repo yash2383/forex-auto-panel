@@ -43,14 +43,23 @@ export class DashboardService {
     const closedTrades = trades.filter((t: any) => t.status === 'CLOSED');
     const activeTrades = trades.filter((t: any) => t.status === 'ACTIVE');
 
-    const totalProfit = closedTrades.reduce((sum: number, t: any) => sum + Number(t.profit), 0);
+    const totalProfit = closedTrades.reduce(
+      (sum: number, t: any) => sum + Number(t.profit),
+      0,
+    );
     const realizedPnL = totalProfit;
-    const unrealizedPnL = activeTrades.reduce((sum: number, t: any) => sum + Number(t.profit), 0);
+    const unrealizedPnL = activeTrades.reduce(
+      (sum: number, t: any) => sum + Number(t.profit),
+      0,
+    );
 
-    const winningTrades = closedTrades.filter((t: any) => Number(t.profit) > 0).length;
-    const winRate = closedTrades.length > 0
-      ? Number(((winningTrades / closedTrades.length) * 100).toFixed(2))
-      : 72.91;
+    const winningTrades = closedTrades.filter(
+      (t: any) => Number(t.profit) > 0,
+    ).length;
+    const winRate =
+      closedTrades.length > 0
+        ? Number(((winningTrades / closedTrades.length) * 100).toFixed(2))
+        : 72.91;
 
     // Fetch profit distributions
     const profitDistributions = await this.prisma.profitDistribution.findMany({
@@ -58,11 +67,21 @@ export class DashboardService {
       orderBy: { distributionDate: 'desc' },
     });
 
-    const paidDistributions = profitDistributions.filter((d: any) => d.status === 'PAID');
-    const pendingDistributions = profitDistributions.filter((d: any) => d.status === 'PENDING');
+    const paidDistributions = profitDistributions.filter(
+      (d: any) => d.status === 'PAID',
+    );
+    const pendingDistributions = profitDistributions.filter(
+      (d: any) => d.status === 'PENDING',
+    );
 
-    const totalProfitEarned = paidDistributions.reduce((sum: number, d: any) => sum + d.amount, 0);
-    const pendingProfit = pendingDistributions.reduce((sum: number, d: any) => sum + d.amount, 0);
+    const totalProfitEarned = paidDistributions.reduce(
+      (sum: number, d: any) => sum + d.amount,
+      0,
+    );
+    const pendingProfit = pendingDistributions.reduce(
+      (sum: number, d: any) => sum + d.amount,
+      0,
+    );
 
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -70,13 +89,17 @@ export class DashboardService {
     const monthlyProfit = paidDistributions
       .filter((d: any) => {
         const dDate = new Date(d.distributionDate);
-        return dDate.getFullYear() === currentYear && dDate.getMonth() === currentMonth;
+        return (
+          dDate.getFullYear() === currentYear &&
+          dDate.getMonth() === currentMonth
+        );
       })
       .reduce((sum: number, d: any) => sum + d.amount, 0);
 
-    const lastDistribution = profitDistributions.length > 0
-      ? profitDistributions[0].distributionDate
-      : null;
+    const lastDistribution =
+      profitDistributions.length > 0
+        ? profitDistributions[0].distributionDate
+        : null;
 
     return {
       stats: {
@@ -96,11 +119,18 @@ export class DashboardService {
         target: Number(t.target),
         stopLoss: Number(t.stopLoss),
         breakeven: Number(t.stopLoss),
-        pnl: Number(t.pnl) >= 0 ? `+$${Number(t.pnl).toFixed(2)}` : `-$${Math.abs(Number(t.pnl)).toFixed(2)}`,
+        pnl:
+          Number(t.pnl) >= 0
+            ? `+$${Number(t.pnl).toFixed(2)}`
+            : `-$${Math.abs(Number(t.pnl)).toFixed(2)}`,
         rawPnl: Number(t.pnl),
         points: `${Number(t.pnl) >= 0 ? '+' : ''}${Number(t.pnl).toFixed(2)}`,
         qty: '1.00',
-        date: t.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        date: t.createdAt.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
         result: Number(t.pnl) > 0 ? 'WIN' : Number(t.pnl) < 0 ? 'LOSS' : 'BE',
         status: t.status === 'ACTIVE' ? 'Active' : 'Closed',
       })),
@@ -111,15 +141,38 @@ export class DashboardService {
         txnHash: p.txnHash || 'N/A',
         utr: p.utr || 'N/A',
         network: p.network || 'N/A',
-        date: p.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        time: p.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        status: p.status === 'PENDING' ? 'Pending' : p.status === 'APPROVED' ? 'Approved' : p.status === 'REJECTED' ? 'Rejected' : 'Verified',
+        date: p.createdAt.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
+        time: p.createdAt.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        status:
+          p.status === 'PENDING'
+            ? 'Pending'
+            : p.status === 'APPROVED'
+              ? 'Approved'
+              : p.status === 'REJECTED'
+                ? 'Rejected'
+                : 'Verified',
       })),
       withdrawals: withdrawals.map((w: any) => ({
         id: w.id,
         amount: `₹${Number(w.amount).toLocaleString('en-IN')}`,
-        date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        status: w.status === 'PENDING' ? 'Pending' : w.status === 'APPROVED' ? 'Approved' : 'Rejected',
+        date: w.createdAt.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
+        status:
+          w.status === 'PENDING'
+            ? 'Pending'
+            : w.status === 'APPROVED'
+              ? 'Approved'
+              : 'Rejected',
       })),
       profitDistributions: profitDistributions.map((pd: any) => ({
         id: pd.id,
@@ -173,7 +226,10 @@ export class DashboardService {
         orderBy: { createdAt: 'desc' },
       });
       if (existing) {
-        console.log('Payment initiation reuse short-circuit: returning existing active initiation', existing.id);
+        console.log(
+          'Payment initiation reuse short-circuit: returning existing active initiation',
+          existing.id,
+        );
         return { success: true, initiationId: existing.id };
       }
     }
@@ -193,7 +249,10 @@ export class DashboardService {
     return { success: true, initiationId: initiation.id };
   }
 
-  async deposit(actor: { id: string; role: string; partnerId?: string }, body: any) {
+  async deposit(
+    actor: { id: string; role: string; partnerId?: string },
+    body: any,
+  ) {
     const {
       planName,
       amount,
@@ -214,11 +273,18 @@ export class DashboardService {
     if (paymentType === 'UPI') {
       const reference = finalUtr || finalTxnHash;
       if (!reference) {
-        return { error: 'UPI Transaction Reference (UTR) is required', status: 400 };
+        return {
+          error: 'UPI Transaction Reference (UTR) is required',
+          status: 400,
+        };
       }
       const cleanedRef = reference.replace(/[^A-Z0-9]/g, '');
       if (cleanedRef.length < 8) {
-        return { error: 'Invalid UPI UTR reference. It must be at least 8 alphanumeric characters.', status: 400 };
+        return {
+          error:
+            'Invalid UPI UTR reference. It must be at least 8 alphanumeric characters.',
+          status: 400,
+        };
       }
       finalUtr = cleanedRef;
       finalTxnHash = cleanedRef;
@@ -228,8 +294,17 @@ export class DashboardService {
       }
     }
 
-    if (!planName || amount === undefined || amount === null || isNaN(Number(amount)) || Number(amount) <= 0) {
-      return { error: 'Plan name and a positive amount are required', status: 400 };
+    if (
+      !planName ||
+      amount === undefined ||
+      amount === null ||
+      isNaN(Number(amount)) ||
+      Number(amount) <= 0
+    ) {
+      return {
+        error: 'Plan name and a positive amount are required',
+        status: 400,
+      };
     }
 
     const actorUserId = actor.id;
@@ -239,7 +314,11 @@ export class DashboardService {
     // ── Resolve target user ─────────────────────────────────────────────────
     if (actor.role !== 'USER') {
       if (!email?.trim()) {
-        return { error: 'Target user email is required for admin/partner deposit creation', status: 400 };
+        return {
+          error:
+            'Target user email is required for admin/partner deposit creation',
+          status: 400,
+        };
       }
 
       const normalizedEmail = email.toLowerCase().trim();
@@ -255,7 +334,10 @@ export class DashboardService {
         return { error: `User with email "${email}" not found`, status: 404 };
       }
       if (targetUser.id === actorUserId) {
-        return { error: 'Admin cannot initiate deposit for self via admin flow', status: 400 };
+        return {
+          error: 'Admin cannot initiate deposit for self via admin flow',
+          status: 400,
+        };
       }
 
       targetUserId = targetUser.id;
@@ -264,8 +346,14 @@ export class DashboardService {
 
     // ── Early partnerId validation (before any transaction) ─────────────────
     if (!targetPartnerId) {
-      console.error('DEPOSIT FLOW: targetPartnerId is missing', { actorUserId, targetUserId });
-      return { error: 'Partner context could not be resolved for target user', status: 400 };
+      console.error('DEPOSIT FLOW: targetPartnerId is missing', {
+        actorUserId,
+        targetUserId,
+      });
+      return {
+        error: 'Partner context could not be resolved for target user',
+        status: 400,
+      };
     }
 
     // ── Anti-tampering check: verify deposit amount matches plan configuration ─
@@ -284,12 +372,9 @@ export class DashboardService {
       const cleanName = planName.replace(/\s+\d+\s+Days$/i, '').trim();
       matchedPlan = await this.prisma.plan.findFirst({
         where: {
-          OR: [
-            { name: planName },
-            { name: cleanName }
-          ],
-          isActive: true
-        }
+          OR: [{ name: planName }, { name: cleanName }],
+          isActive: true,
+        },
       });
     }
 
@@ -298,7 +383,10 @@ export class DashboardService {
         const expected = new Prisma.Decimal(matchedPlan.amount!);
         const actual = new Prisma.Decimal(amount);
         if (!expected.equals(actual)) {
-          return { error: `Invalid payment amount. The ${planName} plan requires a deposit of ${expected.toString()}.`, status: 400 };
+          return {
+            error: `Invalid payment amount. The ${planName} plan requires a deposit of ${expected.toString()}.`,
+            status: 400,
+          };
         }
       } else if (matchedPlan.pricingType === 'FLEXIBLE') {
         const PLAN_MIN_AMOUNTS: Record<string, number> = {
@@ -306,10 +394,14 @@ export class DashboardService {
           individual: 1000,
           custom: 5000,
         };
-        const slug = matchedPlan.name.split(' ')[0].toLowerCase();
+        const slug =
+          matchedPlan.slug || matchedPlan.name.split(' ')[0].toLowerCase();
         const minAllowed = PLAN_MIN_AMOUNTS[slug] || 1;
         if (Number(amount) < minAllowed) {
-          return { error: `Invalid payment amount. The ${matchedPlan.name} plan requires a minimum deposit of $${minAllowed} USDT.`, status: 400 };
+          return {
+            error: `Invalid payment amount. The ${matchedPlan.name} plan requires a minimum deposit of $${minAllowed} USDT.`,
+            status: 400,
+          };
         }
       }
     }
@@ -339,28 +431,36 @@ export class DashboardService {
         const actualDec = new Prisma.Decimal(amount);
         const amountMismatch = !expectedDec.equals(actualDec);
         const planMismatch = existingPayment.planName !== planName;
-        const initiationMismatch = initiationId && existingPayment.initiationId !== initiationId;
+        const initiationMismatch =
+          initiationId && existingPayment.initiationId !== initiationId;
 
         if (amountMismatch || planMismatch || initiationMismatch) {
-          console.error('DEPOSIT FLOW: idempotency key reused with mismatching parameters', {
-            idempotencyKey,
-            existing: {
-              amount: expectedDec.toString(),
-              planName: existingPayment.planName,
-              initiationId: existingPayment.initiationId,
+          console.error(
+            'DEPOSIT FLOW: idempotency key reused with mismatching parameters',
+            {
+              idempotencyKey,
+              existing: {
+                amount: expectedDec.toString(),
+                planName: existingPayment.planName,
+                initiationId: existingPayment.initiationId,
+              },
+              incoming: {
+                amount: actualDec.toString(),
+                planName,
+                initiationId,
+              },
             },
-            incoming: {
-              amount: actualDec.toString(),
-              planName,
-              initiationId,
-            },
-          });
+          );
           return {
-            error: 'Idempotency key reused with mismatching payment parameters (amount, plan, or intent mismatch). Use a new key.',
+            error:
+              'Idempotency key reused with mismatching payment parameters (amount, plan, or intent mismatch). Use a new key.',
             status: 409,
           };
         }
-        console.log('DEPOSIT FLOW: idempotency short-circuit — returning cached payment', existingPayment.id);
+        console.log(
+          'DEPOSIT FLOW: idempotency short-circuit — returning cached payment',
+          existingPayment.id,
+        );
         return { success: true, payment: existingPayment, cached: true };
       }
     }
@@ -385,12 +485,21 @@ export class DashboardService {
           return { error: 'Payment initiation record not found', status: 404 };
         }
         if (pi.status === 'completed') {
-          return { error: 'This payment initiation has already been completed', status: 409 };
+          return {
+            error: 'This payment initiation has already been completed',
+            status: 409,
+          };
         }
         if (pi.status === 'processing') {
-          return { error: 'This payment is already being processed. Please wait.', status: 409 };
+          return {
+            error: 'This payment is already being processed. Please wait.',
+            status: 409,
+          };
         }
-        return { error: `Payment initiation is in an invalid state: ${pi.status}`, status: 409 };
+        return {
+          error: `Payment initiation is in an invalid state: ${pi.status}`,
+          status: 409,
+        };
       }
     }
 
@@ -439,18 +548,25 @@ export class DashboardService {
       // P2002 = unique constraint violation (duplicate idempotencyKey or initiationId)
       // This is the hard safety net — DB-level protection catches any race that slipped through.
       if (err?.code === 'P2002') {
-        console.warn('DEPOSIT FLOW: P2002 unique constraint — recovering cached payment', {
-          idempotencyKey,
-          initiationId,
-          target: err?.meta?.target,
-        });
+        console.warn(
+          'DEPOSIT FLOW: P2002 unique constraint — recovering cached payment',
+          {
+            idempotencyKey,
+            initiationId,
+            target: err?.meta?.target,
+          },
+        );
 
         // Roll back PI lock if we held it (PI stays processing but payment didn't create — reset to initiated)
         if (initiationId && piLocked) {
-          await this.prisma.paymentInitiation.updateMany({
-            where: { id: initiationId, status: 'processing' },
-            data: { status: 'initiated', processingAt: null },
-          }).catch(e => console.error('DEPOSIT FLOW: Failed to reset PI after P2002', e));
+          await this.prisma.paymentInitiation
+            .updateMany({
+              where: { id: initiationId, status: 'processing' },
+              data: { status: 'initiated', processingAt: null },
+            })
+            .catch((e) =>
+              console.error('DEPOSIT FLOW: Failed to reset PI after P2002', e),
+            );
         }
 
         // Return the existing payment (idempotent recovery with strict verification)
@@ -465,28 +581,36 @@ export class DashboardService {
           const actualDec = new Prisma.Decimal(amount);
           const amountMismatch = !expectedDec.equals(actualDec);
           const planMismatch = cached.planName !== planName;
-          const initiationMismatch = initiationId && cached.initiationId !== initiationId;
+          const initiationMismatch =
+            initiationId && cached.initiationId !== initiationId;
 
           if (amountMismatch || planMismatch || initiationMismatch) {
-            console.error('DEPOSIT FLOW: idempotency key reused with mismatching parameters during P2002 race recovery', {
-              idempotencyKey,
-              existing: {
-                amount: expectedDec.toString(),
-                planName: cached.planName,
-                initiationId: cached.initiationId,
+            console.error(
+              'DEPOSIT FLOW: idempotency key reused with mismatching parameters during P2002 race recovery',
+              {
+                idempotencyKey,
+                existing: {
+                  amount: expectedDec.toString(),
+                  planName: cached.planName,
+                  initiationId: cached.initiationId,
+                },
+                incoming: {
+                  amount: actualDec.toString(),
+                  planName,
+                  initiationId,
+                },
               },
-              incoming: {
-                amount: actualDec.toString(),
-                planName,
-                initiationId,
-              },
-            });
+            );
             return {
-              error: 'Idempotency key reused with mismatching payment parameters (amount, plan, or intent mismatch). Use a new key.',
+              error:
+                'Idempotency key reused with mismatching payment parameters (amount, plan, or intent mismatch). Use a new key.',
               status: 409,
             };
           }
-          console.log('DEPOSIT FLOW: idempotency short-circuit via P2002 recovery — returning cached payment', cached.id);
+          console.log(
+            'DEPOSIT FLOW: idempotency short-circuit via P2002 recovery — returning cached payment',
+            cached.id,
+          );
           return { success: true, payment: cached, cached: true };
         }
       }
@@ -494,27 +618,48 @@ export class DashboardService {
       console.error('DEPOSIT FLOW: Transaction failed', err);
       // If PI was locked but transaction failed, roll back PI status
       if (initiationId && piLocked) {
-        await this.prisma.paymentInitiation.updateMany({
-          where: { id: initiationId, status: 'processing' },
-          data: { status: 'initiated', processingAt: null },
-        }).catch(e => console.error('DEPOSIT FLOW: Failed to reset PI on transaction error', e));
+        await this.prisma.paymentInitiation
+          .updateMany({
+            where: { id: initiationId, status: 'processing' },
+            data: { status: 'initiated', processingAt: null },
+          })
+          .catch((e) =>
+            console.error(
+              'DEPOSIT FLOW: Failed to reset PI on transaction error',
+              e,
+            ),
+          );
       }
       return { error: err?.message || 'Payment creation failed', status: 500 };
     }
 
     // ── Side effects (outside transaction — decoupled from request lifecycle) ─
-    this.notificationsService.sendToUser(targetUserId, NotificationEvent.PAYMENT_SUBMITTED, {
-      amount: Number(payment.amount),
-    }).catch(err => console.error(`Failed to send PAYMENT_SUBMITTED notification for user ${targetUserId}`, err));
+    this.notificationsService
+      .sendToUser(targetUserId, NotificationEvent.PAYMENT_SUBMITTED, {
+        amount: Number(payment.amount),
+      })
+      .catch((err) =>
+        console.error(
+          `Failed to send PAYMENT_SUBMITTED notification for user ${targetUserId}`,
+          err,
+        ),
+      );
 
     if (actor.role !== 'USER') {
-      this.notificationsService.logAdminAudit(
-        actorUserId,
-        'PAYMENT_CREATED_BY_ADMIN',
-        'Payment',
-        payment.id,
-        { targetUserId, targetUserEmail: email },
-      ).catch(err => console.error('Failed to log admin audit for manual payment creation', err));
+      this.notificationsService
+        .logAdminAudit(
+          actorUserId,
+          'PAYMENT_CREATED_BY_ADMIN',
+          'Payment',
+          payment.id,
+          { targetUserId, targetUserEmail: email },
+        )
+        .catch((err) =>
+          console.error(
+            'Failed to log admin audit for manual payment creation',
+            err,
+          ),
+        );
     }
 
     return { success: true, payment };
@@ -523,7 +668,10 @@ export class DashboardService {
   async withdraw(userId: string, partnerId: string, amount: number) {
     const requestAmount = Number(amount);
     if (!requestAmount || requestAmount <= 0) {
-      return { error: 'A valid positive withdrawal amount is required', status: 400 };
+      return {
+        error: 'A valid positive withdrawal amount is required',
+        status: 400,
+      };
     }
 
     try {
@@ -540,7 +688,9 @@ export class DashboardService {
         const available = Number(wallet.availableBalance);
 
         if (available < requestAmount) {
-          throw new Error(`Insufficient funds. Available: ₹${available.toLocaleString('en-IN')}`);
+          throw new Error(
+            `Insufficient funds. Available: ₹${available.toLocaleString('en-IN')}`,
+          );
         }
 
         const sequence = await tx.withdrawal.count();
@@ -564,7 +714,8 @@ export class DashboardService {
           where: { id: wallet.id },
           data: {
             availableBalance: available - requestAmount,
-            pendingWithdrawals: Number(wallet.pendingWithdrawals) + requestAmount,
+            pendingWithdrawals:
+              Number(wallet.pendingWithdrawals) + requestAmount,
           },
         });
 
@@ -572,9 +723,16 @@ export class DashboardService {
       });
 
       if (result) {
-        this.notificationsService.sendToUser(userId, NotificationEvent.WITHDRAWAL_REQUESTED, {
-          amount: Number(result.amount),
-        }).catch(err => console.error(`Failed to send WITHDRAWAL_REQUESTED notification for user ${userId}`, err));
+        this.notificationsService
+          .sendToUser(userId, NotificationEvent.WITHDRAWAL_REQUESTED, {
+            amount: Number(result.amount),
+          })
+          .catch((err) =>
+            console.error(
+              `Failed to send WITHDRAWAL_REQUESTED notification for user ${userId}`,
+              err,
+            ),
+          );
       }
 
       return { success: true, withdrawal: result };
@@ -583,12 +741,18 @@ export class DashboardService {
     }
   }
 
-  async updateSettings(userId: string, body: { autoTrading?: boolean; riskSetting?: string }) {
+  async updateSettings(
+    userId: string,
+    body: { autoTrading?: boolean; riskSetting?: string },
+  ) {
     const dataToUpdate: any = {};
     if (typeof body.autoTrading === 'boolean') {
       dataToUpdate.autoTrading = body.autoTrading;
     }
-    if (body.riskSetting && ['LOW', 'MEDIUM', 'HIGH'].includes(body.riskSetting)) {
+    if (
+      body.riskSetting &&
+      ['LOW', 'MEDIUM', 'HIGH'].includes(body.riskSetting)
+    ) {
       dataToUpdate.riskSetting = body.riskSetting;
     }
 

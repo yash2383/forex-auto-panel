@@ -39,7 +39,9 @@ let TradeEngineService = class TradeEngineService {
             });
             for (const trade of activeTrades) {
                 const entryPrice = trade.entryPrice;
-                const currentPrice = trade.currentPrice.isZero() ? entryPrice : trade.currentPrice;
+                const currentPrice = trade.currentPrice.isZero()
+                    ? entryPrice
+                    : trade.currentPrice;
                 const quantity = trade.quantity;
                 const volatility = Math.random() * 0.01;
                 const direction = Math.random() > 0.5 ? 1 : -1;
@@ -70,7 +72,8 @@ let TradeEngineService = class TradeEngineService {
                             const returnAmount = originalMargin.add(pnl);
                             const nextBalance = trade.user.wallet.realizedBalance.add(returnAmount);
                             const nextEquity = Number(trade.user.wallet.currentEquity) + Number(returnAmount);
-                            const nextAvailable = Number(trade.user.wallet.availableBalance) + Number(returnAmount);
+                            const nextAvailable = Number(trade.user.wallet.availableBalance) +
+                                Number(returnAmount);
                             await tx.wallet.update({
                                 where: { id: trade.user.wallet.id },
                                 data: {
@@ -100,10 +103,12 @@ let TradeEngineService = class TradeEngineService {
                         }
                     });
                     this.logger.log(`Closed trade ${trade.id} for ${trade.user.email} with PnL: ₹${pnl.toFixed(4)}`);
-                    this.notificationsService.sendToUser(trade.userId, client_1.NotificationEvent.TRADE_CLOSED, {
+                    this.notificationsService
+                        .sendToUser(trade.userId, client_1.NotificationEvent.TRADE_CLOSED, {
                         pair: trade.pair,
                         pnl: pnl.toFixed(2),
-                    }).catch(err => this.logger.error(`Failed to send auto-trade close notification for user ${trade.userId}`, err.stack));
+                    })
+                        .catch((err) => this.logger.error(`Failed to send auto-trade close notification for user ${trade.userId}`, err.stack));
                 }
                 else {
                     await this.prisma.trade.update({
@@ -154,7 +159,7 @@ let TradeEngineService = class TradeEngineService {
                 const pairs = ['BTC/USDT', 'ETH/USDT', 'XAU/USDT', 'EUR/USD'];
                 const pair = pairs[Math.floor(Math.random() * pairs.length)];
                 const type = Math.random() > 0.5 ? 'BUY' : 'SELL';
-                let entryPriceVal = 1.0850;
+                let entryPriceVal = 1.085;
                 if (pair === 'BTC/USDT')
                     entryPriceVal = 68000 + (Math.random() - 0.5) * 500;
                 else if (pair === 'ETH/USDT')
@@ -189,11 +194,13 @@ let TradeEngineService = class TradeEngineService {
                     });
                     return t;
                 });
-                this.notificationsService.sendToUser(user.id, client_1.NotificationEvent.TRADE_OPENED, {
+                this.notificationsService
+                    .sendToUser(user.id, client_1.NotificationEvent.TRADE_OPENED, {
                     type: spawnedTrade.type,
                     pair: spawnedTrade.pair,
                     entryPrice: Number(spawnedTrade.entryPrice),
-                }).catch(err => this.logger.error(`Failed to send auto-trade open notification for user ${user.id}`, err.stack));
+                })
+                    .catch((err) => this.logger.error(`Failed to send auto-trade open notification for user ${user.id}`, err.stack));
                 this.logger.log(`Auto-spawned active trade for ${user.email}: ${pair} ${type} at ₹${entryPrice.toFixed(4)}`);
             }
         }

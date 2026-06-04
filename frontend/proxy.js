@@ -59,7 +59,8 @@ export function proxy(req) {
   if (path.startsWith("/dashboard") || path.startsWith("/profile") || path === "/checkout" || path.startsWith("/checkout/")) {
     if (!isAuthenticated) {
       const loginUrl = new URL("/login", req.url);
-      loginUrl.searchParams.set("next", path);
+      const destination = req.nextUrl.pathname + req.nextUrl.search;
+      loginUrl.searchParams.set("redirect", destination);
       return NextResponse.redirect(loginUrl);
     }
   }

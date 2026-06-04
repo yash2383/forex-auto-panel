@@ -49,10 +49,12 @@ let AuthService = class AuthService {
                         ipAddress: clientIp,
                     },
                 });
-                this.notificationsService.sendToAdmin(admin.id, client_1.NotificationEvent.ADMIN_LOGIN, {
+                this.notificationsService
+                    .sendToAdmin(admin.id, client_1.NotificationEvent.ADMIN_LOGIN, {
                     name: admin.name,
                     ipAddress: clientIp,
-                }).catch(err => console.error(`Failed to send ADMIN_LOGIN notification for admin ${admin.id}`, err));
+                })
+                    .catch((err) => console.error(`Failed to send ADMIN_LOGIN notification for admin ${admin.id}`, err));
                 return {
                     token,
                     user: {
@@ -82,7 +84,10 @@ let AuthService = class AuthService {
                     return { error: err.message, status: 400 };
                 }
                 if (!generated.success) {
-                    return { error: 'Failed to send login OTP via email. Please check your SMTP configuration.', status: 500 };
+                    return {
+                        error: 'Failed to send login OTP via email. Please check your SMTP configuration.',
+                        status: 500,
+                    };
                 }
                 const otpToken = (0, crypto_util_1.signJwt)({
                     email: user.email,
@@ -130,7 +135,10 @@ let AuthService = class AuthService {
     async verifyLoginOtp(otpToken, otp, clientIp) {
         const payload = (0, crypto_util_1.verifyJwt)(otpToken);
         if (!payload || payload.target !== 'login') {
-            return { error: 'Invalid or expired OTP token. Please try logging in again.', status: 400 };
+            return {
+                error: 'Invalid or expired OTP token. Please try logging in again.',
+                status: 400,
+            };
         }
         const { email, partnerId } = payload;
         try {
@@ -164,9 +172,11 @@ let AuthService = class AuthService {
                 lastLoginIP: clientIp,
             },
         });
-        this.notificationsService.sendToUser(user.id, client_1.NotificationEvent.NEW_LOGIN, {
+        this.notificationsService
+            .sendToUser(user.id, client_1.NotificationEvent.NEW_LOGIN, {
             ipAddress: clientIp,
-        }).catch(err => console.error(`Failed to send NEW_LOGIN notification for user ${user.id}`, err));
+        })
+            .catch((err) => console.error(`Failed to send NEW_LOGIN notification for user ${user.id}`, err));
         return {
             token,
             user: {
@@ -188,7 +198,7 @@ let AuthService = class AuthService {
                     emailOtpEnabled: true,
                     otpLength: 6,
                     otpExpiryMinutes: 10,
-                    supportContact: "+91 XXXXX XXXXX",
+                    supportContact: '+91 XXXXX XXXXX',
                 },
             });
         }
@@ -199,10 +209,14 @@ let AuthService = class AuthService {
         if (!settings) {
             settings = await this.prisma.otpSettings.create({
                 data: {
-                    emailOtpEnabled: body.emailOtpEnabled !== undefined ? Boolean(body.emailOtpEnabled) : true,
+                    emailOtpEnabled: body.emailOtpEnabled !== undefined
+                        ? Boolean(body.emailOtpEnabled)
+                        : true,
                     otpLength: body.otpLength ? Number(body.otpLength) : 6,
-                    otpExpiryMinutes: body.otpExpiryMinutes ? Number(body.otpExpiryMinutes) : 10,
-                    supportContact: body.supportContact || "+91 XXXXX XXXXX",
+                    otpExpiryMinutes: body.otpExpiryMinutes
+                        ? Number(body.otpExpiryMinutes)
+                        : 10,
+                    supportContact: body.supportContact || '+91 XXXXX XXXXX',
                 },
             });
         }
@@ -210,10 +224,18 @@ let AuthService = class AuthService {
             settings = await this.prisma.otpSettings.update({
                 where: { id: settings.id },
                 data: {
-                    emailOtpEnabled: body.emailOtpEnabled !== undefined ? Boolean(body.emailOtpEnabled) : settings.emailOtpEnabled,
-                    otpLength: body.otpLength ? Number(body.otpLength) : settings.otpLength,
-                    otpExpiryMinutes: body.otpExpiryMinutes ? Number(body.otpExpiryMinutes) : settings.otpExpiryMinutes,
-                    supportContact: body.supportContact !== undefined ? body.supportContact : settings.supportContact,
+                    emailOtpEnabled: body.emailOtpEnabled !== undefined
+                        ? Boolean(body.emailOtpEnabled)
+                        : settings.emailOtpEnabled,
+                    otpLength: body.otpLength
+                        ? Number(body.otpLength)
+                        : settings.otpLength,
+                    otpExpiryMinutes: body.otpExpiryMinutes
+                        ? Number(body.otpExpiryMinutes)
+                        : settings.otpExpiryMinutes,
+                    supportContact: body.supportContact !== undefined
+                        ? body.supportContact
+                        : settings.supportContact,
                 },
             });
         }
@@ -346,10 +368,17 @@ let AuthService = class AuthService {
         });
         if (existingUser) {
             if (existingUser.isVerified) {
-                return { error: 'Email is already registered under this platform', status: 400 };
+                return {
+                    error: 'Email is already registered under this platform',
+                    status: 400,
+                };
             }
-            const passwordHash = password ? (0, crypto_util_1.hashPassword)(password) : existingUser.passwordHash;
-            const name = password ? `${firstName || ''} ${lastName || ''}`.trim() || email.split('@')[0] : existingUser.name;
+            const passwordHash = password
+                ? (0, crypto_util_1.hashPassword)(password)
+                : existingUser.passwordHash;
+            const name = password
+                ? `${firstName || ''} ${lastName || ''}`.trim() || email.split('@')[0]
+                : existingUser.name;
             await this.prisma.user.update({
                 where: { id: existingUser.id },
                 data: { name, passwordHash },
@@ -362,13 +391,18 @@ let AuthService = class AuthService {
                 where: { referralCode: referralCode.trim().toUpperCase() },
             });
             if (!referrerUser) {
-                return { error: 'Invalid referral code. Please check and try again.', status: 400 };
+                return {
+                    error: 'Invalid referral code. Please check and try again.',
+                    status: 400,
+                };
             }
             referrerId = referrerUser.id;
         }
-        const userReferralCode = "REF" + Math.random().toString(36).substring(2, 8).toUpperCase();
+        const userReferralCode = 'REF' + Math.random().toString(36).substring(2, 8).toUpperCase();
         const name = `${firstName || ''} ${lastName || ''}`.trim() || email.split('@')[0];
-        const passwordHash = password ? (0, crypto_util_1.hashPassword)(password) : (0, crypto_util_1.hashPassword)('defaultPassword123');
+        const passwordHash = password
+            ? (0, crypto_util_1.hashPassword)(password)
+            : (0, crypto_util_1.hashPassword)('defaultPassword123');
         const newUser = await this.prisma.$transaction(async (tx) => {
             const u = await tx.user.create({
                 data: {

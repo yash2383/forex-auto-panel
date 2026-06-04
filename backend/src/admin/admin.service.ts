@@ -1,44 +1,174 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Prisma, NotificationEvent } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword } from '../common/crypto.util';
-import { createTransactionGroup, reverseTransactionGroup } from '../common/ledger.util';
+import {
+  createTransactionGroup,
+  reverseTransactionGroup,
+} from '../common/ledger.util';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ObservabilityService } from '../observability/observability.service';
 
 @Injectable()
-export class AdminService {
+export class AdminService implements OnModuleInit {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     public prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly observabilityService: ObservabilityService,
   ) {}
+
+  async onModuleInit() {
+    await this.validateSettingsOnStartup();
+  }
+
+  async validateSettingsOnStartup() {
+    this.logger.log('Running Startup Settings & Configuration Health Check...');
+    try {
+      const systemSettings = await this.prisma.systemSettings.findFirst();
+      if (!systemSettings) {
+        this.logger.error(
+          '[STARTUP_ERROR] SystemSettings row is missing in the database. Please seed the database.',
+        );
+        this.observabilityService.increment('settings_validation_failures_total', { settings_type: 'system' });
+      } else {
+        if (
+          systemSettings.platformProfitCut === null ||
+          systemSettings.platformProfitCut === undefined
+        ) {
+          this.logger.error(
+            '[STARTUP_ERROR] SystemSettings.platformProfitCut is null/undefined.',
+          );
+          this.observabilityService.increment('settings_validation_failures_total', { settings_type: 'system' });
+        } else {
+          const cut = Number(systemSettings.platformProfitCut);
+          if (cut < 0 || cut > 100) {
+            this.logger.error(
+              `[STARTUP_ERROR] SystemSettings.platformProfitCut (${cut}) is out of bounds (0-100).`,
+            );
+            this.observabilityService.increment('settings_validation_failures_total', { settings_type: 'system' });
+          }
+        }
+
+        if (
+          systemSettings.maintenanceMode === null ||
+          systemSettings.maintenanceMode === undefined
+        ) {
+          this.logger.error(
+            '[STARTUP_ERROR] SystemSettings.maintenanceMode is null/undefined.',
+          );
+          this.observabilityService.increment('settings_validation_failures_total', { settings_type: 'system' });
+        }
+      }
+
+      const referralSettings = await this.prisma.referralSettings.findFirst();
+      if (!referralSettings) {
+        this.logger.error(
+          '[STARTUP_ERROR] ReferralSettings row is missing in the database. Please seed the database.',
+        );
+        this.observabilityService.increment('settings_validation_failures_total', { settings_type: 'referral' });
+      } else {
+        if (
+          referralSettings.commissionRate === null ||
+          referralSettings.commissionRate === undefined
+        ) {
+          this.logger.error(
+            '[STARTUP_ERROR] ReferralSettings.commissionRate is null/undefined.',
+          );
+          this.observabilityService.increment('settings_validation_failures_total', { settings_type: 'referral' });
+        } else {
+          const rate = Number(referralSettings.commissionRate);
+          if (rate < 0 || rate > 100) {
+            this.logger.error(
+              `[STARTUP_ERROR] ReferralSettings.commissionRate (${rate}) is out of bounds (0-100).`,
+            );
+            this.observabilityService.increment('settings_validation_failures_total', { settings_type: 'referral' });
+          }
+        }
+      }
+    } catch (e: any) {
+      this.logger.error(
+        `[STARTUP_ERROR] Failed to run startup settings validator: ${e.message}`,
+      );
+      this.observabilityService.increment('settings_validation_failures_total', { settings_type: 'system' });
+    }
+  }
+
+  private slugify(value: string) {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/\s+plan$/i, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
 
   async getData() {
     const [
-      dbUsers, dbPayments, dbTrades, dbLogs, dbPartners, dbSettings,
-      dbCampaigns, dbReferrals, dbAdmins, dbWithdrawals, dbPlans, dbProfitDistributions, dbReferralSettings,
-      dbGeneratedReports
+      dbUsers,
+      dbPayments,
+      dbTrades,
+      dbLogs,
+      dbPartners,
+      dbSettings,
+      dbCampaigns,
+      dbReferrals,
+      dbAdmins,
+      dbWithdrawals,
+      dbPlans,
+      dbProfitDistributions,
+      dbReferralSettings,
+      dbGeneratedReports,
     ] = await Promise.all([
-      this.prisma.user.findMany({ where: { isDeleted: false }, include: { wallet: true, partner: true }, orderBy: { createdAt: 'desc' } }),
-      this.prisma.payment.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.user.findMany({
+        where: { isDeleted: false },
+        include: {
+          wallet: true,
+          partner: true,
+          userPlans: {
+            where: { active: true },
+            include: { plan: true },
+            orderBy: { startedAt: 'desc' },
+            take: 1,
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.payment.findMany({
+        include: { user: true },
+        orderBy: { createdAt: 'desc' },
+      }),
       this.prisma.tradeRecord.findMany({ orderBy: { tradeDate: 'desc' } }),
-      this.prisma.securityEvent.findMany({ include: { admin: true, user: true }, orderBy: { createdAt: 'desc' }, take: 50 }),
+      this.prisma.securityEvent.findMany({
+        include: { admin: true, user: true },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
       this.prisma.partner.findMany({ orderBy: { createdAt: 'desc' } }),
       this.prisma.systemSettings.findFirst(),
       this.prisma.campaign.findMany({ orderBy: { createdAt: 'desc' } }),
       this.prisma.referral.findMany({ orderBy: { createdAt: 'desc' } }),
       this.prisma.admin.findMany({ orderBy: { createdAt: 'desc' } }),
-      this.prisma.withdrawal.findMany({ include: { user: { include: { wallet: true } } }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.withdrawal.findMany({
+        include: { user: { include: { wallet: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
       this.prisma.plan.findMany({ orderBy: { createdAt: 'asc' } }),
-      this.prisma.profitDistribution.findMany({ include: { user: true }, orderBy: { distributionDate: 'desc' } }),
+      this.prisma.profitDistribution.findMany({
+        include: { user: true },
+        orderBy: { distributionDate: 'desc' },
+      }),
       this.prisma.referralSettings.findFirst(),
-      this.prisma.generatedReport.findMany({ include: { user: true }, orderBy: { createdAt: 'desc' } }),
+      this.prisma.generatedReport.findMany({
+        include: { user: true },
+        orderBy: { createdAt: 'desc' },
+      }),
     ]);
 
     const users = dbUsers.map((u) => {
-      let plan = 'None';
-      if (u.status === 'ACTIVE') plan = 'Basic';
-      else if (u.status === 'VIP') plan = 'Premium';
-      else if (u.status === 'EXPIRED') plan = 'Basic';
+      const activeUserPlan = u.userPlans?.[0];
+      const plan = activeUserPlan?.plan?.name || 'None';
 
       let statusLabel = 'New';
       if (u.status === 'ACTIVE') statusLabel = 'Active';
@@ -49,35 +179,63 @@ export class AdminService {
       const balance = u.wallet ? Number(u.wallet.realizedBalance) : 0;
 
       return {
-        id: u.id, name: u.name, email: u.email,
-        deposit: `₹${balance.toLocaleString('en-IN')}`, rawDeposit: balance,
-        plan, status: statusLabel, partnerId: u.partnerId,
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        deposit: `₹${balance.toLocaleString('en-IN')}`,
+        rawDeposit: balance,
+        plan,
+        status: statusLabel,
+        partnerId: u.partnerId,
         partnerName: u.partner?.name || 'N/A',
         isVerified: u.isVerified,
       };
     });
 
-
     const payments = dbPayments.map((p: any) => {
       let statusLabel = 'Pending';
       let dotColor = 'bg-yellow-400';
-      if (p.status === 'APPROVED') { statusLabel = 'Approved'; dotColor = 'bg-green-400'; }
-      else if (p.status === 'REJECTED') { statusLabel = 'Rejected'; dotColor = 'bg-red-400'; }
-      else if (p.status === 'VERIFIED') { statusLabel = 'Verified'; dotColor = 'bg-blue-400'; }
+      if (p.status === 'APPROVED') {
+        statusLabel = 'Approved';
+        dotColor = 'bg-green-400';
+      } else if (p.status === 'REJECTED') {
+        statusLabel = 'Rejected';
+        dotColor = 'bg-red-400';
+      } else if (p.status === 'VERIFIED') {
+        statusLabel = 'Verified';
+        dotColor = 'bg-blue-400';
+      }
 
       return {
         id: p.id,
         user: p.user?.name || 'Unknown User',
         email: p.user?.email || '',
-        initials: (p.user?.name || 'U').split(' ').map((n: any) => n[0]).join('').toUpperCase().slice(0, 2),
+        initials: (p.user?.name || 'U')
+          .split(' ')
+          .map((n: any) => n[0])
+          .join('')
+          .toUpperCase()
+          .slice(0, 2),
         plan: p.planName,
         amount: `₹${Number(p.amount).toLocaleString('en-IN')}`,
         rawAmount: Number(p.amount),
-        utr: p.utr || '', txnHash: p.txnHash || '', network: p.network || 'TRC20',
+        utr: p.utr || '',
+        txnHash: p.txnHash || '',
+        network: p.network || 'TRC20',
         screenshot: p.screenshot || '',
-        date: p.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        time: p.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        dot: dotColor, status: statusLabel, paymentType: p.paymentType, remark: p.remark || '',
+        date: p.createdAt.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
+        time: p.createdAt.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        dot: dotColor,
+        status: statusLabel,
+        paymentType: p.paymentType,
+        remark: p.remark || '',
       };
     });
 
@@ -95,25 +253,53 @@ export class AdminService {
     }));
 
     const logs = dbLogs.map((l) => ({
-      id: l.id, actor: l.admin?.name || l.user?.name || 'System',
-      action: l.action, module: l.action.split('_')[0] || 'System',
+      id: l.id,
+      actor: l.admin?.name || l.user?.name || 'System',
+      action: l.action,
+      module: l.action.split('_')[0] || 'System',
       targetId: l.userId || l.adminId || '',
-      time: l.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) + ' - ' + l.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      status: 'Success', ipAddress: l.ipAddress || '127.0.0.1',
+      time:
+        l.createdAt.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }) +
+        ' - ' +
+        l.createdAt.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+      status: 'Success',
+      ipAddress: l.ipAddress || '127.0.0.1',
     }));
 
     const partners = dbPartners.map((p: any) => ({
-      id: p.slug, rawId: p.id, name: p.name, companyName: p.companyName,
-      email: p.email, profitShare: Number(p.profitSharePct), maxAllowedShare: Number(p.maxAllowedPct),
-      domain: p.domain, logo: p.logo || p.name.slice(0, 2).toUpperCase(),
+      id: p.slug,
+      rawId: p.id,
+      name: p.name,
+      companyName: p.companyName,
+      email: p.email,
+      profitShare: Number(p.profitSharePct),
+      maxAllowedShare: Number(p.maxAllowedPct),
+      domain: p.domain,
+      logo: p.logo || p.name.slice(0, 2).toUpperCase(),
       usersCount: dbUsers.filter((u) => u.partnerId === p.id).length,
-      revenue: Number(dbPayments.filter((pay) => pay.partnerId === p.id && pay.status === 'APPROVED').reduce((sum, pay) => sum + Number(pay.amount), 0)),
-      withdrawn: Number(dbWithdrawals.filter((w: any) => w.partnerId === p.id && w.status === 'APPROVED').reduce((sum: number, w: any) => sum + Number(w.amount), 0)),
+      revenue: Number(
+        dbPayments
+          .filter((pay) => pay.partnerId === p.id && pay.status === 'APPROVED')
+          .reduce((sum, pay) => sum + Number(pay.amount), 0),
+      ),
+      withdrawn: Number(
+        dbWithdrawals
+          .filter((w: any) => w.partnerId === p.id && w.status === 'APPROVED')
+          .reduce((sum: number, w: any) => sum + Number(w.amount), 0),
+      ),
       status: p.status === 'ACTIVE' ? 'Active' : 'Suspended',
     }));
 
     const campaigns = dbCampaigns.map((c) => ({
-      id: c.id, name: c.name, trackingLink: `/register?campaign=${c.slug}`,
+      id: c.id,
+      name: c.name,
+      trackingLink: `/register?campaign=${c.slug}`,
       users: dbUsers.filter((u) => u.partnerId === c.partnerId).length,
       revenue: `₹${Number(dbPayments.filter((p: any) => p.partnerId === c.partnerId && p.status === 'APPROVED').reduce((sum, p) => sum + Number(p.amount), 0)).toLocaleString('en-IN')}`,
       status: c.isActive ? 'Active' : 'Inactive',
@@ -123,69 +309,129 @@ export class AdminService {
       const referrerUser = dbUsers.find((u) => u.id === r.referrerId);
       const referredUser = dbUsers.find((u) => u.id === r.referredId);
       return {
-        id: r.id, referrer: referrerUser?.name || 'Unknown', user: referredUser?.name || 'Unknown',
-        deposit: r.depositAmount ? `₹${Number(r.depositAmount).toLocaleString('en-IN')}` : (referredUser?.wallet ? `₹${Number(referredUser.wallet.realizedBalance).toLocaleString('en-IN')}` : '₹0'),
+        id: r.id,
+        referrer: referrerUser?.name || 'Unknown',
+        user: referredUser?.name || 'Unknown',
+        deposit: r.depositAmount
+          ? `₹${Number(r.depositAmount).toLocaleString('en-IN')}`
+          : referredUser?.wallet
+            ? `₹${Number(referredUser.wallet.realizedBalance).toLocaleString('en-IN')}`
+            : '₹0',
         reward: `₹${Number(r.commissionAmount || 0).toLocaleString('en-IN')}`,
-        status: r.status === 'PENDING' ? 'Pending' : r.status === 'PAID' ? 'Paid' : 'Cancelled',
+        status:
+          r.status === 'PENDING'
+            ? 'Pending'
+            : r.status === 'PAID'
+              ? 'Paid'
+              : 'Cancelled',
       };
     });
 
     const admins = dbAdmins.map((a) => ({
-      id: a.id, name: a.name, email: a.email,
-      role: a.role === 'SUPER_ADMIN' ? 'Super Admin' : a.role === 'MANAGER' ? 'Manager' : 'Viewer',
+      id: a.id,
+      name: a.name,
+      email: a.email,
+      role:
+        a.role === 'SUPER_ADMIN'
+          ? 'Super Admin'
+          : a.role === 'MANAGER'
+            ? 'Manager'
+            : 'Viewer',
       status: a.status === 'ACTIVE' ? 'Active' : 'Suspended',
-      permissions: typeof a.permissions === 'string' ? JSON.parse(a.permissions) : a.permissions,
+      permissions:
+        typeof a.permissions === 'string'
+          ? JSON.parse(a.permissions)
+          : a.permissions,
     }));
 
     const transactions = [
-      ...dbWithdrawals.filter((w: any) => w.status === 'APPROVED').map((w: any) => ({
-        id: w.id,
-        withdrawalId: w.withdrawalId,
-        userId: w.userId,
-        userName: w.user?.name || 'Unknown User',
-        userEmail: w.user?.email || 'N/A',
-        type: 'Withdrawal',
-        amount: Number(w.amount),
-        rawAmount: Number(w.amount),
-        method: w.method || 'Bank Transfer',
-        accountDetails: w.accountDetails || '',
-        notes: w.notes || '',
-        status: 'Approved',
-        currentEquity: w.user?.wallet ? Number(w.user.wallet.currentEquity) : 0,
-        availableBalance: w.user?.wallet ? Number(w.user.wallet.availableBalance) : 0,
-        pendingWithdrawals: w.user?.wallet ? Number(w.user.wallet.pendingWithdrawals) : 0,
-        requestedAt: w.createdAt,
-        processedAt: w.processedAt,
-        date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        time: w.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      })),
-      ...dbPayments.filter((p: any) => p.status === 'APPROVED').map((p: any) => ({
-        id: p.id,
-        userId: p.userId,
-        userName: p.user?.name || 'Unknown User',
-        userEmail: p.user?.email || 'N/A',
-        type: 'Deposit',
-        amount: Number(p.amount),
-        rawAmount: Number(p.amount),
-        method: p.paymentType,
-        status: 'Approved',
-        date: p.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        time: p.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      })),
+      ...dbWithdrawals
+        .filter((w: any) => w.status === 'APPROVED')
+        .map((w: any) => ({
+          id: w.id,
+          withdrawalId: w.withdrawalId,
+          userId: w.userId,
+          userName: w.user?.name || 'Unknown User',
+          userEmail: w.user?.email || 'N/A',
+          type: 'Withdrawal',
+          amount: Number(w.amount),
+          rawAmount: Number(w.amount),
+          method: w.method || 'Bank Transfer',
+          accountDetails: w.accountDetails || '',
+          notes: w.notes || '',
+          status: 'Approved',
+          currentEquity: w.user?.wallet
+            ? Number(w.user.wallet.currentEquity)
+            : 0,
+          availableBalance: w.user?.wallet
+            ? Number(w.user.wallet.availableBalance)
+            : 0,
+          pendingWithdrawals: w.user?.wallet
+            ? Number(w.user.wallet.pendingWithdrawals)
+            : 0,
+          requestedAt: w.createdAt,
+          processedAt: w.processedAt,
+          date: w.createdAt.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          }),
+          time: w.createdAt.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        })),
+      ...dbPayments
+        .filter((p: any) => p.status === 'APPROVED')
+        .map((p: any) => ({
+          id: p.id,
+          userId: p.userId,
+          userName: p.user?.name || 'Unknown User',
+          userEmail: p.user?.email || 'N/A',
+          type: 'Deposit',
+          amount: Number(p.amount),
+          rawAmount: Number(p.amount),
+          method: p.paymentType,
+          status: 'Approved',
+          date: p.createdAt.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          }),
+          time: p.createdAt.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        })),
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     const totalUsers = dbUsers.length;
-    const activeUsers = dbUsers.filter((u) => u.status === 'ACTIVE' || u.status === 'VIP').length;
-    const totalRevenue = dbPayments.filter((p: any) => p.status === 'APPROVED').reduce((sum, p) => sum + Number(p.amount), 0);
-    const totalUserWalletBalance = dbUsers.reduce((sum, u) => sum + (u.wallet ? Number(u.wallet.realizedBalance) : 0), 0);
-    const pendingPayments = dbPayments.filter((p: any) => p.status === 'PENDING').length;
-    const totalCapital = dbUsers.reduce((sum, u) => sum + (u.wallet ? Number(u.wallet.currentEquity) : 0), 0);
+    const activeUsers = dbUsers.filter(
+      (u) => u.status === 'ACTIVE' || u.status === 'VIP',
+    ).length;
+    const totalRevenue = dbPayments
+      .filter((p: any) => p.status === 'APPROVED')
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+    const totalUserWalletBalance = dbUsers.reduce(
+      (sum, u) => sum + (u.wallet ? Number(u.wallet.realizedBalance) : 0),
+      0,
+    );
+    const pendingPayments = dbPayments.filter(
+      (p: any) => p.status === 'PENDING',
+    ).length;
+    const totalCapital = dbUsers.reduce(
+      (sum, u) => sum + (u.wallet ? Number(u.wallet.currentEquity) : 0),
+      0,
+    );
     const activeWalletBalance = dbUsers
       .filter((u) => u.status === 'ACTIVE' || u.status === 'VIP')
-      .reduce((sum, u) => sum + (u.wallet ? Number(u.wallet.availableBalance) : 0), 0);
+      .reduce(
+        (sum, u) => sum + (u.wallet ? Number(u.wallet.availableBalance) : 0),
+        0,
+      );
     const totalProfit = dbProfitDistributions
-      .filter((pd: any) => pd.status === 'PAID')
-      .reduce((sum, pd) => sum + Number(pd.amount), 0);
+      .filter((pd: any) => pd.status === 'COMPLETED')
+      .reduce((sum, pd: any) => sum + Number(pd.netProfit ?? 0), 0);
 
     const platformStats = {
       totalUsers: totalUsers.toLocaleString(),
@@ -198,19 +444,91 @@ export class AdminService {
       totalProfit: `₹${totalProfit.toLocaleString('en-IN')}`,
     };
 
+    if (dbSettings) {
+      if (
+        Number(dbSettings.platformProfitCut ?? 30) !==
+        Number(dbSettings.platformFeePct ?? 30)
+      ) {
+        this.logger.warn({
+          event: 'SETTINGS_DIVERGENCE',
+          field: 'platformProfitCut',
+          legacy: Number(dbSettings.platformFeePct ?? 30),
+          canonical: Number(dbSettings.platformProfitCut ?? 30),
+        });
+        this.observabilityService.increment('settings_divergence_total', { field: 'platformProfitCut' });
+      }
+      if (
+        Boolean(dbSettings.maintenanceMode) !== Boolean(dbSettings.maintenance)
+      ) {
+        this.logger.warn({
+          event: 'SETTINGS_DIVERGENCE',
+          field: 'maintenanceMode',
+          legacy: Boolean(dbSettings.maintenance),
+          canonical: Boolean(dbSettings.maintenanceMode),
+        });
+        this.observabilityService.increment('settings_divergence_total', { field: 'maintenanceMode' });
+      }
+      if (
+        Boolean(dbSettings.enableBulkDistribution ?? true) !==
+        Boolean(dbSettings.enableBulkDist ?? true)
+      ) {
+        this.logger.warn({
+          event: 'SETTINGS_DIVERGENCE',
+          field: 'enableBulkDistribution',
+          legacy: Boolean(dbSettings.enableBulkDist ?? true),
+          canonical: Boolean(dbSettings.enableBulkDistribution ?? true),
+        });
+        this.observabilityService.increment('settings_divergence_total', { field: 'enableBulkDistribution' });
+      }
+      if (
+        Boolean(dbSettings.allowDuplicateWeeklyPayouts ?? false) !==
+        Boolean(dbSettings.allowDuplicateDist ?? false)
+      ) {
+        this.logger.warn({
+          event: 'SETTINGS_DIVERGENCE',
+          field: 'allowDuplicateWeeklyPayouts',
+          legacy: Boolean(dbSettings.allowDuplicateDist ?? false),
+          canonical: Boolean(dbSettings.allowDuplicateWeeklyPayouts ?? false),
+        });
+        this.observabilityService.increment('settings_divergence_total', { field: 'allowDuplicateWeeklyPayouts' });
+      }
+    }
+
     const settings = {
       upiId: dbSettings?.upiId || '',
       upiName: dbSettings?.upiName || '',
       upiQrCode: dbSettings?.upiQrCode || '',
-      usdt: { network: dbSettings?.usdtNetwork || 'TRC20', walletAddress: dbSettings?.usdtAddress || '', usdtQrCode: dbSettings?.usdtQrCode || '' },
-      financials: { platformFee: Number(dbSettings?.platformFeePct || 30), referralFee: Number(dbSettings?.referralFeePct || 10) },
-      system: { maintenanceMode: dbSettings?.maintenance || false },
-      paymentModes: { upi: dbSettings?.upiEnabled ?? false, bank: false, usdt: dbSettings?.usdtEnabled ?? true },
+      usdt: {
+        network: dbSettings?.usdtNetwork || 'TRC20',
+        walletAddress: dbSettings?.usdtAddress || '',
+        usdtQrCode: dbSettings?.usdtQrCode || '',
+      },
+      financials: {
+        platformFee: Number(
+          dbSettings?.platformProfitCut ?? dbSettings?.platformFeePct ?? 30,
+        ),
+        referralFee: Number(dbSettings?.referralFeePct || 10),
+      },
+      system: {
+        maintenanceMode:
+          dbSettings?.maintenanceMode ?? dbSettings?.maintenance ?? false,
+      },
+      paymentModes: {
+        upi: dbSettings?.upiEnabled ?? false,
+        bank: false,
+        usdt: dbSettings?.usdtEnabled ?? true,
+      },
       profitDist: {
-        individualProfitPct: Number(dbSettings?.individualProfitPct ?? 5.00),
-        clubProfitPct: Number(dbSettings?.clubProfitPct ?? 7.00),
-        enableBulkDist: dbSettings?.enableBulkDist ?? true,
-        allowDuplicateDist: dbSettings?.allowDuplicateDist ?? false,
+        individualProfitPct: Number(dbSettings?.individualProfitPct ?? 5.0),
+        clubProfitPct: Number(dbSettings?.clubProfitPct ?? 7.0),
+        enableBulkDist:
+          dbSettings?.enableBulkDistribution ??
+          dbSettings?.enableBulkDist ??
+          true,
+        allowDuplicateDist:
+          dbSettings?.allowDuplicateWeeklyPayouts ??
+          dbSettings?.allowDuplicateDist ??
+          false,
       },
     };
 
@@ -220,9 +538,15 @@ export class AdminService {
       userId: pd.userId,
       userName: pd.user?.name || 'Unknown',
       userEmail: pd.user?.email || '',
-      amount: pd.amount,
+      // Legacy: expose netProfit as 'amount' for frontend backward compat
+      amount: Number(pd.netProfit ?? 0),
+      netProfit: Number(pd.netProfit ?? 0),
+      grossProfit: Number(pd.grossProfit ?? 0),
+      platformCut: Number(pd.platformCut ?? 0),
+      investmentAmount: Number(pd.investmentAmount ?? 0),
       type: pd.type,
       status: pd.status,
+      weekKey: pd.weekKey,
       note: pd.note || '',
       distributionDate: pd.distributionDate,
       createdAt: pd.createdAt,
@@ -239,14 +563,30 @@ export class AdminService {
       method: w.method || 'Bank Transfer',
       accountDetails: w.accountDetails || '',
       notes: w.notes || '',
-      status: w.status === 'PENDING' ? 'Pending' : w.status === 'APPROVED' ? 'Approved' : 'Rejected',
+      status:
+        w.status === 'PENDING'
+          ? 'Pending'
+          : w.status === 'APPROVED'
+            ? 'Approved'
+            : 'Rejected',
       currentEquity: w.user?.wallet ? Number(w.user.wallet.currentEquity) : 0,
-      availableBalance: w.user?.wallet ? Number(w.user.wallet.availableBalance) : 0,
-      pendingWithdrawals: w.user?.wallet ? Number(w.user.wallet.pendingWithdrawals) : 0,
+      availableBalance: w.user?.wallet
+        ? Number(w.user.wallet.availableBalance)
+        : 0,
+      pendingWithdrawals: w.user?.wallet
+        ? Number(w.user.wallet.pendingWithdrawals)
+        : 0,
       requestedAt: w.createdAt,
       processedAt: w.processedAt,
-      date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      time: w.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      date: w.createdAt.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      time: w.createdAt.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
     }));
 
     const generatedReports = dbGeneratedReports.map((gr: any) => ({
@@ -262,10 +602,22 @@ export class AdminService {
     }));
 
     return {
-      stats: platformStats, users, payments, trades, logs, partners, campaigns,
-      referrals, admins, transactions, settings, profitDistributions, withdrawals,
+      stats: platformStats,
+      users,
+      payments,
+      trades,
+      logs,
+      partners,
+      campaigns,
+      referrals,
+      admins,
+      transactions,
+      settings,
+      profitDistributions,
+      withdrawals,
       plans: dbPlans.map((p: any) => ({
         id: p.id,
+        slug: p.slug,
         name: p.name,
         subtitle: p.subtitle,
         capitalLabel: p.capitalLabel,
@@ -274,7 +626,8 @@ export class AdminService {
         btnText: p.btnText,
         status: p.status,
         isPopular: p.isPopular,
-        amount: p.amount !== null && p.amount !== undefined ? Number(p.amount) : null,
+        amount:
+          p.amount !== null && p.amount !== undefined ? Number(p.amount) : null,
         weeklyProfit: Number(p.weeklyProfit ?? 0),
         durationDays: Number(p.durationDays ?? 0),
         pricingType: p.pricingType || 'FIXED',
@@ -286,19 +639,32 @@ export class AdminService {
 
   async createUser(adminId: string, body: any, clientIp: string) {
     const { name, email, password, partnerId, plan, deposit } = body;
-    if (!name || !email || !password) return { error: 'Name, email and password are required', status: 400 };
+    if (!name || !email || !password)
+      return { error: 'Name, email and password are required', status: 400 };
 
     let targetPartnerId = partnerId;
     if (!targetPartnerId) {
       const partner = await this.prisma.partner.findFirst();
-      if (!partner) return { error: 'No white-label partners exist. Create a partner first.', status: 400 };
+      if (!partner)
+        return {
+          error: 'No white-label partners exist. Create a partner first.',
+          status: 400,
+        };
       targetPartnerId = partner.id;
     }
 
     const existing = await this.prisma.user.findFirst({
-      where: { partnerId: targetPartnerId, email: email.toLowerCase().trim(), isDeleted: false },
+      where: {
+        partnerId: targetPartnerId,
+        email: email.toLowerCase().trim(),
+        isDeleted: false,
+      },
     });
-    if (existing) return { error: 'User email already exists under this partner', status: 400 };
+    if (existing)
+      return {
+        error: 'User email already exists under this partner',
+        status: 400,
+      };
 
     let userStatus = 'NEW';
     if (plan === 'Basic') userStatus = 'ACTIVE';
@@ -306,11 +672,19 @@ export class AdminService {
     else if (plan === 'Pro') userStatus = 'ACTIVE';
     else if (plan === 'VIP') userStatus = 'VIP';
 
-    const cleanDeposit = deposit ? Number(String(deposit).replace(/[^\d.-]/g, '')) : 0;
+    const cleanDeposit = deposit
+      ? Number(String(deposit).replace(/[^\d.-]/g, ''))
+      : 0;
 
     const user = await this.prisma.$transaction(async (tx: any) => {
       const u = await tx.user.create({
-        data: { partnerId: targetPartnerId, name, email: email.toLowerCase().trim(), passwordHash: hashPassword(password), status: userStatus as any },
+        data: {
+          partnerId: targetPartnerId,
+          name,
+          email: email.toLowerCase().trim(),
+          passwordHash: hashPassword(password),
+          status: userStatus as any,
+        },
       });
       await tx.wallet.create({
         data: {
@@ -328,13 +702,25 @@ export class AdminService {
     });
 
     await this.prisma.securityEvent.create({
-      data: { adminId, userId: user.id, partnerId: targetPartnerId, action: 'USER_CREATE', reason: `Manually created user ${user.email}`, ipAddress: clientIp },
+      data: {
+        adminId,
+        userId: user.id,
+        partnerId: targetPartnerId,
+        action: 'USER_CREATE',
+        reason: `Manually created user ${user.email}`,
+        ipAddress: clientIp,
+      },
     });
 
     return { success: true, user };
   }
 
-  async updateUser(adminId: string, userId: string, body: any, clientIp: string) {
+  async updateUser(
+    adminId: string,
+    userId: string,
+    body: any,
+    clientIp: string,
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return { error: 'User not found', status: 404 };
 
@@ -355,25 +741,43 @@ export class AdminService {
       else if (plan === 'None') updateData.status = 'NEW';
     }
 
-    const updatedUser = await this.prisma.user.update({ where: { id: userId }, data: updateData });
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
 
     if (updateData.status === 'BLOCKED') {
-      this.notificationsService.sendToUser(userId, NotificationEvent.ACCOUNT_BLOCKED, {}).catch(err => 
-        console.error(`Failed to send ACCOUNT_BLOCKED notification for user ${userId}`, err)
-      );
+      this.notificationsService
+        .sendToUser(userId, NotificationEvent.ACCOUNT_BLOCKED, {})
+        .catch((err) =>
+          console.error(
+            `Failed to send ACCOUNT_BLOCKED notification for user ${userId}`,
+            err,
+          ),
+        );
     }
 
     if (deposit !== undefined) {
       const cleanDeposit = Number(String(deposit).replace(/[^\d.-]/g, ''));
       if (!isNaN(cleanDeposit)) {
-        await this.prisma.wallet.update({ where: { userId }, data: { realizedBalance: cleanDeposit } });
+        await this.prisma.wallet.update({
+          where: { userId },
+          data: { realizedBalance: cleanDeposit },
+        });
       }
     }
 
     await this.prisma.securityEvent.create({
       data: {
-        adminId, userId, partnerId: user.partnerId, action: 'USER_UPDATE',
-        reason: `Updated user details. Modified fields: ${Object.keys(updateData).concat(deposit !== undefined ? ['deposit'] : []).join(', ')}`,
+        adminId,
+        userId,
+        partnerId: user.partnerId,
+        action: 'USER_UPDATE',
+        reason: `Updated user details. Modified fields: ${Object.keys(
+          updateData,
+        )
+          .concat(deposit !== undefined ? ['deposit'] : [])
+          .join(', ')}`,
         ipAddress: clientIp,
       },
     });
@@ -385,59 +789,131 @@ export class AdminService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return { error: 'User not found', status: 404 };
 
-    await this.prisma.user.update({ where: { id: userId }, data: { isDeleted: true } });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { isDeleted: true },
+    });
 
     await this.prisma.securityEvent.create({
-      data: { adminId, userId, partnerId: user.partnerId, action: 'USER_DELETE', reason: `Soft deleted user ${user.email}`, ipAddress: clientIp },
+      data: {
+        adminId,
+        userId,
+        partnerId: user.partnerId,
+        action: 'USER_DELETE',
+        reason: `Soft deleted user ${user.email}`,
+        ipAddress: clientIp,
+      },
     });
 
     return { success: true, message: 'User soft deleted successfully' };
   }
 
   async createPartner(adminId: string, body: any, clientIp: string) {
-    const { name, companyName, email, password, profitShare, maxAllowedShare, domain, logo } = body;
-    if (!name || !companyName || !email || !password || !domain) return { error: 'Missing required partner fields', status: 400 };
+    const {
+      name,
+      companyName,
+      email,
+      password,
+      profitShare,
+      maxAllowedShare,
+      domain,
+      logo,
+    } = body;
+    if (!name || !companyName || !email || !password || !domain)
+      return { error: 'Missing required partner fields', status: 400 };
 
     const slug = name.toLowerCase().trim().replace(/\s+/g, '-');
     const normalizedEmail = email.toLowerCase().trim();
     const normalizedDomain = domain.toLowerCase().trim();
 
     const existing = await this.prisma.partner.findFirst({
-      where: { OR: [{ slug }, { email: normalizedEmail }, { domain: normalizedDomain }] },
+      where: {
+        OR: [
+          { slug },
+          { email: normalizedEmail },
+          { domain: normalizedDomain },
+        ],
+      },
     });
-    if (existing) return { error: 'Partner with similar name, email, or domain already exists', status: 400 };
+    if (existing)
+      return {
+        error: 'Partner with similar name, email, or domain already exists',
+        status: 400,
+      };
 
     const partner = await this.prisma.partner.create({
       data: {
-        slug, name, companyName, email: normalizedEmail, passwordHash: hashPassword(password),
-        profitSharePct: Number(profitShare || 30.00), maxAllowedPct: Number(maxAllowedShare || 40.00),
-        domain: normalizedDomain, logo: logo || name.slice(0, 2).toUpperCase(), status: 'ACTIVE',
+        slug,
+        name,
+        companyName,
+        email: normalizedEmail,
+        passwordHash: hashPassword(password),
+        profitSharePct: Number(profitShare || 30.0),
+        maxAllowedPct: Number(maxAllowedShare || 40.0),
+        domain: normalizedDomain,
+        logo: logo || name.slice(0, 2).toUpperCase(),
+        status: 'ACTIVE',
       },
     });
 
     await this.prisma.securityEvent.create({
-      data: { adminId, action: 'PARTNER_CREATE', reason: `Created white-label partner ${name} (${slug})`, ipAddress: clientIp },
+      data: {
+        adminId,
+        action: 'PARTNER_CREATE',
+        reason: `Created white-label partner ${name} (${slug})`,
+        ipAddress: clientIp,
+      },
     });
 
     return { success: true, partner };
   }
 
   async createPlan(adminId: string, body: any, clientIp: string) {
-    const { name, subtitle, capitalLabel, desc, features, btnText, status, isPopular, amount, weeklyProfit, durationDays, pricingType } = body;
-    if (!name || !subtitle || !capitalLabel || !desc) return { error: 'Name, subtitle, capital label, and description are required', status: 400 };
+    const {
+      name,
+      subtitle,
+      capitalLabel,
+      desc,
+      features,
+      btnText,
+      status,
+      isPopular,
+      amount,
+      weeklyProfit,
+      durationDays,
+      pricingType,
+      slug,
+    } = body;
+    if (!name || !subtitle || !capitalLabel || !desc)
+      return {
+        error: 'Name, subtitle, capital label, and description are required',
+        status: 400,
+      };
 
     const typeOfPricing = pricingType || 'FIXED';
-    const amountVal = amount !== undefined && amount !== null && amount !== '' ? Number(amount) : null;
+    const amountVal =
+      amount !== undefined && amount !== null && amount !== ''
+        ? Number(amount)
+        : null;
 
     if (amountVal === null && typeOfPricing === 'FIXED') {
-      return { error: 'Plan must have a fixed amount if pricingType is FIXED.', status: 400 };
+      return {
+        error: 'Plan must have a fixed amount if pricingType is FIXED.',
+        status: 400,
+      };
     }
 
     const plan = await this.prisma.plan.create({
       data: {
-        name, subtitle, capitalLabel, desc,
+        name,
+        subtitle,
+        capitalLabel,
+        desc,
+        slug: slug ? this.slugify(slug) : this.slugify(name),
         features: Array.isArray(features) ? features : [],
-        btnText: btnText || 'Get Started', status: status || 'Active', isPopular: !!isPopular,
+        btnText: btnText || 'Get Started',
+        status: status || 'Active',
+        isPopular: !!isPopular,
         amount: typeOfPricing === 'FLEXIBLE' ? null : amountVal,
         pricingType: typeOfPricing,
         weeklyProfit: Number(weeklyProfit) || 5,
@@ -446,45 +922,83 @@ export class AdminService {
     });
 
     await this.prisma.securityEvent.create({
-      data: { adminId, action: 'PLAN_CREATE', reason: `Created pricing plan ${plan.name}`, ipAddress: clientIp },
+      data: {
+        adminId,
+        action: 'PLAN_CREATE',
+        reason: `Created pricing plan ${plan.name}`,
+        ipAddress: clientIp,
+      },
     });
 
     return { success: true, plan };
   }
 
-  async updatePlan(adminId: string, planId: string, body: any, clientIp: string) {
+  async updatePlan(
+    adminId: string,
+    planId: string,
+    body: any,
+    clientIp: string,
+  ) {
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) return { error: 'Plan not found', status: 404 };
 
     const typeOfPricing = body.pricingType || plan.pricingType;
-    let amountVal = body.amount !== undefined ? (body.amount !== null && body.amount !== '' ? Number(body.amount) : null) : (plan.amount ? Number(plan.amount) : null);
+    let amountVal =
+      body.amount !== undefined
+        ? body.amount !== null && body.amount !== ''
+          ? Number(body.amount)
+          : null
+        : plan.amount
+          ? Number(plan.amount)
+          : null;
 
     if (typeOfPricing === 'FLEXIBLE') {
       amountVal = null;
     } else if (typeOfPricing === 'FIXED' && amountVal === null) {
-      return { error: 'Plan must have a fixed amount if pricingType is FIXED.', status: 400 };
+      return {
+        error: 'Plan must have a fixed amount if pricingType is FIXED.',
+        status: 400,
+      };
     }
 
     const updatedPlan = await this.prisma.plan.update({
       where: { id: planId },
       data: {
         name: body.name ?? plan.name,
+        slug:
+          body.slug !== undefined
+            ? this.slugify(body.slug)
+            : body.name !== undefined
+              ? this.slugify(body.name)
+              : plan.slug,
         subtitle: body.subtitle ?? plan.subtitle,
         capitalLabel: body.capitalLabel ?? plan.capitalLabel,
         desc: body.desc ?? plan.desc,
         features: body.features ?? plan.features,
         btnText: body.btnText ?? plan.btnText,
         status: body.status ?? plan.status,
-        isPopular: body.isPopular !== undefined ? body.isPopular : plan.isPopular,
+        isPopular:
+          body.isPopular !== undefined ? body.isPopular : plan.isPopular,
         amount: amountVal,
         pricingType: typeOfPricing,
-        weeklyProfit: body.weeklyProfit !== undefined ? Number(body.weeklyProfit) : Number(plan.weeklyProfit),
-        durationDays: body.durationDays !== undefined ? Number(body.durationDays) : Number(plan.durationDays),
+        weeklyProfit:
+          body.weeklyProfit !== undefined
+            ? Number(body.weeklyProfit)
+            : Number(plan.weeklyProfit),
+        durationDays:
+          body.durationDays !== undefined
+            ? Number(body.durationDays)
+            : Number(plan.durationDays),
       },
     });
 
     await this.prisma.securityEvent.create({
-      data: { adminId, action: 'PLAN_UPDATE', reason: `Updated pricing plan ${updatedPlan.name}`, ipAddress: clientIp },
+      data: {
+        adminId,
+        action: 'PLAN_UPDATE',
+        reason: `Updated pricing plan ${updatedPlan.name}`,
+        ipAddress: clientIp,
+      },
     });
 
     return { success: true, plan: updatedPlan };
@@ -497,7 +1011,12 @@ export class AdminService {
     await this.prisma.plan.delete({ where: { id: planId } });
 
     await this.prisma.securityEvent.create({
-      data: { adminId, action: 'PLAN_DELETE', reason: `Deleted pricing plan ${plan.name}`, ipAddress: clientIp },
+      data: {
+        adminId,
+        action: 'PLAN_DELETE',
+        reason: `Deleted pricing plan ${plan.name}`,
+        ipAddress: clientIp,
+      },
     });
 
     return { success: true, message: 'Plan deleted successfully' };
@@ -509,42 +1028,74 @@ export class AdminService {
   }
 
   async updateSettings(adminId: string, body: any, clientIp: string) {
-    const { 
-      upiId, usdtAddress, usdtNetwork, platformFee, referralFee, 
-      maintenance, individualProfitPct, clubProfitPct, 
-      enableBulkDist, allowDuplicateDist,
-      upiEnabled, usdtEnabled, upiName, upiQrCode, usdtQrCode 
+    const {
+      upiId,
+      usdtAddress,
+      usdtNetwork,
+      platformFee,
+      referralFee,
+      maintenance,
+      individualProfitPct,
+      clubProfitPct,
+      enableBulkDist,
+      allowDuplicateDist,
+      upiEnabled,
+      usdtEnabled,
+      upiName,
+      upiQrCode,
+      usdtQrCode,
     } = body;
-    
+
     if (upiEnabled === true) {
       if (!upiId || !upiId.trim()) {
-        return { error: 'UPI ID is required when UPI payment rail is enabled', status: 400 };
+        return {
+          error: 'UPI ID is required when UPI payment rail is enabled',
+          status: 400,
+        };
       }
       if (!upiName || !upiName.trim()) {
-        return { error: 'UPI Account Name is required when UPI payment rail is enabled', status: 400 };
+        return {
+          error:
+            'UPI Account Name is required when UPI payment rail is enabled',
+          status: 400,
+        };
       }
     }
 
     if (usdtEnabled === true) {
       if (!usdtAddress || !usdtAddress.trim()) {
-        return { error: 'USDT Wallet Address is required when USDT payment rail is enabled', status: 400 };
+        return {
+          error:
+            'USDT Wallet Address is required when USDT payment rail is enabled',
+          status: 400,
+        };
       }
       if (!usdtNetwork || !usdtNetwork.trim()) {
-        return { error: 'USDT Network is required when USDT payment rail is enabled', status: 400 };
+        return {
+          error: 'USDT Network is required when USDT payment rail is enabled',
+          status: 400,
+        };
       }
     }
 
     if (individualProfitPct !== undefined) {
       const indVal = Number(individualProfitPct);
       if (isNaN(indVal) || indVal < 0 || indVal > 100) {
-        return { error: 'Individual Weekly Profit percentage must be between 0 and 100', status: 400 };
+        return {
+          error:
+            'Individual Weekly Profit percentage must be between 0 and 100',
+          status: 400,
+        };
       }
     }
-    
+
     if (clubProfitPct !== undefined) {
       const clubVal = Number(clubProfitPct);
       if (isNaN(clubVal) || clubVal < 0 || clubVal > 100) {
-        return { error: 'Club Weekly Profit percentage must be between 0 and 100', status: 400 };
+        return {
+          error: 'Club Weekly Profit percentage must be between 0 and 100',
+          status: 400,
+        };
       }
     }
 
@@ -556,48 +1107,231 @@ export class AdminService {
         where: { id: existing.id },
         data: {
           upiId: upiId !== undefined ? upiId : existing.upiId,
-          usdtAddress: usdtAddress !== undefined ? usdtAddress : existing.usdtAddress,
-          usdtNetwork: usdtNetwork !== undefined ? usdtNetwork : existing.usdtNetwork,
-          upiEnabled: upiEnabled !== undefined ? Boolean(upiEnabled) : existing.upiEnabled,
-          usdtEnabled: usdtEnabled !== undefined ? Boolean(usdtEnabled) : existing.usdtEnabled,
+          usdtAddress:
+            usdtAddress !== undefined ? usdtAddress : existing.usdtAddress,
+          usdtNetwork:
+            usdtNetwork !== undefined ? usdtNetwork : existing.usdtNetwork,
+          upiEnabled:
+            upiEnabled !== undefined
+              ? Boolean(upiEnabled)
+              : existing.upiEnabled,
+          usdtEnabled:
+            usdtEnabled !== undefined
+              ? Boolean(usdtEnabled)
+              : existing.usdtEnabled,
           upiName: upiName !== undefined ? upiName : existing.upiName,
           upiQrCode: upiQrCode !== undefined ? upiQrCode : existing.upiQrCode,
-          usdtQrCode: usdtQrCode !== undefined ? usdtQrCode : existing.usdtQrCode,
-          platformFeePct: platformFee !== undefined ? Number(platformFee) : existing.platformFeePct,
-          referralFeePct: referralFee !== undefined ? Number(referralFee) : existing.referralFeePct,
-          maintenance: maintenance !== undefined ? Boolean(maintenance) : existing.maintenance,
-          individualProfitPct: individualProfitPct !== undefined ? Number(individualProfitPct) : existing.individualProfitPct,
-          clubProfitPct: clubProfitPct !== undefined ? Number(clubProfitPct) : existing.clubProfitPct,
-          enableBulkDist: enableBulkDist !== undefined ? Boolean(enableBulkDist) : existing.enableBulkDist,
-          allowDuplicateDist: allowDuplicateDist !== undefined ? Boolean(allowDuplicateDist) : existing.allowDuplicateDist,
+          usdtQrCode:
+            usdtQrCode !== undefined ? usdtQrCode : existing.usdtQrCode,
+          platformFeePct:
+            platformFee !== undefined
+              ? Number(platformFee)
+              : existing.platformFeePct,
+          referralFeePct:
+            referralFee !== undefined
+              ? Number(referralFee)
+              : existing.referralFeePct,
+          maintenance:
+            maintenance !== undefined
+              ? Boolean(maintenance)
+              : existing.maintenance,
+          individualProfitPct:
+            individualProfitPct !== undefined
+              ? Number(individualProfitPct)
+              : existing.individualProfitPct,
+          clubProfitPct:
+            clubProfitPct !== undefined
+              ? Number(clubProfitPct)
+              : existing.clubProfitPct,
+          enableBulkDist:
+            enableBulkDist !== undefined
+              ? Boolean(enableBulkDist)
+              : existing.enableBulkDist,
+          allowDuplicateDist:
+            allowDuplicateDist !== undefined
+              ? Boolean(allowDuplicateDist)
+              : existing.allowDuplicateDist,
+
+          // Keep new schema fields in sync
+          maintenanceMode:
+            maintenance !== undefined
+              ? Boolean(maintenance)
+              : existing.maintenanceMode,
+          platformProfitCut:
+            platformFee !== undefined
+              ? Number(platformFee)
+              : existing.platformProfitCut,
+          enableBulkDistribution:
+            enableBulkDist !== undefined
+              ? Boolean(enableBulkDist)
+              : existing.enableBulkDistribution,
+          allowDuplicateWeeklyPayouts:
+            allowDuplicateDist !== undefined
+              ? Boolean(allowDuplicateDist)
+              : existing.allowDuplicateWeeklyPayouts,
         },
       });
     } else {
       settings = await this.prisma.systemSettings.create({
         data: {
-          upiId: upiId || null, 
-          usdtAddress: usdtAddress || null, 
+          upiId: upiId || null,
+          usdtAddress: usdtAddress || null,
           usdtNetwork: usdtNetwork || 'TRC20',
           upiEnabled: upiEnabled !== undefined ? Boolean(upiEnabled) : true,
           usdtEnabled: usdtEnabled !== undefined ? Boolean(usdtEnabled) : true,
           upiName: upiName || '',
           upiQrCode: upiQrCode || '',
           usdtQrCode: usdtQrCode || '',
-          platformFeePct: platformFee !== undefined ? Number(platformFee) : 30.00,
-          referralFeePct: referralFee !== undefined ? Number(referralFee) : 10.00,
+          platformFeePct:
+            platformFee !== undefined ? Number(platformFee) : 30.0,
+          referralFeePct:
+            referralFee !== undefined ? Number(referralFee) : 10.0,
           maintenance: maintenance !== undefined ? Boolean(maintenance) : false,
-          individualProfitPct: individualProfitPct !== undefined ? Number(individualProfitPct) : 5.00,
-          clubProfitPct: clubProfitPct !== undefined ? Number(clubProfitPct) : 7.00,
-          enableBulkDist: enableBulkDist !== undefined ? Boolean(enableBulkDist) : true,
-          allowDuplicateDist: allowDuplicateDist !== undefined ? Boolean(allowDuplicateDist) : false,
+          individualProfitPct:
+            individualProfitPct !== undefined
+              ? Number(individualProfitPct)
+              : 5.0,
+          clubProfitPct:
+            clubProfitPct !== undefined ? Number(clubProfitPct) : 7.0,
+          enableBulkDist:
+            enableBulkDist !== undefined ? Boolean(enableBulkDist) : true,
+          allowDuplicateDist:
+            allowDuplicateDist !== undefined
+              ? Boolean(allowDuplicateDist)
+              : false,
+
+          // Keep new schema fields in sync
+          maintenanceMode:
+            maintenance !== undefined ? Boolean(maintenance) : false,
+          platformProfitCut:
+            platformFee !== undefined ? Number(platformFee) : 30.0,
+          enableBulkDistribution:
+            enableBulkDist !== undefined ? Boolean(enableBulkDist) : true,
+          allowDuplicateWeeklyPayouts:
+            allowDuplicateDist !== undefined
+              ? Boolean(allowDuplicateDist)
+              : false,
         },
       });
     }
 
     await this.prisma.securityEvent.create({
-      data: { adminId, action: 'SETTINGS_UPDATE', reason: 'Updated global platform settings', ipAddress: clientIp },
+      data: {
+        adminId,
+        action: 'SETTINGS_UPDATE',
+        reason: 'Updated global platform settings',
+        ipAddress: clientIp,
+      },
     });
 
+    return { success: true, settings };
+  }
+
+  // -------------------------------------------------------
+  // Granular settings updaters (v3 engine fields)
+  // -------------------------------------------------------
+
+  async updateFinancialSettings(adminId: string, body: any, clientIp: string) {
+    const { platformProfitCut, referralBonusMultiplier } = body;
+    const existing = await this.prisma.systemSettings.findFirst();
+    const data: any = {};
+    if (platformProfitCut !== undefined) {
+      const v = Number(platformProfitCut);
+      if (isNaN(v) || v < 0 || v > 100)
+        return {
+          error: 'platformProfitCut must be between 0 and 100',
+          status: 400,
+        };
+      data.platformProfitCut = v;
+      data.platformFeePct = v;
+    }
+    if (referralBonusMultiplier !== undefined) {
+      const v = Number(referralBonusMultiplier);
+      if (isNaN(v) || v < 0)
+        return { error: 'referralBonusMultiplier must be >= 0', status: 400 };
+      data.referralBonusMultiplier = v;
+    }
+    let settings;
+    if (existing) {
+      settings = await this.prisma.systemSettings.update({
+        where: { id: existing.id },
+        data,
+      });
+    } else {
+      settings = await this.prisma.systemSettings.create({ data });
+    }
+    await this.prisma.securityEvent.create({
+      data: {
+        adminId,
+        action: 'SETTINGS_UPDATE',
+        reason: 'Updated financial engine settings',
+        ipAddress: clientIp,
+      },
+    });
+    return { success: true, settings };
+  }
+
+  async updateDistributionSettings(
+    adminId: string,
+    body: any,
+    clientIp: string,
+  ) {
+    const { enableBulkDistribution, allowDuplicateWeeklyPayouts } = body;
+    const existing = await this.prisma.systemSettings.findFirst();
+    const data: any = {};
+    if (enableBulkDistribution !== undefined) {
+      data.enableBulkDistribution = Boolean(enableBulkDistribution);
+      data.enableBulkDist = Boolean(enableBulkDistribution);
+    }
+    if (allowDuplicateWeeklyPayouts !== undefined) {
+      data.allowDuplicateWeeklyPayouts = Boolean(allowDuplicateWeeklyPayouts);
+      data.allowDuplicateDist = Boolean(allowDuplicateWeeklyPayouts);
+    }
+    let settings;
+    if (existing) {
+      settings = await this.prisma.systemSettings.update({
+        where: { id: existing.id },
+        data,
+      });
+    } else {
+      settings = await this.prisma.systemSettings.create({ data });
+    }
+    await this.prisma.securityEvent.create({
+      data: {
+        adminId,
+        action: 'SETTINGS_UPDATE',
+        reason: 'Updated distribution settings',
+        ipAddress: clientIp,
+      },
+    });
+    return { success: true, settings };
+  }
+
+  async updateSystemSettings(adminId: string, body: any, clientIp: string) {
+    const { maintenanceMode } = body;
+    const existing = await this.prisma.systemSettings.findFirst();
+    const data: any = {};
+    if (maintenanceMode !== undefined) {
+      data.maintenanceMode = Boolean(maintenanceMode);
+      data.maintenance = Boolean(maintenanceMode);
+    }
+    let settings;
+    if (existing) {
+      settings = await this.prisma.systemSettings.update({
+        where: { id: existing.id },
+        data,
+      });
+    } else {
+      settings = await this.prisma.systemSettings.create({ data });
+    }
+    await this.prisma.securityEvent.create({
+      data: {
+        adminId,
+        action: 'SETTINGS_UPDATE',
+        reason: `Maintenance mode set to ${maintenanceMode}`,
+        ipAddress: clientIp,
+      },
+    });
     return { success: true, settings };
   }
 
@@ -605,7 +1339,7 @@ export class AdminService {
     let settings = await this.prisma.referralSettings.findFirst();
     if (!settings) {
       settings = await this.prisma.referralSettings.create({
-        data: {} // Use defaults defined in schema
+        data: {}, // Use defaults defined in schema
       });
     }
     return { success: true, settings };
@@ -613,42 +1347,82 @@ export class AdminService {
 
   async updateReferralSettings(adminId: string, body: any, clientIp: string) {
     const {
-      enabled, commissionRate, minimumDeposit, autoApprove,
-      allowMultipleDeposits, commissionPayoutMode, maxReferralCommission
+      enabled,
+      commissionRate,
+      minimumDeposit,
+      autoApprove,
+      allowMultipleDeposits,
+      commissionPayoutMode,
+      maxReferralCommission,
     } = body;
-    
-    let existing = await this.prisma.referralSettings.findFirst();
-    
+
+    const existing = await this.prisma.referralSettings.findFirst();
+
     let settings;
     if (existing) {
       settings = await this.prisma.referralSettings.update({
         where: { id: existing.id },
         data: {
           enabled: enabled !== undefined ? Boolean(enabled) : existing.enabled,
-          commissionRate: commissionRate !== undefined ? Number(commissionRate) : existing.commissionRate,
-          minimumDeposit: minimumDeposit !== undefined ? Number(minimumDeposit) : existing.minimumDeposit,
-          autoApprove: autoApprove !== undefined ? Boolean(autoApprove) : existing.autoApprove,
-          allowMultipleDeposits: allowMultipleDeposits !== undefined ? Boolean(allowMultipleDeposits) : existing.allowMultipleDeposits,
-          commissionPayoutMode: commissionPayoutMode !== undefined ? String(commissionPayoutMode) : existing.commissionPayoutMode,
-          maxReferralCommission: maxReferralCommission !== undefined ? (maxReferralCommission ? Number(maxReferralCommission) : null) : existing.maxReferralCommission,
+          commissionRate:
+            commissionRate !== undefined
+              ? Number(commissionRate)
+              : existing.commissionRate,
+          minimumDeposit:
+            minimumDeposit !== undefined
+              ? Number(minimumDeposit)
+              : existing.minimumDeposit,
+          autoApprove:
+            autoApprove !== undefined
+              ? Boolean(autoApprove)
+              : existing.autoApprove,
+          allowMultipleDeposits:
+            allowMultipleDeposits !== undefined
+              ? Boolean(allowMultipleDeposits)
+              : existing.allowMultipleDeposits,
+          commissionPayoutMode:
+            commissionPayoutMode !== undefined
+              ? String(commissionPayoutMode)
+              : existing.commissionPayoutMode,
+          maxReferralCommission:
+            maxReferralCommission !== undefined
+              ? maxReferralCommission
+                ? Number(maxReferralCommission)
+                : null
+              : existing.maxReferralCommission,
         },
       });
     } else {
       settings = await this.prisma.referralSettings.create({
         data: {
           enabled: enabled !== undefined ? Boolean(enabled) : false,
-          commissionRate: commissionRate !== undefined ? Number(commissionRate) : 10.00,
-          minimumDeposit: minimumDeposit !== undefined ? Number(minimumDeposit) : 1000.00,
+          commissionRate:
+            commissionRate !== undefined ? Number(commissionRate) : 10.0,
+          minimumDeposit:
+            minimumDeposit !== undefined ? Number(minimumDeposit) : 1000.0,
           autoApprove: autoApprove !== undefined ? Boolean(autoApprove) : false,
-          allowMultipleDeposits: allowMultipleDeposits !== undefined ? Boolean(allowMultipleDeposits) : false,
-          commissionPayoutMode: commissionPayoutMode !== undefined ? String(commissionPayoutMode) : 'PENDING',
-          maxReferralCommission: maxReferralCommission ? Number(maxReferralCommission) : null,
+          allowMultipleDeposits:
+            allowMultipleDeposits !== undefined
+              ? Boolean(allowMultipleDeposits)
+              : false,
+          commissionPayoutMode:
+            commissionPayoutMode !== undefined
+              ? String(commissionPayoutMode)
+              : 'PENDING',
+          maxReferralCommission: maxReferralCommission
+            ? Number(maxReferralCommission)
+            : null,
         },
       });
     }
 
     await this.prisma.securityEvent.create({
-      data: { adminId, action: 'SETTINGS_UPDATE', reason: 'Updated Referral Program settings', ipAddress: clientIp },
+      data: {
+        adminId,
+        action: 'SETTINGS_UPDATE',
+        reason: 'Updated Referral Program settings',
+        ipAddress: clientIp,
+      },
     });
 
     return { success: true, settings };
@@ -660,18 +1434,26 @@ export class AdminService {
       include: {
         referrer: { select: { name: true, email: true } },
         referredUser: { select: { name: true, email: true } },
-      }
+      },
     });
 
     return { success: true, referrals };
   }
 
-  async updateReferralStatus(adminId: string, referralId: string, status: string, clientIp: string) {
-    const referral = await this.prisma.referral.findUnique({ where: { id: referralId } });
+  async updateReferralStatus(
+    adminId: string,
+    referralId: string,
+    status: string,
+    clientIp: string,
+  ) {
+    const referral = await this.prisma.referral.findUnique({
+      where: { id: referralId },
+    });
     if (!referral) return { error: 'Referral not found', status: 404 };
 
     const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'PAID'];
-    if (!validStatuses.includes(status)) return { error: 'Invalid status', status: 400 };
+    if (!validStatuses.includes(status))
+      return { error: 'Invalid status', status: 400 };
 
     const updated = await this.prisma.referral.update({
       where: { id: referralId },
@@ -679,7 +1461,12 @@ export class AdminService {
     });
 
     await this.prisma.securityEvent.create({
-      data: { adminId, action: 'REFERRAL_UPDATE', reason: `Updated referral ${referralId} status to ${status}`, ipAddress: clientIp },
+      data: {
+        adminId,
+        action: 'REFERRAL_UPDATE',
+        reason: `Updated referral ${referralId} status to ${status}`,
+        ipAddress: clientIp,
+      },
     });
 
     return { success: true, referral: updated };
@@ -687,37 +1474,57 @@ export class AdminService {
 
   async createTrade(adminId: string, body: any, clientIp: string) {
     const { userId, pair, type, entry, stopLoss, target } = body;
-    if (!userId || !pair || !type || !entry || !stopLoss || !target) return { error: 'Missing required trade signal fields', status: 400 };
+    if (!userId || !pair || !type || !entry || !stopLoss || !target)
+      return { error: 'Missing required trade signal fields', status: 400 };
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) return { error: 'Target user not found', status: 404 };
 
     const trade = await this.prisma.trade.create({
       data: {
-        userId, partnerId: user.partnerId, pair, type: type === 'BUY' ? 'BUY' : 'SELL',
-        entryPrice: Number(entry), currentPrice: Number(entry), stopLoss: Number(stopLoss), target: Number(target),
-        profit: 0, pnl: 0, status: 'ACTIVE',
+        userId,
+        partnerId: user.partnerId,
+        pair,
+        type: type === 'BUY' ? 'BUY' : 'SELL',
+        entryPrice: Number(entry),
+        currentPrice: Number(entry),
+        stopLoss: Number(stopLoss),
+        target: Number(target),
+        profit: 0,
+        pnl: 0,
+        status: 'ACTIVE',
       },
     });
 
     await this.prisma.securityEvent.create({
       data: {
-        adminId, userId, partnerId: user.partnerId, action: 'TRADE_CREATE',
-        reason: `Created active trade signal for ${pair} (Type: ${type}, Entry: ${entry})`, ipAddress: clientIp,
+        adminId,
+        userId,
+        partnerId: user.partnerId,
+        action: 'TRADE_CREATE',
+        reason: `Created active trade signal for ${pair} (Type: ${type}, Entry: ${entry})`,
+        ipAddress: clientIp,
       },
     });
 
     return { success: true, trade };
   }
 
-  async closeTrade(adminId: string, tradeId: string, exitPrice: number | undefined, clientIp: string) {
+  async closeTrade(
+    adminId: string,
+    tradeId: string,
+    exitPrice: number | undefined,
+    clientIp: string,
+  ) {
     const trade = await this.prisma.trade.findUnique({
       where: { id: tradeId },
       include: { user: { include: { wallet: true } } },
     });
     if (!trade) return { error: 'Trade not found', status: 404 };
-    if (trade.status !== 'ACTIVE') return { error: 'Trade is not active', status: 400 };
-    if (!exitPrice || Number(exitPrice) <= 0) return { error: 'A valid exit price is required', status: 400 };
+    if (trade.status !== 'ACTIVE')
+      return { error: 'Trade is not active', status: 400 };
+    if (!exitPrice || Number(exitPrice) <= 0)
+      return { error: 'A valid exit price is required', status: 400 };
 
     const entryPrice = trade.entryPrice;
     const settlementPrice = new Prisma.Decimal(exitPrice);
@@ -730,7 +1537,14 @@ export class AdminService {
     await this.prisma.$transaction(async (tx: any) => {
       await tx.trade.update({
         where: { id: trade.id },
-        data: { status: 'CLOSED', currentPrice: settlementPrice, exitPrice: settlementPrice, pnl, profit: pnl, closedAt: new Date() },
+        data: {
+          status: 'CLOSED',
+          currentPrice: settlementPrice,
+          exitPrice: settlementPrice,
+          pnl,
+          profit: pnl,
+          closedAt: new Date(),
+        },
       });
 
       if (trade.user?.wallet) {
@@ -738,7 +1552,10 @@ export class AdminService {
         const returnAmount = originalMargin.add(pnl);
         const nextBalance = trade.user.wallet.realizedBalance.add(returnAmount);
 
-        await tx.wallet.update({ where: { id: trade.user.wallet.id }, data: { realizedBalance: nextBalance } });
+        await tx.wallet.update({
+          where: { id: trade.user.wallet.id },
+          data: { realizedBalance: nextBalance },
+        });
 
         const group = await tx.transactionGroup.create({
           data: {
@@ -750,16 +1567,27 @@ export class AdminService {
 
         await tx.ledgerEntry.create({
           data: {
-            transactionGroupId: group.id, userId: trade.userId, partnerId: trade.partnerId,
-            accountType: 'USER', entryType: pnl.isPositive() ? 'CREDIT' : 'DEBIT',
-            amount: pnl.abs(), currency: 'INR',
+            transactionGroupId: group.id,
+            userId: trade.userId,
+            partnerId: trade.partnerId,
+            accountType: 'USER',
+            entryType: pnl.isPositive() ? 'CREDIT' : 'DEBIT',
+            amount: pnl.abs(),
+            currency: 'INR',
           },
         });
       }
     });
 
     await this.prisma.securityEvent.create({
-      data: { adminId, userId: trade.userId, partnerId: trade.partnerId, action: 'TRADE_CLOSE', reason: `Admin closed trade ${trade.id}`, ipAddress: clientIp },
+      data: {
+        adminId,
+        userId: trade.userId,
+        partnerId: trade.partnerId,
+        action: 'TRADE_CLOSE',
+        reason: `Admin closed trade ${trade.id}`,
+        ipAddress: clientIp,
+      },
     });
 
     return { success: true };
@@ -770,8 +1598,26 @@ export class AdminService {
   }
 
   async createTradeRecord(body: any) {
-    const { pair, side, entryPrice, exitPrice, tradeDate, profitLoss, result, notes, status } = body;
-    if (!pair || !side || entryPrice === undefined || exitPrice === undefined || !tradeDate || profitLoss === undefined || !result) {
+    const {
+      pair,
+      side,
+      entryPrice,
+      exitPrice,
+      tradeDate,
+      profitLoss,
+      result,
+      notes,
+      status,
+    } = body;
+    if (
+      !pair ||
+      !side ||
+      entryPrice === undefined ||
+      exitPrice === undefined ||
+      !tradeDate ||
+      profitLoss === undefined ||
+      !result
+    ) {
       return { error: 'Missing required fields for trade record', status: 400 };
     }
     const tradeRecord = await this.prisma.tradeRecord.create({
@@ -791,8 +1637,20 @@ export class AdminService {
   }
 
   async updateTradeRecord(id: string, body: any) {
-    const { pair, side, entryPrice, exitPrice, tradeDate, profitLoss, result, notes, status } = body;
-    const existing = await this.prisma.tradeRecord.findUnique({ where: { id } });
+    const {
+      pair,
+      side,
+      entryPrice,
+      exitPrice,
+      tradeDate,
+      profitLoss,
+      result,
+      notes,
+      status,
+    } = body;
+    const existing = await this.prisma.tradeRecord.findUnique({
+      where: { id },
+    });
     if (!existing) return { error: 'Trade record not found', status: 404 };
 
     const updated = await this.prisma.tradeRecord.update({
@@ -800,10 +1658,13 @@ export class AdminService {
       data: {
         pair: pair ?? existing.pair,
         side: side ?? existing.side,
-        entryPrice: entryPrice !== undefined ? Number(entryPrice) : existing.entryPrice,
-        exitPrice: exitPrice !== undefined ? Number(exitPrice) : existing.exitPrice,
+        entryPrice:
+          entryPrice !== undefined ? Number(entryPrice) : existing.entryPrice,
+        exitPrice:
+          exitPrice !== undefined ? Number(exitPrice) : existing.exitPrice,
         tradeDate: tradeDate ? new Date(tradeDate) : existing.tradeDate,
-        profitLoss: profitLoss !== undefined ? Number(profitLoss) : existing.profitLoss,
+        profitLoss:
+          profitLoss !== undefined ? Number(profitLoss) : existing.profitLoss,
         result: result ?? existing.result,
         notes: notes !== undefined ? notes : existing.notes,
         status: status ?? existing.status,
@@ -813,7 +1674,9 @@ export class AdminService {
   }
 
   async deleteTradeRecord(id: string) {
-    const existing = await this.prisma.tradeRecord.findUnique({ where: { id } });
+    const existing = await this.prisma.tradeRecord.findUnique({
+      where: { id },
+    });
     if (!existing) return { error: 'Trade record not found', status: 404 };
 
     await this.prisma.tradeRecord.delete({ where: { id } });
@@ -821,7 +1684,9 @@ export class AdminService {
   }
 
   async setTradeRecordStatus(id: string, status: string) {
-    const existing = await this.prisma.tradeRecord.findUnique({ where: { id } });
+    const existing = await this.prisma.tradeRecord.findUnique({
+      where: { id },
+    });
     if (!existing) return { error: 'Trade record not found', status: 404 };
 
     const updated = await this.prisma.tradeRecord.update({
@@ -833,102 +1698,296 @@ export class AdminService {
 
   async approvePayment(adminId: string, paymentId: string, clientIp: string) {
     const result = await this.prisma.$transaction(async (tx: any) => {
-      const payment = await tx.payment.findUnique({ where: { id: paymentId }, include: { user: true } });
+      const payment = await tx.payment.findUnique({
+        where: { id: paymentId },
+        include: {
+          user: true,
+          initiation: { include: { plan: true } },
+        },
+      });
       if (!payment) throw new Error('Payment record not found');
-      if (payment.status === 'APPROVED') throw new Error('Payment has already been approved');
+      if (payment.status === 'APPROVED')
+        throw new Error('Payment has already been approved');
 
       const amountVal = Number(payment.amount);
       const idempotencyKey = `DEP_APPROVAL_${payment.id}`;
 
       const ledgerGroup = await createTransactionGroup(tx, {
-        type: 'DEPOSIT', description: `Manual approval of checkout payment ${payment.id}`, idempotencyKey,
+        type: 'DEPOSIT',
+        description: `Manual approval of checkout payment ${payment.id}`,
+        idempotencyKey,
         entries: [
-          { accountType: 'SYSTEM', entryType: 'DEBIT', amount: amountVal, currency: payment.currency },
-          { userId: payment.userId, partnerId: payment.partnerId, accountType: 'USER', entryType: 'CREDIT', amount: amountVal, currency: payment.currency },
+          {
+            accountType: 'SYSTEM',
+            entryType: 'DEBIT',
+            amount: amountVal,
+            currency: payment.currency,
+          },
+          {
+            userId: payment.userId,
+            partnerId: payment.partnerId,
+            accountType: 'USER',
+            entryType: 'CREDIT',
+            amount: amountVal,
+            currency: payment.currency,
+          },
         ],
       });
 
       let nextStatus = 'ACTIVE';
-      const planName = payment.planName.toLowerCase();
-      if (planName.includes('premium') || planName.includes('vip')) nextStatus = 'VIP';
+      const planNameLower = payment.planName.toLowerCase();
+      if (planNameLower.includes('premium') || planNameLower.includes('vip'))
+        nextStatus = 'VIP';
 
-      await tx.user.update({ where: { id: payment.userId }, data: { status: nextStatus as any } });
-      const updatedPayment = await tx.payment.update({ where: { id: paymentId }, data: { status: 'APPROVED', ledgerTransactionGroupId: ledgerGroup.id } });
+      await tx.user.update({
+        where: { id: payment.userId },
+        data: { status: nextStatus as any },
+      });
+      const updatedPayment = await tx.payment.update({
+        where: { id: paymentId },
+        data: { status: 'APPROVED', ledgerTransactionGroupId: ledgerGroup.id },
+      });
 
-      // Referral Commission Logic
+      // -------------------------------------------------------
+      // UserPlan activation — resolve plan, record history
+      // -------------------------------------------------------
+      const resolvedPlan: {
+        id: string;
+        name: string;
+        durationDays: number;
+      } | null =
+        payment.initiation?.plan ??
+        (await tx.plan.findFirst({
+          where: {
+            name: { equals: payment.planName, mode: 'insensitive' },
+            isActive: true,
+          },
+        }));
+
+      const canActivatePlan =
+        updatedPayment.status === 'APPROVED' &&
+        (!payment.initiation || payment.initiation.status === 'completed');
+
+      if (resolvedPlan && canActivatePlan) {
+        // Deactivate any existing active plans for this user
+        await tx.userPlan.updateMany({
+          where: { userId: payment.userId, active: true },
+          data: { active: false },
+        });
+
+        const expiresAt = new Date();
+        expiresAt.setDate(
+          expiresAt.getDate() + (resolvedPlan.durationDays ?? 30),
+        );
+
+        await tx.userPlan.create({
+          data: {
+            userId: payment.userId,
+            planId: resolvedPlan.id,
+            active: true,
+            startedAt: new Date(),
+            expiresAt,
+          },
+        });
+
+        await tx.financialEvent.create({
+          data: {
+            eventType: 'PLAN_ASSIGNED',
+            userId: payment.userId,
+            actorId: adminId,
+            referenceId: payment.id,
+            metadata: {
+              planId: resolvedPlan.id,
+              planName: resolvedPlan.name,
+              expiresAt: expiresAt.toISOString(),
+            },
+          },
+        });
+      }
+
+      // -------------------------------------------------------
+      // Referral commission engine (uses ReferralSettings)
+      // -------------------------------------------------------
       if (payment.user.referredBy) {
         const refSettings = await tx.referralSettings.findFirst();
-        if (refSettings && refSettings.enabled) {
-          const eligible = amountVal >= Number(refSettings.minimumDeposit);
-          if (eligible) {
-            const previousCommissions = await tx.referral.count({
-              where: { referredId: payment.userId }
+        if (!refSettings) {
+          this.logger.error({
+            event: 'REFERRAL_SETTINGS_MISSING',
+            message:
+              'ReferralSettings configuration is missing in the database. Skipping commission payment.',
+          });
+          this.observabilityService.increment('referral_commission_validation_failures_total');
+          return;
+        }
+
+        const commissionRate = Number(refSettings.commissionRate ?? 10);
+        if (commissionRate < 0 || commissionRate > 100) {
+          this.observabilityService.increment('referral_commission_validation_failures_total');
+          throw new Error(
+            `[REFERRAL_ERROR] Invalid referral commission rate: ${commissionRate}%`,
+          );
+        }
+
+        const refEnabled = refSettings.enabled ?? false;
+        const minDeposit = Number(refSettings.minimumDeposit ?? 1000);
+        const autoApprove = refSettings.autoApprove ?? false;
+
+        const sysSettings = await tx.systemSettings.findFirst();
+        const bonusMultiplier = Number(
+          sysSettings?.referralBonusMultiplier ?? 100,
+        ); // 100 = 1× factor
+
+        if (refEnabled && amountVal >= minDeposit) {
+          const baseCommission = (amountVal * commissionRate) / 100;
+          const reward = (baseCommission * bonusMultiplier) / 100;
+          const refStatus = autoApprove ? 'APPROVED' : 'PENDING';
+
+          const referral = await tx.referral.create({
+            data: {
+              partnerId: payment.partnerId,
+              referrerId: payment.user.referredBy,
+              referredId: payment.userId,
+              depositAmount: amountVal,
+              commissionPct: commissionRate,
+              commissionAmount: reward,
+              paymentId: payment.id,
+              status: refStatus,
+            },
+          });
+
+          this.observabilityService.increment('referral_commission_awarded_total');
+          this.observabilityService.increment('referral_commission_amount_total', {}, reward);
+
+          if (autoApprove) {
+            // Credit referrer wallet immediately
+            await tx.walletLedger.create({
+              data: {
+                userId: payment.user.referredBy,
+                type: 'REFERRAL_COMMISSION',
+                entryType: 'CREDIT',
+                amount: reward,
+                referenceId: referral.id,
+                note: `Referral commission from deposit by ${payment.user.email}`,
+              },
             });
 
-            if (refSettings.allowMultipleDeposits || previousCommissions === 0) {
-              const commissionRate = Number(refSettings.commissionRate);
-              let commissionAmount = (amountVal * commissionRate) / 100;
-              
-              if (refSettings.maxReferralCommission) {
-                const max = Number(refSettings.maxReferralCommission);
-                if (commissionAmount > max) commissionAmount = max;
-              }
-
-              const status = refSettings.autoApprove ? 'APPROVED' : 'PENDING';
-              
-              await tx.referral.create({
-                data: {
+            await createTransactionGroup(tx, {
+              type: 'REFERRAL_PAYOUT',
+              description: `Auto-approved referral commission | Referral: ${referral.id}`,
+              idempotencyKey: `REF_COMMISSION_${referral.id}`,
+              entries: [
+                {
+                  accountType: 'SYSTEM',
+                  entryType: 'DEBIT',
+                  amount: reward,
+                  currency: payment.currency,
+                },
+                {
+                  userId: payment.user.referredBy,
                   partnerId: payment.partnerId,
-                  referrerId: payment.user.referredBy,
-                  referredId: payment.userId,
-                  depositAmount: amountVal,
-                  commissionPct: commissionRate,
-                  commissionAmount: commissionAmount,
-                  paymentId: payment.id,
-                  status: status
-                }
-              });
-            }
+                  accountType: 'USER',
+                  entryType: 'CREDIT',
+                  amount: reward,
+                  currency: payment.currency,
+                },
+              ],
+            });
+
+            await tx.financialEvent.create({
+              data: {
+                eventType: 'REFERRAL_APPROVED',
+                userId: payment.user.referredBy,
+                actorId: adminId,
+                referenceId: referral.id,
+                metadata: {
+                  depositUserId: payment.userId,
+                  amount: reward,
+                  autoApproved: true,
+                },
+              },
+            });
           }
         }
       }
+
       await tx.securityEvent.create({
-        data: { adminId, userId: payment.userId, partnerId: payment.partnerId, action: 'PAYMENT_APPROVED', reason: `Approved payment ${payment.id} for amount ${amountVal}`, ipAddress: clientIp },
+        data: {
+          adminId,
+          userId: payment.userId,
+          partnerId: payment.partnerId,
+          action: 'PAYMENT_APPROVED',
+          reason: `Approved payment ${payment.id} for amount ${amountVal}`,
+          ipAddress: clientIp,
+        },
       });
 
       return updatedPayment;
     });
 
     if (result) {
-      this.notificationsService.sendToUser(result.userId, NotificationEvent.PAYMENT_APPROVED, {
-        amount: Number(result.amount),
-      }).catch(err => console.error(`Failed to send PAYMENT_APPROVED for user ${result.userId}:`, err));
+      this.notificationsService
+        .sendToUser(result.userId, NotificationEvent.PAYMENT_APPROVED, {
+          amount: Number(result.amount),
+        })
+        .catch((err) =>
+          console.error(
+            `Failed to send PAYMENT_APPROVED for user ${result.userId}:`,
+            err,
+          ),
+        );
 
-      this.notificationsService.sendToUser(result.userId, NotificationEvent.PLAN_ACTIVATED, {
-        planName: result.planName,
-      }).catch(err => console.error(`Failed to send PLAN_ACTIVATED for user ${result.userId}:`, err));
+      this.notificationsService
+        .sendToUser(result.userId, NotificationEvent.PLAN_ACTIVATED, {
+          planName: result.planName,
+        })
+        .catch((err) =>
+          console.error(
+            `Failed to send PLAN_ACTIVATED for user ${result.userId}:`,
+            err,
+          ),
+        );
     }
 
     return { success: true, payment: result };
   }
 
-  async rejectPayment(adminId: string, paymentId: string, remark: string, clientIp: string) {
-    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
+  async rejectPayment(
+    adminId: string,
+    paymentId: string,
+    remark: string,
+    clientIp: string,
+  ) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
     if (!payment) return { error: 'Payment record not found', status: 404 };
-    if (payment.status === 'APPROVED') return { error: 'Approved payments cannot be rejected', status: 400 };
+    if (payment.status === 'APPROVED')
+      return { error: 'Approved payments cannot be rejected', status: 400 };
 
     const updatedPayment = await this.prisma.payment.update({
-      where: { id: paymentId }, data: { status: 'REJECTED', remark: remark || 'Declined by admin' },
+      where: { id: paymentId },
+      data: { status: 'REJECTED', remark: remark || 'Declined by admin' },
     });
 
-    this.notificationsService.sendToUser(updatedPayment.userId, NotificationEvent.PAYMENT_REJECTED, {
-      amount: Number(updatedPayment.amount),
-    }).catch(err => console.error(`Failed to send PAYMENT_REJECTED for user ${updatedPayment.userId}:`, err));
+    this.notificationsService
+      .sendToUser(updatedPayment.userId, NotificationEvent.PAYMENT_REJECTED, {
+        amount: Number(updatedPayment.amount),
+      })
+      .catch((err) =>
+        console.error(
+          `Failed to send PAYMENT_REJECTED for user ${updatedPayment.userId}:`,
+          err,
+        ),
+      );
 
     await this.prisma.securityEvent.create({
       data: {
-        adminId, userId: payment.userId, partnerId: payment.partnerId, action: 'PAYMENT_REJECTED',
-        reason: `Rejected payment ${payment.id}. Reason: ${remark || 'Declined by admin'}`, ipAddress: clientIp,
+        adminId,
+        userId: payment.userId,
+        partnerId: payment.partnerId,
+        action: 'PAYMENT_REJECTED',
+        reason: `Rejected payment ${payment.id}. Reason: ${remark || 'Declined by admin'}`,
+        ipAddress: clientIp,
       },
     });
 
@@ -936,27 +1995,49 @@ export class AdminService {
   }
 
   async verifyPayment(adminId: string, paymentId: string, clientIp: string) {
-    const payment = await this.prisma.payment.findUnique({ where: { id: paymentId } });
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
     if (!payment) return { error: 'Payment record not found', status: 404 };
-    if (payment.status !== 'PENDING') return { error: 'Only pending payments can be verified', status: 400 };
+    if (payment.status !== 'PENDING')
+      return { error: 'Only pending payments can be verified', status: 400 };
 
-    const updatedPayment = await this.prisma.payment.update({ where: { id: paymentId }, data: { status: 'VERIFIED' } });
+    const updatedPayment = await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: 'VERIFIED' },
+    });
 
     await this.prisma.securityEvent.create({
-      data: { adminId, userId: payment.userId, partnerId: payment.partnerId, action: 'PAYMENT_VERIFIED', reason: `Verified details for payment ${payment.id}`, ipAddress: clientIp },
+      data: {
+        adminId,
+        userId: payment.userId,
+        partnerId: payment.partnerId,
+        action: 'PAYMENT_VERIFIED',
+        reason: `Verified details for payment ${payment.id}`,
+        ipAddress: clientIp,
+      },
     });
 
     return { success: true, payment: updatedPayment };
   }
 
-  async approveWithdrawal(adminId: string, withdrawalId: string, clientIp: string) {
+  async approveWithdrawal(
+    adminId: string,
+    withdrawalId: string,
+    clientIp: string,
+  ) {
     try {
       const result = await this.prisma.$transaction(async (tx: any) => {
-        const withdrawal = await tx.withdrawal.findUnique({ where: { id: withdrawalId } });
+        const withdrawal = await tx.withdrawal.findUnique({
+          where: { id: withdrawalId },
+        });
         if (!withdrawal) throw new Error('Withdrawal record not found');
-        if (withdrawal.status !== 'PENDING') throw new Error('Withdrawal has already been processed');
+        if (withdrawal.status !== 'PENDING')
+          throw new Error('Withdrawal has already been processed');
 
-        const wallet = await tx.wallet.findUnique({ where: { userId: withdrawal.userId } });
+        const wallet = await tx.wallet.findUnique({
+          where: { userId: withdrawal.userId },
+        });
         if (!wallet) throw new Error('Wallet not found');
 
         const amountVal = Number(withdrawal.amount);
@@ -979,10 +2060,24 @@ export class AdminService {
         const idempotencyKey = `WITHDRAWAL_APPROVAL_${withdrawal.id}`;
 
         const ledgerGroup = await createTransactionGroup(tx, {
-          type: 'WITHDRAWAL', description: `Manual approval of withdrawal request ${withdrawal.id}`, idempotencyKey,
+          type: 'WITHDRAWAL',
+          description: `Manual approval of withdrawal request ${withdrawal.id}`,
+          idempotencyKey,
           entries: [
-            { userId: withdrawal.userId, partnerId: withdrawal.partnerId, accountType: 'USER', entryType: 'DEBIT', amount: amountVal, currency: withdrawal.currency },
-            { accountType: 'SYSTEM', entryType: 'CREDIT', amount: amountVal, currency: withdrawal.currency },
+            {
+              userId: withdrawal.userId,
+              partnerId: withdrawal.partnerId,
+              accountType: 'USER',
+              entryType: 'DEBIT',
+              amount: amountVal,
+              currency: withdrawal.currency,
+            },
+            {
+              accountType: 'SYSTEM',
+              entryType: 'CREDIT',
+              amount: amountVal,
+              currency: withdrawal.currency,
+            },
           ],
         });
 
@@ -997,16 +2092,30 @@ export class AdminService {
         });
 
         await tx.securityEvent.create({
-          data: { adminId, userId: withdrawal.userId, partnerId: withdrawal.partnerId, action: 'WITHDRAWAL_APPROVED', reason: `Approved withdrawal ${withdrawal.id} for amount ${amountVal}`, ipAddress: clientIp },
+          data: {
+            adminId,
+            userId: withdrawal.userId,
+            partnerId: withdrawal.partnerId,
+            action: 'WITHDRAWAL_APPROVED',
+            reason: `Approved withdrawal ${withdrawal.id} for amount ${amountVal}`,
+            ipAddress: clientIp,
+          },
         });
 
         return updatedWithdrawal;
       });
 
       if (result) {
-        this.notificationsService.sendToUser(result.userId, NotificationEvent.WITHDRAWAL_APPROVED, {
-          amount: Number(result.amount),
-        }).catch(err => console.error(`Failed to send WITHDRAWAL_APPROVED for user ${result.userId}:`, err));
+        this.notificationsService
+          .sendToUser(result.userId, NotificationEvent.WITHDRAWAL_APPROVED, {
+            amount: Number(result.amount),
+          })
+          .catch((err) =>
+            console.error(
+              `Failed to send WITHDRAWAL_APPROVED for user ${result.userId}:`,
+              err,
+            ),
+          );
       }
 
       return { success: true, withdrawal: result };
@@ -1015,20 +2124,32 @@ export class AdminService {
     }
   }
 
-  async rejectWithdrawal(adminId: string, withdrawalId: string, clientIp: string) {
+  async rejectWithdrawal(
+    adminId: string,
+    withdrawalId: string,
+    clientIp: string,
+  ) {
     try {
       const result = await this.prisma.$transaction(async (tx: any) => {
-        const withdrawal = await tx.withdrawal.findUnique({ where: { id: withdrawalId } });
+        const withdrawal = await tx.withdrawal.findUnique({
+          where: { id: withdrawalId },
+        });
         if (!withdrawal) throw new Error('Withdrawal record not found');
-        if (withdrawal.status !== 'PENDING') throw new Error('Only pending withdrawals can be rejected');
+        if (withdrawal.status !== 'PENDING')
+          throw new Error('Only pending withdrawals can be rejected');
 
-        const wallet = await tx.wallet.findUnique({ where: { userId: withdrawal.userId } });
+        const wallet = await tx.wallet.findUnique({
+          where: { userId: withdrawal.userId },
+        });
         if (!wallet) throw new Error('Wallet not found');
 
         const amountVal = Number(withdrawal.amount);
 
         const nextAvailable = Number(wallet.availableBalance) + amountVal;
-        const nextPending = Math.max(0, Number(wallet.pendingWithdrawals) - amountVal);
+        const nextPending = Math.max(
+          0,
+          Number(wallet.pendingWithdrawals) - amountVal,
+        );
 
         await tx.wallet.update({
           where: { id: wallet.id },
@@ -1048,17 +2169,31 @@ export class AdminService {
         });
 
         await tx.securityEvent.create({
-          data: { adminId, userId: withdrawal.userId, partnerId: withdrawal.partnerId, action: 'WITHDRAWAL_REJECTED', reason: `Rejected withdrawal request ${withdrawal.id}`, ipAddress: clientIp },
+          data: {
+            adminId,
+            userId: withdrawal.userId,
+            partnerId: withdrawal.partnerId,
+            action: 'WITHDRAWAL_REJECTED',
+            reason: `Rejected withdrawal request ${withdrawal.id}`,
+            ipAddress: clientIp,
+          },
         });
 
         return updatedWithdrawal;
       });
 
       if (result) {
-        this.notificationsService.sendToUser(result.userId, NotificationEvent.WITHDRAWAL_REJECTED, {
-          amount: Number(result.amount),
-          reason: 'Declined by admin',
-        }).catch(err => console.error(`Failed to send WITHDRAWAL_REJECTED for user ${result.userId}:`, err));
+        this.notificationsService
+          .sendToUser(result.userId, NotificationEvent.WITHDRAWAL_REJECTED, {
+            amount: Number(result.amount),
+            reason: 'Declined by admin',
+          })
+          .catch((err) =>
+            console.error(
+              `Failed to send WITHDRAWAL_REJECTED for user ${result.userId}:`,
+              err,
+            ),
+          );
       }
 
       return { success: true, withdrawal: result };
@@ -1067,13 +2202,29 @@ export class AdminService {
     }
   }
 
-  async reverseTransaction(adminId: string, transactionGroupId: string, reason: string, clientIp: string) {
+  async reverseTransaction(
+    adminId: string,
+    transactionGroupId: string,
+    reason: string,
+    clientIp: string,
+  ) {
     const result = await this.prisma.$transaction(async (tx: any) => {
-      return reverseTransactionGroup(tx, transactionGroupId, reason, adminId, clientIp);
+      return reverseTransactionGroup(
+        tx,
+        transactionGroupId,
+        reason,
+        adminId,
+        clientIp,
+      );
     });
 
     await this.prisma.securityEvent.create({
-      data: { adminId, action: 'TRANSACTION_REVERSED', reason: `Reversed transaction group ${transactionGroupId}. Reason: ${reason}`, ipAddress: clientIp },
+      data: {
+        adminId,
+        action: 'TRANSACTION_REVERSED',
+        reason: `Reversed transaction group ${transactionGroupId}. Reason: ${reason}`,
+        ipAddress: clientIp,
+      },
     });
 
     return { success: true, reversalGroup: result };
@@ -1112,10 +2263,16 @@ export class AdminService {
   async createProfitDistribution(body: any) {
     const { userId, amount, type, status, note, distributionDate } = body;
     if (!userId || amount === undefined || !type || !distributionDate) {
-      return { error: 'userId, amount, type, and distributionDate are required', status: 400 };
+      return {
+        error: 'userId, amount, type, and distributionDate are required',
+        status: 400,
+      };
     }
 
     const distDate = new Date(distributionDate);
+    const normalizedStatus =
+      status === 'PAID' ? 'COMPLETED' : status || 'COMPLETED';
+    const distributionAmount = Number(amount);
     const reference = await this.generateProfitDistributionReference(distDate);
 
     try {
@@ -1124,25 +2281,50 @@ export class AdminService {
           data: {
             reference,
             userId,
-            amount: Number(amount),
+            grossProfit: distributionAmount,
+            netProfit: distributionAmount,
             type,
-            status: status || 'PAID',
+            status: normalizedStatus,
             note: note || '',
             distributionDate: distDate,
+            weekKey: this.getWeekKey(distDate),
           },
           include: {
             user: true,
           },
         });
 
-        if (profitDist.status === 'PAID') {
+        if (profitDist.status === 'COMPLETED') {
+          await tx.walletLedger.create({
+            data: {
+              userId: profitDist.userId,
+              type: 'PROFIT_DISTRIBUTION',
+              entryType: 'CREDIT',
+              amount: profitDist.netProfit,
+              referenceId: profitDist.id,
+              note: `Manual profit distribution | Ref: ${reference}`,
+            },
+          });
+
           await createTransactionGroup(tx, {
             type: 'TRADE_PROFIT',
             description: `Manual Profit payout | Ref: ${reference}`,
             idempotencyKey: `PROFIT_DIST_${reference}`,
             entries: [
-              { accountType: 'SYSTEM', entryType: 'DEBIT', amount: profitDist.amount, currency: 'INR' },
-              { userId: profitDist.userId, partnerId: profitDist.user.partnerId, accountType: 'USER', entryType: 'CREDIT', amount: profitDist.amount, currency: 'INR' },
+              {
+                accountType: 'SYSTEM',
+                entryType: 'DEBIT',
+                amount: profitDist.netProfit,
+                currency: 'INR',
+              },
+              {
+                userId: profitDist.userId,
+                partnerId: profitDist.user.partnerId,
+                accountType: 'USER',
+                entryType: 'CREDIT',
+                amount: profitDist.netProfit,
+                currency: 'INR',
+              },
             ],
           });
         }
@@ -1150,10 +2332,17 @@ export class AdminService {
         return profitDist;
       });
 
-      if (result && result.status === 'PAID') {
-        this.notificationsService.sendToUser(result.userId, NotificationEvent.PROFIT_DISTRIBUTED, {
-          amount: Number(result.amount),
-        }).catch(err => console.error(`Failed to send PROFIT_DISTRIBUTED for user ${result.userId}:`, err));
+      if (result && result.status === 'COMPLETED') {
+        this.notificationsService
+          .sendToUser(result.userId, NotificationEvent.PROFIT_DISTRIBUTED, {
+            amount: Number(result.netProfit),
+          })
+          .catch((err) =>
+            console.error(
+              `Failed to send PROFIT_DISTRIBUTED for user ${result.userId}:`,
+              err,
+            ),
+          );
       }
 
       return { success: true, profitDistribution: result };
@@ -1165,23 +2354,39 @@ export class AdminService {
 
   async updateProfitDistribution(id: string, body: any) {
     const { amount, type, status, note, distributionDate } = body;
+    const normalizedStatus = status === 'PAID' ? 'COMPLETED' : status;
 
     try {
       const result = await this.prisma.$transaction(async (tx: any) => {
-        const currentDist = await tx.profitDistribution.findUnique({ where: { id }, include: { user: true } });
+        const currentDist = await tx.profitDistribution.findUnique({
+          where: { id },
+          include: { user: true },
+        });
         if (!currentDist) throw new Error('Profit distribution not found');
 
-        if (currentDist.status === 'PAID' && status === 'PENDING') {
-          throw new Error('Cannot revert a PAID profit distribution back to PENDING. This would require a ledger reversal.');
+        if (
+          currentDist.status === 'COMPLETED' &&
+          normalizedStatus === 'PENDING'
+        ) {
+          throw new Error(
+            'Cannot revert a COMPLETED profit distribution back to PENDING. This would require a ledger reversal.',
+          );
         }
 
         const dataToUpdate: any = {};
-        if (amount !== undefined) dataToUpdate.amount = Number(amount);
+        if (amount !== undefined) {
+          const distributionAmount = Number(amount);
+          dataToUpdate.grossProfit = distributionAmount;
+          dataToUpdate.netProfit = distributionAmount;
+        }
         if (type !== undefined) dataToUpdate.type = type;
-        if (status !== undefined) dataToUpdate.status = status;
+        if (normalizedStatus !== undefined)
+          dataToUpdate.status = normalizedStatus;
         if (note !== undefined) dataToUpdate.note = note;
         if (distributionDate !== undefined) {
-          dataToUpdate.distributionDate = new Date(distributionDate);
+          const nextDate = new Date(distributionDate);
+          dataToUpdate.distributionDate = nextDate;
+          dataToUpdate.weekKey = this.getWeekKey(nextDate);
         }
 
         const updated = await tx.profitDistribution.update({
@@ -1192,17 +2397,41 @@ export class AdminService {
           },
         });
 
-        const isPaidTransition = currentDist.status === 'PENDING' && updated.status === 'PAID';
+        const isPaidTransition =
+          currentDist.status === 'PENDING' && updated.status === 'COMPLETED';
 
-        // Trigger ledger if status transitions from PENDING to PAID
+        // Trigger ledger if status transitions from PENDING to COMPLETED
         if (isPaidTransition) {
+          await tx.walletLedger.create({
+            data: {
+              userId: updated.userId,
+              type: 'PROFIT_DISTRIBUTION',
+              entryType: 'CREDIT',
+              amount: updated.netProfit,
+              referenceId: updated.id,
+              note: `Manual profit distribution | Ref: ${updated.reference}`,
+            },
+          });
+
           await createTransactionGroup(tx, {
             type: 'TRADE_PROFIT',
             description: `Manual Profit payout | Ref: ${updated.reference}`,
             idempotencyKey: `PROFIT_DIST_${updated.reference}`,
             entries: [
-              { accountType: 'SYSTEM', entryType: 'DEBIT', amount: updated.amount, currency: 'INR' },
-              { userId: updated.userId, partnerId: updated.user.partnerId, accountType: 'USER', entryType: 'CREDIT', amount: updated.amount, currency: 'INR' },
+              {
+                accountType: 'SYSTEM',
+                entryType: 'DEBIT',
+                amount: updated.netProfit,
+                currency: 'INR',
+              },
+              {
+                userId: updated.userId,
+                partnerId: updated.user.partnerId,
+                accountType: 'USER',
+                entryType: 'CREDIT',
+                amount: updated.netProfit,
+                currency: 'INR',
+              },
             ],
           });
         }
@@ -1211,9 +2440,20 @@ export class AdminService {
       });
 
       if (result && result.isPaidTransition) {
-        this.notificationsService.sendToUser(result.updated.userId, NotificationEvent.PROFIT_DISTRIBUTED, {
-          amount: Number(result.updated.amount),
-        }).catch(err => console.error(`Failed to send PROFIT_DISTRIBUTED for user ${result.updated.userId}:`, err));
+        this.notificationsService
+          .sendToUser(
+            result.updated.userId,
+            NotificationEvent.PROFIT_DISTRIBUTED,
+            {
+              amount: Number(result.updated.netProfit),
+            },
+          )
+          .catch((err) =>
+            console.error(
+              `Failed to send PROFIT_DISTRIBUTED for user ${result.updated.userId}:`,
+              err,
+            ),
+          );
       }
 
       return { success: true, profitDistribution: result.updated };
@@ -1226,11 +2466,15 @@ export class AdminService {
   async deleteProfitDistribution(id: string) {
     try {
       await this.prisma.$transaction(async (tx: any) => {
-        const currentDist = await tx.profitDistribution.findUnique({ where: { id } });
+        const currentDist = await tx.profitDistribution.findUnique({
+          where: { id },
+        });
         if (!currentDist) throw new Error('Profit distribution not found');
-        
-        if (currentDist.status === 'PAID') {
-          throw new Error('Cannot delete a PAID profit distribution because it is tied to an active ledger transaction. Please create a manual adjustment instead.');
+
+        if (currentDist.status === 'COMPLETED') {
+          throw new Error(
+            'Cannot delete a COMPLETED profit distribution because it is tied to an active ledger transaction. Please create a manual adjustment instead.',
+          );
         }
 
         await tx.profitDistribution.delete({
@@ -1243,9 +2487,106 @@ export class AdminService {
     }
   }
 
-  // Bulk Profit Distribution Lock & Idempotency Cache
+  // -------------------------------------------------------
+  // Distribution Engine — v3
+  // Uses UserPlan → Plan for resolution, Decimal math, weekKey
+  // idempotency via @@unique([userId, weekKey]), WalletLedger
+  // -------------------------------------------------------
+
   private isBulkDistributeRunning = false;
   private processedRequestIds = new Set<string>();
+
+  /** Compute ISO week key: "YYYY-WNN" based on UTC Monday. */
+  private getWeekKey(date: Date): string {
+    const d = new Date(
+      Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+    );
+    const day = d.getUTCDay() || 7; // Mon=1 … Sun=7
+    d.setUTCDate(d.getUTCDate() + 4 - day); // Thu in week
+    const year = d.getUTCFullYear();
+    const startOfYear = new Date(Date.UTC(year, 0, 1));
+    const week = Math.ceil(
+      ((d.getTime() - startOfYear.getTime()) / 86400000 + 1) / 7,
+    );
+    return `${year}-W${String(week).padStart(2, '0')}`;
+  }
+
+  /** Resolve eligible users + payout breakdown without DB writes. */
+  async previewDistribution(body: any) {
+    const now = new Date();
+    const weekKey = body.weekKey ?? this.getWeekKey(now);
+    const settings = await this.prisma.systemSettings.findFirst();
+    const platformCutPct = Number(settings?.platformProfitCut ?? 30);
+
+    const activePlans = await this.prisma.userPlan.findMany({
+      where: { active: true },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            isDeleted: true,
+            status: true,
+          },
+        },
+        plan: true,
+      },
+    });
+
+    const breakdown: any[] = [];
+    let totalInvestment = 0,
+      totalGrossProfit = 0,
+      totalPlatformCut = 0,
+      totalNetProfit = 0;
+
+    for (const up of activePlans) {
+      if (up.user.isDeleted) continue;
+      if (up.user.status !== 'ACTIVE' && up.user.status !== 'VIP') continue;
+      if (up.expiresAt && up.expiresAt < now) continue;
+
+      // Resolve investment amount from latest approved payment
+      const payment = await this.prisma.payment.findFirst({
+        where: { userId: up.userId, status: 'APPROVED' },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!payment) continue;
+
+      const investment = Number(payment.amount);
+      const grossProfit = (investment * Number(up.plan.weeklyProfit)) / 100;
+      const platformCut = (grossProfit * platformCutPct) / 100;
+      const netProfit = grossProfit - platformCut;
+
+      totalInvestment += investment;
+      totalGrossProfit += grossProfit;
+      totalPlatformCut += platformCut;
+      totalNetProfit += netProfit;
+
+      breakdown.push({
+        userId: up.userId,
+        email: up.user.email,
+        name: up.user.name,
+        planName: up.plan.name,
+        weeklyProfitPct: Number(up.plan.weeklyProfit),
+        investment: +investment.toFixed(4),
+        grossProfit: +grossProfit.toFixed(4),
+        platformCut: +platformCut.toFixed(4),
+        netProfit: +netProfit.toFixed(4),
+      });
+    }
+
+    return {
+      success: true,
+      weekKey,
+      platformCutPct,
+      eligibleUsers: breakdown.length,
+      totalInvestment: +totalInvestment.toFixed(4),
+      totalGrossProfit: +totalGrossProfit.toFixed(4),
+      totalPlatformCut: +totalPlatformCut.toFixed(4),
+      totalNetProfit: +totalNetProfit.toFixed(4),
+      breakdown,
+    };
+  }
 
   async bulkDistributeProfit(adminId: string, clientIp: string, body: any) {
     const dryRun = body.dryRun === true;
@@ -1253,76 +2594,65 @@ export class AdminService {
 
     if (requestId) {
       if (this.processedRequestIds.has(requestId)) {
-        return { error: 'This distribution request has already been executed.', status: 400 };
+        return {
+          error: 'This distribution request has already been executed.',
+          status: 400,
+        };
       }
     }
 
     if (!dryRun) {
       if (this.isBulkDistributeRunning) {
-        return { error: 'Bulk profit distribution is already in progress.', status: 409 };
+        return {
+          error: 'Bulk profit distribution is already in progress.',
+          status: 409,
+        };
       }
     }
 
     // 1. Fetch settings from SystemSettings
     const settings = await this.prisma.systemSettings.findFirst();
-    const enableBulkDist = settings?.enableBulkDist ?? true;
-    const allowDuplicateDist = settings?.allowDuplicateDist ?? false;
+    const enableBulkDist =
+      settings?.enableBulkDistribution ?? settings?.enableBulkDist ?? true;
+    const allowDuplicateDist =
+      settings?.allowDuplicateWeeklyPayouts ??
+      settings?.allowDuplicateDist ??
+      false;
+    const platformCutPct = Number(
+      settings?.platformProfitCut ?? settings?.platformFeePct ?? 30,
+    );
 
     if (!enableBulkDist) {
-      return { error: 'Bulk profit distribution is currently disabled in system settings.', status: 400 };
+      return {
+        error:
+          'Bulk profit distribution is currently disabled in system settings.',
+        status: 400,
+      };
     }
 
-    const individualPercent = Number(settings?.individualProfitPct ?? 5.00);
-    const clubPercent = Number(settings?.clubProfitPct ?? 7.00);
-
-    // 2. Calculate week boundaries in UTC (Monday 00:00:00 UTC to Sunday 23:59:59 UTC)
     const now = new Date();
-    
-    // Get start of the current week (last Monday) in UTC
-    const startOfWeek = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const day = startOfWeek.getUTCDay(); // 0 is Sunday, 1 is Monday, ...
-    const diff = startOfWeek.getUTCDate() - day + (day === 0 ? -6 : 1); // adjust when day is Sunday
-    startOfWeek.setUTCDate(diff);
-    startOfWeek.setUTCHours(0, 0, 0, 0);
+    const weekKey = body.weekKey ?? this.getWeekKey(now);
 
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setUTCDate(endOfWeek.getUTCDate() + 7);
-
-    // 3. Find already paid users in this week (UTC) if duplicate payouts are not allowed
-    const paidUserIds = new Set<string>();
-    if (!allowDuplicateDist) {
-      const weeklyDistributions = await this.prisma.profitDistribution.findMany({
-        where: {
-          type: 'Weekly Profit',
-          distributionDate: {
-            gte: startOfWeek,
-            lt: endOfWeek,
-          },
-        },
-        select: { userId: true },
-      });
-      weeklyDistributions.forEach((d) => paidUserIds.add(d.userId));
-    }
-
-    // 4. Fetch all active users (not soft-deleted)
-    const users = await this.prisma.user.findMany({
-      where: { isDeleted: false },
+    // 2. Resolve eligible users via UserPlan → Plan
+    const activeUserPlans = await this.prisma.userPlan.findMany({
+      where: { active: true },
       include: {
-        payments: {
-          where: { status: 'APPROVED' },
-          orderBy: { createdAt: 'desc' },
-        },
+        user: { include: { wallet: true } },
+        plan: true,
       },
     });
 
-    const activePlans = await this.prisma.plan.findMany({ where: { isActive: true } });
-
     const eligiblePayouts: Array<{
-      user: typeof users[0];
-      approvedPayment: typeof users[0]['payments'][0];
-      profitAmount: number;
-      investment: number;
+      userId: string;
+      partnerId: string;
+      email: string;
       planName: string;
+      planId: string;
+      investment: number;
+      grossProfit: number;
+      platformCut: number;
+      netProfit: number;
+      expiresAt: Date | null;
     }> = [];
 
     const skipped: {
@@ -1337,78 +2667,92 @@ export class AdminService {
       inactiveUser: [],
     };
 
-    // Calculate payouts in memory
-    for (const user of users) {
+    // Pre-fetch already-paid set for this week
+    const alreadyPaidSet = new Set<string>();
+    if (!allowDuplicateDist) {
+      const existing = await this.prisma.profitDistribution.findMany({
+        where: { weekKey },
+        select: { userId: true },
+      });
+      existing.forEach((d) => alreadyPaidSet.add(d.userId));
+    }
+
+    for (const up of activeUserPlans) {
+      const user = up.user;
+      if (user.isDeleted) continue;
       if (user.status !== 'ACTIVE' && user.status !== 'VIP') {
         skipped.inactiveUser.push(user.email);
         continue;
       }
-
-      if (!allowDuplicateDist && paidUserIds.has(user.id)) {
+      if (up.expiresAt && up.expiresAt < now) {
+        skipped.expiredPlan.push(user.email);
+        continue;
+      }
+      if (!allowDuplicateDist && alreadyPaidSet.has(user.id)) {
         skipped.alreadyPaid.push(user.email);
         continue;
       }
 
-      const approvedPayment = user.payments[0];
-      if (!approvedPayment) {
+      // Resolve investment from latest approved payment
+      const payment = await this.prisma.payment.findFirst({
+        where: { userId: user.id, status: 'APPROVED' },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (!payment) {
         skipped.invalidPlan.push(user.email);
         continue;
       }
 
-      // Check plan 365-day expiry
-      const approvedDate = new Date(approvedPayment.createdAt);
-      const expiresAt = new Date(approvedDate);
-      expiresAt.setDate(expiresAt.getDate() + 365);
-      if (now.getTime() > expiresAt.getTime()) {
-        skipped.expiredPlan.push(user.email);
-        continue;
-      }
-
-      // Determine profit rate based on plan name matching
-      let profitRate = 0;
-      const planName = approvedPayment.planName.toLowerCase();
-      
-      const matchedPlan = activePlans.find(p => p.name.toLowerCase() === planName);
-      if (matchedPlan) {
-        profitRate = Number(matchedPlan.weeklyProfit);
-      } else {
-        if (planName.includes('individual')) {
-          profitRate = individualPercent;
-        } else if (planName.includes('club')) {
-          profitRate = clubPercent;
-        } else {
-          skipped.invalidPlan.push(user.email);
-          continue;
-        }
-      }
-
-      const investment = Number(approvedPayment.amount);
-      const profitAmount = Number(((investment * profitRate) / 100).toFixed(4));
+      const investment = Number(payment.amount);
+      const grossProfit = (investment * Number(up.plan.weeklyProfit)) / 100;
+      const platformCut = (grossProfit * platformCutPct) / 100;
+      const netProfit = grossProfit - platformCut;
 
       eligiblePayouts.push({
-        user,
-        approvedPayment,
-        profitAmount,
+        userId: user.id,
+        partnerId: user.partnerId,
+        email: user.email,
+        planName: up.plan.name,
+        planId: up.planId,
         investment,
-        planName: approvedPayment.planName,
+        grossProfit,
+        platformCut,
+        netProfit,
+        expiresAt: up.expiresAt,
       });
     }
 
-    const totalProcessed = users.length;
+    const totalProcessed = activeUserPlans.length;
     const successCount = eligiblePayouts.length;
-    const skippedCount = skipped.alreadyPaid.length + skipped.expiredPlan.length + skipped.invalidPlan.length + skipped.inactiveUser.length;
-    const totalAmount = eligiblePayouts.reduce((sum, p) => sum + p.profitAmount, 0);
+    const skippedCount = Object.values(skipped).reduce(
+      (s, a) => s + a.length,
+      0,
+    );
+
+    const totals = eligiblePayouts.reduce(
+      (acc, p) => ({
+        investment: acc.investment + p.investment,
+        gross: acc.gross + p.grossProfit,
+        cut: acc.cut + p.platformCut,
+        net: acc.net + p.netProfit,
+      }),
+      { investment: 0, gross: 0, cut: 0, net: 0 },
+    );
 
     if (dryRun) {
       return {
         success: true,
+        weekKey,
         summary: {
           totalProcessed,
           eligible: successCount,
-          estimatedAmount: Number(totalAmount.toFixed(2)),
           successCount,
           failedCount: 0,
           skippedCount,
+          totalInvestment: +totals.investment.toFixed(4),
+          totalGrossProfit: +totals.gross.toFixed(4),
+          totalPlatformCut: +totals.cut.toFixed(4),
+          totalNetProfit: +totals.net.toFixed(4),
         },
         skipped,
       };
@@ -1423,18 +2767,15 @@ export class AdminService {
           success: 0,
           failed: 0,
           skipped: skippedCount,
-          totalAmount: 0,
         },
         skipped,
       };
     }
 
-    // Acquire lock
     this.isBulkDistributeRunning = true;
 
     try {
       const result = await this.prisma.$transaction(async (tx: any) => {
-        // Create the batch header first
         const batch = await tx.profitDistributionBatch.create({
           data: {
             createdBy: adminId,
@@ -1442,62 +2783,95 @@ export class AdminService {
             successCount,
             failedCount: 0,
             skippedCount,
-            totalAmount,
             dryRun: false,
+            weekKey,
+            totalInvestment: totals.investment,
+            totalGrossProfit: totals.gross,
+            totalPlatformCut: totals.cut,
+            totalNetProfit: totals.net,
+            status: 'COMPLETED',
           },
         });
 
         const datePrefix = `PD-${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}${String(now.getUTCDate()).padStart(2, '0')}`;
-
-        // Sequentially create distribution records & credit wallets
         let idx = 1;
+
         for (const payout of eligiblePayouts) {
           const seqStr = String(idx++).padStart(3, '0');
-          // Reference uses batch ID and date to guarantee uniqueness
           const reference = `${datePrefix}-${batch.id.slice(-6).toUpperCase()}-${seqStr}`;
 
           await tx.profitDistribution.create({
             data: {
               reference,
-              userId: payout.user.id,
-              amount: payout.profitAmount,
-              type: 'Weekly Profit',
-              status: 'PAID',
-              note: `Bulk weekly profit distribution | Batch: ${batch.id}`,
-              distributionDate: now,
+              userId: payout.userId,
+              planId: payout.planId,
               batchId: batch.id,
+              investmentAmount: payout.investment,
+              grossProfit: payout.grossProfit,
+              platformCut: payout.platformCut,
+              netProfit: payout.netProfit,
+              type: 'Weekly Profit',
+              status: 'COMPLETED',
+              note: `Bulk weekly profit | Batch: ${batch.id}`,
+              distributionDate: now,
+              weekKey,
             },
           });
 
-          // Create double-entry transaction group and update wallet balance
+          // WalletLedger audit entry
+          await tx.walletLedger.create({
+            data: {
+              userId: payout.userId,
+              type: 'PROFIT_DISTRIBUTION',
+              entryType: 'CREDIT',
+              amount: payout.netProfit,
+              referenceId: reference,
+              note: `Weekly profit | ${weekKey} | Plan: ${payout.planName}`,
+            },
+          });
+
           await createTransactionGroup(tx, {
             type: 'TRADE_PROFIT',
             description: `Weekly Profit payout | Ref: ${reference}`,
             idempotencyKey: `PROFIT_DIST_${reference}`,
             entries: [
-              { accountType: 'SYSTEM', entryType: 'DEBIT', amount: payout.profitAmount, currency: 'INR' },
-              { userId: payout.user.id, partnerId: payout.user.partnerId, accountType: 'USER', entryType: 'CREDIT', amount: payout.profitAmount, currency: 'INR' },
+              {
+                accountType: 'SYSTEM',
+                entryType: 'DEBIT',
+                amount: payout.netProfit,
+                currency: 'INR',
+              },
+              {
+                userId: payout.userId,
+                partnerId: payout.partnerId,
+                accountType: 'USER',
+                entryType: 'CREDIT',
+                amount: payout.netProfit,
+                currency: 'INR',
+              },
             ],
           });
         }
 
-        // Detailed audit JSON for security event logs
-        const auditLogDetails = {
-          event: 'PROFIT_DIST_BULK',
-          performedBy: adminId,
-          batchId: batch.id,
-          totalUsers: totalProcessed,
-          success: successCount,
-          skipped: skippedCount,
-          totalAmount,
-          timestamp: now.toISOString(),
-        };
+        await tx.financialEvent.create({
+          data: {
+            eventType: 'PROFIT_DISTRIBUTED',
+            actorId: adminId,
+            referenceId: batch.id,
+            metadata: { weekKey, successCount, totalNetProfit: totals.net },
+          },
+        });
 
         await tx.securityEvent.create({
           data: {
             adminId,
             action: 'PROFIT_DIST_BULK',
-            reason: JSON.stringify(auditLogDetails),
+            reason: JSON.stringify({
+              batchId: batch.id,
+              weekKey,
+              successCount,
+              totalNetProfit: totals.net,
+            }),
             ipAddress: clientIp,
           },
         });
@@ -1505,15 +2879,20 @@ export class AdminService {
         return batch;
       });
 
-      // Release lock & record request ID
       this.isBulkDistributeRunning = false;
       if (requestId) this.processedRequestIds.add(requestId);
 
-      // Trigger notifications for all payouts
       for (const payout of eligiblePayouts) {
-        this.notificationsService.sendToUser(payout.user.id, NotificationEvent.PROFIT_DISTRIBUTED, {
-          amount: payout.profitAmount,
-        }).catch(err => console.error(`Failed to send PROFIT_DISTRIBUTED weekly profit payout for user ${payout.user.id}:`, err));
+        this.notificationsService
+          .sendToUser(payout.userId, NotificationEvent.PROFIT_DISTRIBUTED, {
+            amount: +payout.netProfit.toFixed(4),
+          })
+          .catch((err) =>
+            console.error(
+              `PROFIT_DISTRIBUTED notification failed for ${payout.userId}:`,
+              err,
+            ),
+          );
       }
 
       return {
@@ -1523,26 +2902,117 @@ export class AdminService {
           success: successCount,
           failed: 0,
           skipped: skippedCount,
-          totalAmount: Number(totalAmount.toFixed(2)),
+          weekKey,
           batchId: result.id,
+          totalInvestment: +totals.investment.toFixed(4),
+          totalGrossProfit: +totals.gross.toFixed(4),
+          totalPlatformCut: +totals.cut.toFixed(4),
+          totalNetProfit: +totals.net.toFixed(4),
         },
         skipped,
       };
     } catch (error: any) {
       this.isBulkDistributeRunning = false;
-      console.error('Bulk profit distribution execution error:', error);
+      console.error('Bulk profit distribution error:', error);
       return {
         success: false,
-        error: error.message || 'Database transaction error occurred',
+        error: error.message || 'Database transaction error',
         summary: {
           totalProcessed,
           success: 0,
           failed: successCount,
           skipped: skippedCount,
-          totalAmount: 0,
         },
         skipped,
       };
+    }
+  }
+
+  async reverseDistribution(
+    adminId: string,
+    batchId: string,
+    reason: string,
+    clientIp: string,
+  ) {
+    try {
+      await this.prisma.$transaction(async (tx: any) => {
+        const batch = await tx.profitDistributionBatch.findUnique({
+          where: { id: batchId },
+          include: { profitDistributions: { include: { user: true } } },
+        });
+        if (!batch) throw new Error('Batch not found');
+        if (batch.status === 'REVERSED')
+          throw new Error('This batch has already been reversed');
+
+        const now = new Date();
+
+        await tx.profitDistributionBatch.update({
+          where: { id: batchId },
+          data: { status: 'REVERSED', reversedAt: now, reversedBy: adminId },
+        });
+
+        for (const dist of batch.profitDistributions) {
+          if (dist.status === 'REVERSED') continue;
+
+          await tx.profitDistribution.update({
+            where: { id: dist.id },
+            data: { status: 'REVERSED', reversedAt: now, reversedBy: adminId },
+          });
+
+          const ledgerGroup = await tx.transactionGroup.findFirst({
+            where: { idempotencyKey: `PROFIT_DIST_${dist.reference}` },
+          });
+          if (ledgerGroup) {
+            await reverseTransactionGroup(
+              tx,
+              ledgerGroup.id,
+              reason,
+              adminId,
+              clientIp,
+            );
+          }
+
+          await tx.walletLedger.create({
+            data: {
+              userId: dist.userId,
+              type: 'PROFIT_REVERSAL',
+              entryType: 'DEBIT',
+              amount: dist.netProfit,
+              referenceId: dist.id,
+              note: `Reversal of ${dist.reference} — ${reason}`,
+            },
+          });
+        }
+
+        await tx.financialEvent.create({
+          data: {
+            eventType: 'PROFIT_REVERSED',
+            actorId: adminId,
+            referenceId: batchId,
+            metadata: {
+              reason,
+              reversedCount: batch.profitDistributions.length,
+            },
+          },
+        });
+
+        await tx.securityEvent.create({
+          data: {
+            adminId,
+            action: 'PROFIT_DIST_REVERSED',
+            reason: `Reversed batch ${batchId}: ${reason}`,
+            ipAddress: clientIp,
+          },
+        });
+      });
+
+      return {
+        success: true,
+        message: `Batch ${batchId} reversed successfully`,
+      };
+    } catch (e: any) {
+      console.error('Distribution reversal error:', e);
+      return { error: e.message || 'Reversal failed', status: 400 };
     }
   }
 
@@ -1556,6 +3026,12 @@ export class AdminService {
         trades: { orderBy: { createdAt: 'desc' } },
         securityEvents: { orderBy: { createdAt: 'desc' }, take: 50 },
         generatedReports: { orderBy: { createdAt: 'desc' } },
+        userPlans: {
+          where: { active: true },
+          include: { plan: true },
+          orderBy: { startedAt: 'desc' },
+          take: 1,
+        },
         partner: true,
       },
     });
@@ -1565,7 +3041,9 @@ export class AdminService {
     }
 
     const walletBalance = user.wallet ? Number(user.wallet.realizedBalance) : 0;
-    const unrealizedBalance = user.wallet ? Number(user.wallet.unrealizedBalance) : 0;
+    const unrealizedBalance = user.wallet
+      ? Number(user.wallet.unrealizedBalance)
+      : 0;
     const currentEquity = walletBalance + unrealizedBalance;
 
     const totalDeposits = user.payments
@@ -1581,22 +3059,26 @@ export class AdminService {
     const losingTrades = user.trades.filter((t) => Number(t.pnl) <= 0).length;
     const winRate = totalTrades > 0 ? (winningTrades / totalTrades) * 100 : 0;
 
-    const latestApprovedPayment = user.payments.find((p) => p.status === 'APPROVED');
+    const activeUserPlan = user.userPlans?.[0];
     let subscription: any = null;
-    if (latestApprovedPayment) {
-      const approvedDate = new Date(latestApprovedPayment.createdAt);
-      const expiresAt = new Date(approvedDate);
-      expiresAt.setDate(expiresAt.getDate() + 365);
-
+    if (activeUserPlan) {
       const now = new Date();
-      const daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-      const isActive = daysRemaining > 0;
+      const expiresAt = activeUserPlan.expiresAt;
+      const daysRemaining = expiresAt
+        ? Math.max(
+            0,
+            Math.ceil(
+              (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+            ),
+          )
+        : null;
+      const isActive = !expiresAt || (daysRemaining ?? 0) > 0;
 
       subscription = {
-        planName: latestApprovedPayment.planName,
+        planName: activeUserPlan.plan.name,
         status: isActive ? 'Active' : 'Expired',
-        paidAt: latestApprovedPayment.createdAt,
-        expiresAt: expiresAt.toISOString(),
+        paidAt: activeUserPlan.startedAt,
+        expiresAt: expiresAt?.toISOString() ?? null,
         daysRemaining,
       };
     }
@@ -1688,26 +3170,36 @@ export class AdminService {
       userName: w.user?.name || 'Unknown User',
       userEmail: w.user?.email || 'N/A',
       amount: Number(w.amount),
-      status: w.status === 'PENDING' ? 'Pending' : w.status === 'APPROVED' ? 'Approved' : 'Rejected',
+      status:
+        w.status === 'PENDING'
+          ? 'Pending'
+          : w.status === 'APPROVED'
+            ? 'Approved'
+            : 'Rejected',
       method: w.method || 'Bank Transfer',
       accountDetails: w.accountDetails || '',
       notes: w.notes || '',
       currentEquity: w.user?.wallet ? Number(w.user.wallet.currentEquity) : 0,
-      availableBalance: w.user?.wallet ? Number(w.user.wallet.availableBalance) : 0,
-      pendingWithdrawals: w.user?.wallet ? Number(w.user.wallet.pendingWithdrawals) : 0,
+      availableBalance: w.user?.wallet
+        ? Number(w.user.wallet.availableBalance)
+        : 0,
+      pendingWithdrawals: w.user?.wallet
+        ? Number(w.user.wallet.pendingWithdrawals)
+        : 0,
       requestedAt: w.createdAt,
       processedAt: w.processedAt,
-      date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      date: w.createdAt.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
     }));
   }
 
   async getWithdrawalDetail(id: string) {
     const w = await this.prisma.withdrawal.findFirst({
       where: {
-        OR: [
-          { id },
-          { withdrawalId: id }
-        ]
+        OR: [{ id }, { withdrawalId: id }],
       },
       include: { user: { include: { wallet: true } } },
     });
@@ -1719,22 +3211,35 @@ export class AdminService {
       userName: w.user?.name || 'Unknown User',
       userEmail: w.user?.email || 'N/A',
       amount: Number(w.amount),
-      status: w.status === 'PENDING' ? 'Pending' : w.status === 'APPROVED' ? 'Approved' : 'Rejected',
+      status:
+        w.status === 'PENDING'
+          ? 'Pending'
+          : w.status === 'APPROVED'
+            ? 'Approved'
+            : 'Rejected',
       method: w.method || 'Bank Transfer',
       accountDetails: w.accountDetails || '',
       notes: w.notes || '',
       currentEquity: w.user?.wallet ? Number(w.user.wallet.currentEquity) : 0,
-      availableBalance: w.user?.wallet ? Number(w.user.wallet.availableBalance) : 0,
-      pendingWithdrawals: w.user?.wallet ? Number(w.user.wallet.pendingWithdrawals) : 0,
+      availableBalance: w.user?.wallet
+        ? Number(w.user.wallet.availableBalance)
+        : 0,
+      pendingWithdrawals: w.user?.wallet
+        ? Number(w.user.wallet.pendingWithdrawals)
+        : 0,
       requestedAt: w.createdAt,
       processedAt: w.processedAt,
-      date: w.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      date: w.createdAt.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
     };
   }
 
   async getPnlReports() {
     const trades = await this.prisma.tradeRecord.findMany({
-      orderBy: { tradeDate: 'desc' }
+      orderBy: { tradeDate: 'desc' },
     });
 
     const totalTrades = trades.length;
@@ -1747,7 +3252,7 @@ export class AdminService {
 
     const monthlyPnlMap: Record<string, number> = {};
 
-    trades.forEach(t => {
+    trades.forEach((t) => {
       const pnl = Number(t.profitLoss);
       totalPnl += pnl;
 
@@ -1766,22 +3271,43 @@ export class AdminService {
       monthlyPnlMap[month] = (monthlyPnlMap[month] || 0) + pnl;
     });
 
-    const winRate = totalTrades > 0 ? ((winningTrades / totalTrades) * 100).toFixed(2) : '0.00';
-    const lossRate = totalTrades > 0 ? ((losingTrades / totalTrades) * 100).toFixed(2) : '0.00';
-    const breakevenRate = totalTrades > 0 ? ((breakevenTrades / totalTrades) * 100).toFixed(2) : '0.00';
-    
-    const averageWin = winningTrades > 0 ? (grossProfit / winningTrades).toFixed(2) : '0.00';
-    const averageLoss = losingTrades > 0 ? (grossLoss / losingTrades).toFixed(2) : '0.00';
+    const winRate =
+      totalTrades > 0
+        ? ((winningTrades / totalTrades) * 100).toFixed(2)
+        : '0.00';
+    const lossRate =
+      totalTrades > 0
+        ? ((losingTrades / totalTrades) * 100).toFixed(2)
+        : '0.00';
+    const breakevenRate =
+      totalTrades > 0
+        ? ((breakevenTrades / totalTrades) * 100).toFixed(2)
+        : '0.00';
 
-    const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : (grossProfit > 0 ? 'Infinite' : '0.00');
+    const averageWin =
+      winningTrades > 0 ? (grossProfit / winningTrades).toFixed(2) : '0.00';
+    const averageLoss =
+      losingTrades > 0 ? (grossLoss / losingTrades).toFixed(2) : '0.00';
 
-    const monthlyPnl = Object.keys(monthlyPnlMap).map(month => ({
+    const profitFactor =
+      grossLoss > 0
+        ? (grossProfit / grossLoss).toFixed(2)
+        : grossProfit > 0
+          ? 'Infinite'
+          : '0.00';
+
+    const monthlyPnl = Object.keys(monthlyPnlMap).map((month) => ({
       month,
-      pnl: monthlyPnlMap[month]
+      pnl: monthlyPnlMap[month],
     }));
 
     const rows = [
-      ["All Users", `$${totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, "-", `${winRate}%`]
+      [
+        'All Users',
+        `$${totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        '-',
+        `${winRate}%`,
+      ],
     ];
 
     return {
@@ -1798,7 +3324,7 @@ export class AdminService {
         averageLoss: Number(averageLoss),
         profitFactor,
         grossProfit,
-        grossLoss
+        grossLoss,
       },
       profitDistribution: {
         winningTrades,
@@ -1809,7 +3335,7 @@ export class AdminService {
         breakevenRate: Number(breakevenRate),
       },
       monthlyPnl,
-      rows
+      rows,
     };
   }
 
@@ -1841,7 +3367,7 @@ export class AdminService {
       include: {
         user: { select: { name: true, email: true, phone: true } },
         plan: { select: { name: true } },
-      }
+      },
     });
 
     const now = new Date();
@@ -1859,8 +3385,9 @@ export class AdminService {
     for (const init of initiations) {
       if (new Date(init.createdAt) >= today) initiatedToday++;
       if (new Date(init.createdAt) >= weekAgo) initiatedWeek++;
-      if (['PENDING', 'FOLLOWUP_REQUIRED'].includes(init.followUpStatus)) pendingFollowUps++;
-      
+      if (['PENDING', 'FOLLOWUP_REQUIRED'].includes(init.followUpStatus))
+        pendingFollowUps++;
+
       const amount = Number(init.amount) || 0;
       if (init.followUpStatus === 'CONVERTED' || init.status === 'completed') {
         convertedLeads++;
@@ -1870,10 +3397,13 @@ export class AdminService {
       }
     }
 
-    const conversionRate = initiations.length > 0 ? Number(((convertedLeads / initiations.length) * 100).toFixed(1)) : 0;
+    const conversionRate =
+      initiations.length > 0
+        ? Number(((convertedLeads / initiations.length) * 100).toFixed(1))
+        : 0;
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       metrics: {
         initiatedToday,
         initiatedWeek,
@@ -1883,14 +3413,22 @@ export class AdminService {
         recoveredRevenue,
         conversionRate,
       },
-      initiatedPayments: initiations 
+      initiatedPayments: initiations,
     };
   }
 
-  async updateInitiatedPayment(id: string, body: any, adminId: string, clientIp: string) {
+  async updateInitiatedPayment(
+    id: string,
+    body: any,
+    adminId: string,
+    clientIp: string,
+  ) {
     const { followUpStatus, remarks, contactedAt } = body;
-    const existing = await this.prisma.paymentInitiation.findUnique({ where: { id } });
-    if (!existing) return { error: 'Payment initiation not found', status: 404 };
+    const existing = await this.prisma.paymentInitiation.findUnique({
+      where: { id },
+    });
+    if (!existing)
+      return { error: 'Payment initiation not found', status: 404 };
 
     const updateData: any = {};
     if (followUpStatus) updateData.followUpStatus = followUpStatus;
@@ -1920,18 +3458,26 @@ export class AdminService {
     }
     const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
     if (!matches || matches.length !== 3) {
-      return { error: 'Invalid image format. Must be a base64 encoded image.', status: 400 };
+      return {
+        error: 'Invalid image format. Must be a base64 encoded image.',
+        status: 400,
+      };
     }
     const mimeType = matches[1];
     const base64Data = matches[2];
-    
-    if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(mimeType)) {
-      return { error: 'Invalid image type. Only PNG, JPEG, JPG, and WEBP are allowed.', status: 400 };
+
+    if (
+      !['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(mimeType)
+    ) {
+      return {
+        error: 'Invalid image type. Only PNG, JPEG, JPG, and WEBP are allowed.',
+        status: 400,
+      };
     }
 
     const extension = mimeType.split('/')[1];
     const buffer = Buffer.from(base64Data, 'base64');
-    
+
     if (buffer.length > 5 * 1024 * 1024) {
       return { error: 'File size too large. Max 5MB.', status: 400 };
     }
@@ -1939,17 +3485,16 @@ export class AdminService {
     const fs = require('fs');
     const path = require('path');
     const uploadDir = path.join(process.cwd(), 'uploads', 'payment-methods');
-    
+
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
-    
+
     const fileName = `upi-qr-${Date.now()}.${extension}`;
     const filePath = path.join(uploadDir, fileName);
-    
+
     fs.writeFileSync(filePath, buffer);
-    
+
     return { success: true, url: `/uploads/payment-methods/${fileName}` };
   }
 }
-

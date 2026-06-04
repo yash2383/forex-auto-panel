@@ -1,4 +1,13 @@
-import { Controller, Get, Patch, Body, Req, Res, HttpStatus, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Body,
+  Req,
+  Res,
+  HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { UserService } from './user.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -21,13 +30,17 @@ export class UserController {
       const result = await this.userService.getProfile(user.id);
 
       if ('error' in result) {
-        return res.status((result as any).status || 400).json({ message: (result as any).error });
+        return res
+          .status((result as any).status || 400)
+          .json({ message: (result as any).error });
       }
 
       return res.json(result);
     } catch (error: any) {
       console.error('Profile fetch error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -36,19 +49,27 @@ export class UserController {
    * Update profile fields (name)
    */
   @Patch('profile')
-  async updateProfile(@Req() req: Request, @Body() body: { name?: string }, @Res() res: Response) {
+  async updateProfile(
+    @Req() req: Request,
+    @Body() body: { name?: string },
+    @Res() res: Response,
+  ) {
     try {
       const user = (req as any).user;
       const result = await this.userService.updateProfile(user.id, body);
 
       if ('error' in result) {
-        return res.status((result as any).status || 400).json({ message: (result as any).error });
+        return res
+          .status((result as any).status || 400)
+          .json({ message: (result as any).error });
       }
 
       return res.json(result);
     } catch (error: any) {
       console.error('Profile update error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -64,7 +85,9 @@ export class UserController {
       return res.json(result);
     } catch (error: any) {
       console.error('Payments fetch error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -80,7 +103,9 @@ export class UserController {
       return res.json(result);
     } catch (error: any) {
       console.error('Subscription fetch error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -91,7 +116,12 @@ export class UserController {
   @Patch('password')
   async changePassword(
     @Req() req: Request,
-    @Body() body: { currentPassword: string; newPassword: string; confirmPassword: string },
+    @Body()
+    body: {
+      currentPassword: string;
+      newPassword: string;
+      confirmPassword: string;
+    },
     @Res() res: Response,
   ) {
     try {
@@ -104,13 +134,17 @@ export class UserController {
       );
 
       if ('error' in result) {
-        return res.status((result as any).status || 400).json({ message: (result as any).error });
+        return res
+          .status((result as any).status || 400)
+          .json({ message: (result as any).error });
       }
 
       return res.json(result);
     } catch (error: any) {
       console.error('Password change error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -121,11 +155,14 @@ export class UserController {
     try {
       const user = (req as any).user;
       const result = await this.userService.getReferralStats(user.id);
-      if ('error' in result) return res.status(result.status || 400).json({ message: result.error });
+      if ('error' in result)
+        return res.status(result.status || 400).json({ message: result.error });
       return res.json(result);
     } catch (error: any) {
       console.error('Fetch referral stats error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -137,7 +174,9 @@ export class UserController {
       return res.json(result);
     } catch (error: any) {
       console.error('Fetch referrals error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
@@ -149,7 +188,9 @@ export class UserController {
       return res.json(result);
     } catch (error: any) {
       console.error('Fetch referral earnings error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 }

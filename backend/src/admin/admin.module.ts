@@ -10,4 +10,3 @@ import { NotificationsModule } from '../notifications/notifications.module';
   providers: [AdminService],
 })
 export class AdminModule {}
-

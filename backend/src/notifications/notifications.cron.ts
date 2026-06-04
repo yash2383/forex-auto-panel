@@ -1,8 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotificationDeliveryStatus, NotificationChannel } from '@prisma/client';
+import {
+  NotificationDeliveryStatus,
+  NotificationChannel,
+} from '@prisma/client';
 import { NotificationsService } from './notifications.service';
+import { ObservabilityService } from '../observability/observability.service';
 
 @Injectable()
 export class NotificationsCron {
@@ -11,6 +15,7 @@ export class NotificationsCron {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly observabilityService: ObservabilityService,
   ) {}
 
   /**
@@ -73,7 +78,9 @@ export class NotificationsCron {
         return;
       }
 
-      this.logger.log(`Found ${oldNotifications.length} notifications to archive. Copying...`);
+      this.logger.log(
+        `Found ${oldNotifications.length} notifications to archive. Copying...`,
+      );
 
       // Copy using transaction
       await this.prisma.$transaction(async (tx) => {
@@ -111,7 +118,9 @@ export class NotificationsCron {
           },
         });
 
-        this.logger.log(`Successfully archived and deleted ${deleteResult.count} notifications.`);
+        this.logger.log(
+          `Successfully archived and deleted ${deleteResult.count} notifications.`,
+        );
       });
     } catch (err) {
       this.logger.error('Failed to archive old notifications', err.stack);
@@ -126,12 +135,14 @@ export class NotificationsCron {
       this.logger.log("Building yesterday's daily analytics...");
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      
+
       const startOfYesterday = new Date(yesterday.setHours(0, 0, 0, 0));
       const endOfYesterday = new Date(yesterday.setHours(23, 59, 59, 999));
 
       // Get all active partners to group analytics
-      const partners = await this.prisma.partner.findMany({ select: { id: true } });
+      const partners = await this.prisma.partner.findMany({
+        select: { id: true },
+      });
       const partnerIds = [null, ...partners.map((p) => p.id)];
 
       for (const partnerId of partnerIds) {
@@ -164,11 +175,16 @@ export class NotificationsCron {
           const count = metric._count._all;
           if (metric.status === NotificationDeliveryStatus.FAILED) {
             failed += count;
-          } else if (metric.status === NotificationDeliveryStatus.DELIVERED || metric.status === NotificationDeliveryStatus.SENT) {
+          } else if (
+            metric.status === NotificationDeliveryStatus.DELIVERED ||
+            metric.status === NotificationDeliveryStatus.SENT
+          ) {
             if (metric.channel === NotificationChannel.PUSH) pushSent += count;
-            if (metric.channel === NotificationChannel.EMAIL) emailSent += count;
+            if (metric.channel === NotificationChannel.EMAIL)
+              emailSent += count;
             if (metric.channel === NotificationChannel.BELL) bellSent += count;
-            if (metric.channel === NotificationChannel.SOCKET) socketSent += count;
+            if (metric.channel === NotificationChannel.SOCKET)
+              socketSent += count;
             if (metric.channel === NotificationChannel.SMS) smsSent += count;
           }
         }
@@ -258,7 +274,9 @@ export class NotificationsCron {
    */
   private async cleanupExpiredAudits() {
     try {
-      this.logger.log('Cleaning up expired admin action audits (older than 730 days)...');
+      this.logger.log(
+        'Cleaning up expired admin action audits (older than 730 days)...',
+      );
       const twoYearsAgo = new Date();
       twoYearsAgo.setDate(twoYearsAgo.getDate() - 730);
 
@@ -270,12 +288,15 @@ export class NotificationsCron {
 
       this.logger.log(`Pruned ${result.count} expired admin audit logs.`);
     } catch (err) {
-      this.logger.error('Failed to cleanup expired admin audit logs', err.stack);
+      this.logger.error(
+        'Failed to cleanup expired admin audit logs',
+        err.stack,
+      );
     }
   }
 
   /**
-   * Stuck Broadcast Recovery: Check every 15 minutes for broadcasts in SENDING status 
+   * Stuck Broadcast Recovery: Check every 15 minutes for broadcasts in SENDING status
    * that have not logged a heartbeat in the last 1 hour.
    */
   @Cron('0 */15 * * * *')
@@ -298,7 +319,9 @@ export class NotificationsCron {
         return;
       }
 
-      this.logger.warn(`Found ${stuckExecutions.length} stuck executions. Restoring...`);
+      this.logger.warn(
+        `Found ${stuckExecutions.length} stuck executions. Restoring...`,
+      );
 
       for (const exec of stuckExecutions) {
         await this.prisma.broadcastExecution.update({
@@ -311,10 +334,15 @@ export class NotificationsCron {
           data: { status: 'PARTIALLY_FAILED', completedAt: new Date() },
         });
 
-        this.logger.warn(`Broadcast ${exec.broadcastId} marked as PARTIALLY_FAILED due to lack of heartbeat.`);
+        this.logger.warn(
+          `Broadcast ${exec.broadcastId} marked as PARTIALLY_FAILED due to lack of heartbeat.`,
+        );
       }
     } catch (err) {
-      this.logger.error('Failed to process stuck broadcasts recovery check', err.stack);
+      this.logger.error(
+        'Failed to process stuck broadcasts recovery check',
+        err.stack,
+      );
     }
   }
 
@@ -323,33 +351,60 @@ export class NotificationsCron {
    */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async reconcilePendingDeliveries() {
+    const startTime = Date.now();
+    this.observabilityService.increment('notification_reconciliation_runs_total');
     try {
       this.logger.log('Starting reconciliation of pending deliveries...');
       const twoMinutesAgo = new Date();
       twoMinutesAgo.setMinutes(twoMinutesAgo.getMinutes() - 2);
 
-      const pendingDeliveries = await this.prisma.notificationDelivery.findMany({
-        where: {
-          status: 'PENDING',
-          createdAt: { lt: twoMinutesAgo },
-          channel: { in: ['PUSH', 'EMAIL', 'SMS'] },
+      const pendingDeliveries = await this.prisma.notificationDelivery.findMany(
+        {
+          where: {
+            status: 'PENDING',
+            createdAt: { lt: twoMinutesAgo },
+            channel: { in: ['PUSH', 'EMAIL', 'SMS'] },
+          },
+          select: { id: true },
+          take: 500,
         },
-        select: { id: true },
-        take: 500,
-      });
+      );
 
       if (pendingDeliveries.length === 0) {
         this.logger.log('No pending deliveries found to reconcile.');
+        const durationSeconds = (Date.now() - startTime) / 1000;
+        this.observabilityService.recordDuration('notification_reconciliation_duration_seconds', durationSeconds);
         return;
       }
 
-      this.logger.log(`Found ${pendingDeliveries.length} pending deliveries. Re-enqueuing...`);
-      const deliveryIds = pendingDeliveries.map(d => d.id);
-      const result = await this.notificationsService.bulkRetryDeliveries(deliveryIds);
-      
-      this.logger.log(`Reconciled ${result.count}/${deliveryIds.length} pending deliveries successfully.`);
+      this.logger.log(
+        `Found ${pendingDeliveries.length} pending deliveries. Re-enqueuing...`,
+      );
+      const deliveryIds = pendingDeliveries.map((d) => d.id);
+      let result;
+      try {
+        result = await this.notificationsService.bulkRetryDeliveries(deliveryIds);
+      } catch (err: any) {
+        this.logger.error(
+          'Notification reconciliation failed',
+          err.stack,
+        );
+        this.observabilityService.increment('notification_reconciliation_failures_total');
+        const durationSeconds = (Date.now() - startTime) / 1000;
+        this.observabilityService.recordDuration('notification_reconciliation_duration_seconds', durationSeconds);
+        return;
+      }
+
+      this.logger.log(
+        `Reconciled ${result.count}/${deliveryIds.length} pending deliveries successfully.`,
+      );
+      const durationSeconds = (Date.now() - startTime) / 1000;
+      this.observabilityService.recordDuration('notification_reconciliation_duration_seconds', durationSeconds);
     } catch (err) {
       this.logger.error('Failed to reconcile pending deliveries', err.stack);
+      this.observabilityService.increment('notification_reconciliation_failures_total');
+      const durationSeconds = (Date.now() - startTime) / 1000;
+      this.observabilityService.recordDuration('notification_reconciliation_duration_seconds', durationSeconds);
     }
   }
 
@@ -379,7 +434,9 @@ export class NotificationsCron {
         return;
       }
 
-      this.logger.warn(`Found ${stuckPIs.length} stuck payment initiations. Resetting...`);
+      this.logger.warn(
+        `Found ${stuckPIs.length} stuck payment initiations. Resetting...`,
+      );
 
       const result = await this.prisma.paymentInitiation.updateMany({
         where: {
@@ -393,9 +450,14 @@ export class NotificationsCron {
         },
       });
 
-      this.logger.warn(`Successfully reset ${result.count} stuck payment initiations back to 'initiated'.`);
+      this.logger.warn(
+        `Successfully reset ${result.count} stuck payment initiations back to 'initiated'.`,
+      );
     } catch (err) {
-      this.logger.error('Failed to process stuck payment initiations recovery check', err.stack);
+      this.logger.error(
+        'Failed to process stuck payment initiations recovery check',
+        err.stack,
+      );
     }
   }
 }

@@ -41,7 +41,8 @@ const crypto = __importStar(require("crypto"));
 const JWT_SECRET = process.env.JWT_SECRET || 'default-super-secret-key-1234567890-tradebot';
 function base64url(input) {
     const buf = typeof input === 'string' ? Buffer.from(input) : input;
-    return buf.toString('base64')
+    return buf
+        .toString('base64')
         .replace(/=/g, '')
         .replace(/\+/g, '-')
         .replace(/\//g, '_');
@@ -55,14 +56,18 @@ function base64urlDecode(str) {
 }
 function hashPassword(password) {
     const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+    const hash = crypto
+        .pbkdf2Sync(password, salt, 1000, 64, 'sha512')
+        .toString('hex');
     return `${salt}:${hash}`;
 }
 function verifyPassword(password, storedPassword) {
     if (!storedPassword || !storedPassword.includes(':'))
         return false;
     const [salt, hash] = storedPassword.split(':');
-    const verifyHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+    const verifyHash = crypto
+        .pbkdf2Sync(password, salt, 1000, 64, 'sha512')
+        .toString('hex');
     return hash === verifyHash;
 }
 function signJwt(payload, expiresInSeconds = 86400) {
@@ -74,7 +79,8 @@ function signJwt(payload, expiresInSeconds = 86400) {
         base64url(JSON.stringify(fullPayload)),
     ];
     const signatureInput = tokenParts.join('.');
-    const signature = crypto.createHmac('sha256', JWT_SECRET)
+    const signature = crypto
+        .createHmac('sha256', JWT_SECRET)
         .update(signatureInput)
         .digest();
     tokenParts.push(base64url(signature));
@@ -89,7 +95,8 @@ function verifyJwt(token) {
             return null;
         const [headerB64, payloadB64, signatureB64] = parts;
         const signatureInput = `${headerB64}.${payloadB64}`;
-        const expectedSignature = crypto.createHmac('sha256', JWT_SECRET)
+        const expectedSignature = crypto
+            .createHmac('sha256', JWT_SECRET)
             .update(signatureInput)
             .digest();
         const expectedSignatureB64 = base64url(expectedSignature);

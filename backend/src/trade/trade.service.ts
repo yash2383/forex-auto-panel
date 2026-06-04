@@ -62,7 +62,10 @@ export class TradeService {
     }
 
     if (user.trades.length >= 3) {
-      return { error: 'Maximum 3 active trades allowed simultaneously', status: 400 };
+      return {
+        error: 'Maximum 3 active trades allowed simultaneously',
+        status: 400,
+      };
     }
 
     // Determine amount based on risk settings
@@ -73,17 +76,27 @@ export class TradeService {
 
     const balance = user.wallet.realizedBalance;
     if (balance.lessThan(amount)) {
-      return { error: `Insufficient wallet balance. Required: ₹${amount}`, status: 400 };
+      return {
+        error: `Insufficient wallet balance. Required: ₹${amount}`,
+        status: 400,
+      };
     }
 
-    const pair = body?.pair || ['BTC/USDT', 'ETH/USDT', 'XAU/USDT', 'EUR/USD'][Math.floor(Math.random() * 4)];
+    const pair =
+      body?.pair ||
+      ['BTC/USDT', 'ETH/USDT', 'XAU/USDT', 'EUR/USD'][
+        Math.floor(Math.random() * 4)
+      ];
     const type = body?.type || (Math.random() > 0.5 ? 'BUY' : 'SELL');
 
     // Generate entryPrice
-    let entryPriceVal = 1.0850;
-    if (pair === 'BTC/USDT') entryPriceVal = 68000 + (Math.random() - 0.5) * 500;
-    else if (pair === 'ETH/USDT') entryPriceVal = 3700 + (Math.random() - 0.5) * 50;
-    else if (pair === 'XAU/USDT') entryPriceVal = 2370 + (Math.random() - 0.5) * 20;
+    let entryPriceVal = 1.085;
+    if (pair === 'BTC/USDT')
+      entryPriceVal = 68000 + (Math.random() - 0.5) * 500;
+    else if (pair === 'ETH/USDT')
+      entryPriceVal = 3700 + (Math.random() - 0.5) * 50;
+    else if (pair === 'XAU/USDT')
+      entryPriceVal = 2370 + (Math.random() - 0.5) * 20;
 
     const entryPrice = new (Prisma as any).Decimal(entryPriceVal);
     const tradeAmount = new (Prisma as any).Decimal(amount);
@@ -110,8 +123,12 @@ export class TradeService {
         where: { id: user.wallet!.id },
         data: {
           realizedBalance: balance.minus(tradeAmount),
-          currentEquity: new Prisma.Decimal(Number(user.wallet!.currentEquity) - amount),
-          availableBalance: new Prisma.Decimal(Number(user.wallet!.availableBalance) - amount),
+          currentEquity: new Prisma.Decimal(
+            Number(user.wallet!.currentEquity) - amount,
+          ),
+          availableBalance: new Prisma.Decimal(
+            Number(user.wallet!.availableBalance) - amount,
+          ),
         },
       });
 
@@ -119,11 +136,18 @@ export class TradeService {
     });
 
     if (newTrade) {
-      this.notificationsService.sendToUser(userId, NotificationEvent.TRADE_OPENED, {
-        type: newTrade.type,
-        pair: newTrade.pair,
-        entryPrice: Number(newTrade.entryPrice),
-      }).catch(err => console.error(`Failed to send TRADE_OPENED notification for user ${userId}`, err));
+      this.notificationsService
+        .sendToUser(userId, NotificationEvent.TRADE_OPENED, {
+          type: newTrade.type,
+          pair: newTrade.pair,
+          entryPrice: Number(newTrade.entryPrice),
+        })
+        .catch((err) =>
+          console.error(
+            `Failed to send TRADE_OPENED notification for user ${userId}`,
+            err,
+          ),
+        );
     }
 
     return {
@@ -157,7 +181,9 @@ export class TradeService {
     }
 
     const entryPrice = trade.entryPrice;
-    const currentPrice = trade.currentPrice.isZero() ? entryPrice : trade.currentPrice;
+    const currentPrice = trade.currentPrice.isZero()
+      ? entryPrice
+      : trade.currentPrice;
     const quantity = trade.quantity;
 
     // Calculate PnL
@@ -185,8 +211,10 @@ export class TradeService {
         const returnAmount = originalMargin.add(pnl);
         const nextBalance = trade.user.wallet.realizedBalance.add(returnAmount);
 
-        const nextEquity = Number(trade.user.wallet.currentEquity) + Number(returnAmount);
-        const nextAvailable = Number(trade.user.wallet.availableBalance) + Number(returnAmount);
+        const nextEquity =
+          Number(trade.user.wallet.currentEquity) + Number(returnAmount);
+        const nextAvailable =
+          Number(trade.user.wallet.availableBalance) + Number(returnAmount);
 
         await tx.wallet.update({
           where: { id: trade.user.wallet.id },
@@ -221,10 +249,17 @@ export class TradeService {
     });
 
     if (trade) {
-      this.notificationsService.sendToUser(userId, NotificationEvent.TRADE_CLOSED, {
-        pair: trade.pair,
-        pnl: Number(pnl).toFixed(2),
-      }).catch(err => console.error(`Failed to send TRADE_CLOSED notification for user ${userId}`, err));
+      this.notificationsService
+        .sendToUser(userId, NotificationEvent.TRADE_CLOSED, {
+          pair: trade.pair,
+          pnl: Number(pnl).toFixed(2),
+        })
+        .catch((err) =>
+          console.error(
+            `Failed to send TRADE_CLOSED notification for user ${userId}`,
+            err,
+          ),
+        );
     }
 
     return { success: true };

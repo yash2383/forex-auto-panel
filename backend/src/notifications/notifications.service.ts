@@ -1,4 +1,11 @@
-import { Injectable, Logger, Inject, forwardRef, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  Inject,
+  forwardRef,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
@@ -18,10 +25,12 @@ import {
 import { EVENT_REGISTRY } from './events';
 import { EVENT_ROUTES } from './routes';
 import { NotificationsGateway } from './notifications.gateway';
+import { ObservabilityService } from '../observability/observability.service';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
+  private readonly MAX_RETRY_ENQUEUE_FAILURES = 5;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -32,6 +41,7 @@ export class NotificationsService {
     @InjectQueue('notifications-dlq') private readonly dlqQueue: Queue,
     @Inject(forwardRef(() => NotificationsGateway))
     private readonly gateway: NotificationsGateway,
+    private readonly observabilityService: ObservabilityService,
   ) {}
 
   /**
@@ -41,6 +51,43 @@ export class NotificationsService {
     return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
       return data[key] !== undefined ? String(data[key]) : match;
     });
+  }
+
+  /**
+   * Enqueue a job into a Bull queue with a timeout.
+   * If the timeout expires or enqueue fails (e.g. Redis offline), it rejects.
+   * Explicitly clears the timeout to avoid orphaned timers.
+   */
+  private async enqueueWithTimeout(
+    queue: Queue,
+    jobName: string,
+    payload: any,
+    timeoutMs = 2000,
+  ) {
+    let timeoutHandle: NodeJS.Timeout | undefined;
+
+    try {
+      return await Promise.race([
+        queue.add(jobName, payload, {
+          attempts: 5,
+          backoff: {
+            type: 'exponential',
+            delay: 5000,
+          },
+        }),
+        new Promise<any>((_, reject) => {
+          timeoutHandle = setTimeout(
+            () =>
+              reject(new Error('Queue enqueue timeout (Redis offline)')),
+            timeoutMs,
+          );
+        }),
+      ]);
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }
   }
 
   /**
@@ -69,7 +116,9 @@ export class NotificationsService {
         include: { deliveries: true },
       });
       if (existing) {
-        this.logger.log(`Duplicate notification ignored for idempotencyKey: ${idempotencyKey}`);
+        this.logger.log(
+          `Duplicate notification ignored for idempotencyKey: ${idempotencyKey}`,
+        );
         return existing;
       }
     }
@@ -80,19 +129,26 @@ export class NotificationsService {
     const link = EVENT_ROUTES[event] || '/dashboard';
 
     // 2. Fetch Admin global event overrides
-    const eventSettings = await this.prisma.notificationEventSetting.findUnique({
-      where: { event },
-    });
+    const eventSettings = await this.prisma.notificationEventSetting.findUnique(
+      {
+        where: { event },
+      },
+    );
 
     let allowedChannels = customChannels || [...eventDef.channels];
 
     if (eventSettings) {
-      allowedChannels = allowedChannels.filter(channel => {
-        if (channel === NotificationChannel.PUSH) return eventSettings.pushEnabled;
-        if (channel === NotificationChannel.EMAIL) return eventSettings.emailEnabled;
-        if (channel === NotificationChannel.BELL) return eventSettings.bellEnabled;
-        if (channel === NotificationChannel.SOCKET) return eventSettings.socketEnabled;
-        if (channel === NotificationChannel.SMS) return eventSettings.smsEnabled;
+      allowedChannels = allowedChannels.filter((channel) => {
+        if (channel === NotificationChannel.PUSH)
+          return eventSettings.pushEnabled;
+        if (channel === NotificationChannel.EMAIL)
+          return eventSettings.emailEnabled;
+        if (channel === NotificationChannel.BELL)
+          return eventSettings.bellEnabled;
+        if (channel === NotificationChannel.SOCKET)
+          return eventSettings.socketEnabled;
+        if (channel === NotificationChannel.SMS)
+          return eventSettings.smsEnabled;
         return true;
       });
     }
@@ -103,16 +159,22 @@ export class NotificationsService {
         where: { userId, category: eventDef.category },
       });
 
-      const isPushEnabled = userPrefs.find(p => p.category === eventDef.category)?.pushEnabled ?? true;
-      const isEmailEnabled = userPrefs.find(p => p.category === eventDef.category)?.emailEnabled ?? true;
-      const isBellEnabled = userPrefs.find(p => p.category === eventDef.category)?.bellEnabled ?? true;
+      const isPushEnabled =
+        userPrefs.find((p) => p.category === eventDef.category)?.pushEnabled ??
+        true;
+      const isEmailEnabled =
+        userPrefs.find((p) => p.category === eventDef.category)?.emailEnabled ??
+        true;
+      const isBellEnabled =
+        userPrefs.find((p) => p.category === eventDef.category)?.bellEnabled ??
+        true;
 
       const bypassOptOut =
         eventDef.priority === NotificationPriority.CRITICAL ||
         eventDef.priority === NotificationPriority.HIGH;
 
       if (!bypassOptOut) {
-        allowedChannels = allowedChannels.filter(channel => {
+        allowedChannels = allowedChannels.filter((channel) => {
           if (channel === NotificationChannel.PUSH) return isPushEnabled;
           if (channel === NotificationChannel.EMAIL) return isEmailEnabled;
           if (channel === NotificationChannel.BELL) return isBellEnabled;
@@ -141,7 +203,7 @@ export class NotificationsService {
     });
 
     // 4. Create Pending Deliveries
-    const deliveryCreates = allowedChannels.map(channel =>
+    const deliveryCreates = allowedChannels.map((channel) =>
       this.prisma.notificationDelivery.create({
         data: {
           notificationId: notification.id,
@@ -153,11 +215,21 @@ export class NotificationsService {
     const deliveries = await Promise.all(deliveryCreates);
 
     // 5. Dispatch real-time Socket and Toast immediately if allowed (and mark delivered)
-    const socketDelivery = deliveries.find(d => d.channel === NotificationChannel.SOCKET);
-    const toastDelivery = deliveries.find(d => d.channel === NotificationChannel.TOAST);
-    const bellDelivery = deliveries.find(d => d.channel === NotificationChannel.BELL);
+    const socketDelivery = deliveries.find(
+      (d) => d.channel === NotificationChannel.SOCKET,
+    );
+    const toastDelivery = deliveries.find(
+      (d) => d.channel === NotificationChannel.TOAST,
+    );
+    const bellDelivery = deliveries.find(
+      (d) => d.channel === NotificationChannel.BELL,
+    );
 
-    const targetRoomId = userId ? `user-${userId}` : adminId ? `user-${adminId}` : null;
+    const targetRoomId = userId
+      ? `user-${userId}`
+      : adminId
+        ? `user-${adminId}`
+        : null;
     if (targetRoomId) {
       if (socketDelivery || toastDelivery || bellDelivery) {
         try {
@@ -178,7 +250,11 @@ export class NotificationsService {
             await this.prisma.notificationDelivery.updateMany({
               where: {
                 id: {
-                  in: [socketDelivery?.id, toastDelivery?.id, bellDelivery?.id].filter(Boolean) as string[],
+                  in: [
+                    socketDelivery?.id,
+                    toastDelivery?.id,
+                    bellDelivery?.id,
+                  ].filter(Boolean) as string[],
                 },
               },
               data: {
@@ -188,11 +264,18 @@ export class NotificationsService {
             });
           }
         } catch (err) {
-          this.logger.error(`Realtime socket emission failed for room ${targetRoomId}`, err.stack);
+          this.logger.error(
+            `Realtime socket emission failed for room ${targetRoomId}`,
+            err.stack,
+          );
           await this.prisma.notificationDelivery.updateMany({
             where: {
               id: {
-                in: [socketDelivery?.id, toastDelivery?.id, bellDelivery?.id].filter(Boolean) as string[],
+                in: [
+                  socketDelivery?.id,
+                  toastDelivery?.id,
+                  bellDelivery?.id,
+                ].filter(Boolean) as string[],
               },
             },
             data: {
@@ -213,41 +296,44 @@ export class NotificationsService {
       ) {
         try {
           let targetQueue: Queue;
-          if (delivery.channel === NotificationChannel.PUSH) targetQueue = this.pushQueue;
-          else if (delivery.channel === NotificationChannel.EMAIL) targetQueue = this.emailQueue;
+          if (delivery.channel === NotificationChannel.PUSH)
+            targetQueue = this.pushQueue;
+          else if (delivery.channel === NotificationChannel.EMAIL)
+            targetQueue = this.emailQueue;
           else targetQueue = this.smsQueue;
 
-          const addPromise = targetQueue.add(
-            'deliver',
-            {
-              deliveryId: delivery.id,
-              notificationId: notification.id,
-              channel: delivery.channel,
-              userId,
-              title,
-              body,
-              link,
-              payload,
-            },
-            {
-              attempts: 5,
-              backoff: {
-                type: 'exponential',
-                delay: 5000,
-              },
-            },
-          );
+          await this.enqueueWithTimeout(targetQueue, 'deliver', {
+            deliveryId: delivery.id,
+            notificationId: notification.id,
+            channel: delivery.channel,
+            userId,
+            title,
+            body,
+            link,
+            payload,
+          });
+          this.observabilityService.increment('notification_enqueue_success_total', { channel: delivery.channel });
+        } catch (queueErr: any) {
+          const isTimeout = queueErr.message?.includes('timeout');
+          if (isTimeout) {
+            this.observabilityService.increment('notification_enqueue_timeout_total', { channel: delivery.channel });
+          } else {
+            this.observabilityService.increment('notification_enqueue_failure_total', { channel: delivery.channel });
+          }
 
-          const timeoutPromise = new Promise<any>((_, reject) =>
-            setTimeout(() => reject(new Error('Queue timeout (Redis offline)')), 2000),
-          );
-
-          await Promise.race([addPromise, timeoutPromise]);
-        } catch (queueErr) {
           this.logger.warn(
             `Failed to enqueue delivery job for ${delivery.channel} (${queueErr.message}). Attempting synchronous dispatch fallback.`,
           );
-          await this.fallbackSyncDispatch(delivery.id, notification.id, delivery.channel, userId, title, body, link, payload);
+          await this.fallbackSyncDispatch(
+            delivery.id,
+            notification.id,
+            delivery.channel,
+            userId,
+            title,
+            body,
+            link,
+            payload,
+          );
         }
       }
     }
@@ -281,14 +367,19 @@ export class NotificationsService {
     }
 
     try {
-      this.logger.log(`Executing sync fallback dispatch for delivery: ${deliveryId} (${channel})`);
-      
+      this.logger.log(
+        `Executing sync fallback dispatch for delivery: ${deliveryId} (${channel})`,
+      );
+
       await this.prisma.notificationDelivery.update({
         where: { id: deliveryId },
         data: { retryCount: { increment: 1 }, lastRetryAt: new Date() },
       });
 
-      if (channel === NotificationChannel.SOCKET || channel === NotificationChannel.TOAST) {
+      if (
+        channel === NotificationChannel.SOCKET ||
+        channel === NotificationChannel.TOAST
+      ) {
         const targetRoomId = userId ? `user-${userId}` : null;
         if (targetRoomId && this.gateway.server) {
           this.gateway.server.to(targetRoomId).emit('notification', {
@@ -310,7 +401,10 @@ export class NotificationsService {
         },
       });
     } catch (err) {
-      this.logger.error(`Sync fallback dispatch failed for delivery ${deliveryId}`, err.stack);
+      this.logger.error(
+        `Sync fallback dispatch failed for delivery ${deliveryId}`,
+        err.stack,
+      );
       await this.prisma.notificationDelivery.update({
         where: { id: deliveryId },
         data: {
@@ -324,7 +418,12 @@ export class NotificationsService {
   /**
    * Send to user helper
    */
-  async sendToUser(userId: string, event: NotificationEvent, payload: Record<string, any>, idempotencyKey?: string) {
+  async sendToUser(
+    userId: string,
+    event: NotificationEvent,
+    payload: Record<string, any>,
+    idempotencyKey?: string,
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { partnerId: true },
@@ -335,8 +434,20 @@ export class NotificationsService {
   /**
    * Send to admin helper
    */
-  async sendToAdmin(adminId: string, event: NotificationEvent, payload: Record<string, any>, idempotencyKey?: string) {
-    return this.send(event, payload, undefined, undefined, idempotencyKey, adminId);
+  async sendToAdmin(
+    adminId: string,
+    event: NotificationEvent,
+    payload: Record<string, any>,
+    idempotencyKey?: string,
+  ) {
+    return this.send(
+      event,
+      payload,
+      undefined,
+      undefined,
+      idempotencyKey,
+      adminId,
+    );
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -365,7 +476,10 @@ export class NotificationsService {
         },
       });
     } catch (err) {
-      this.logger.error(`Failed to log admin audit for action ${action}: ${err.message}`, err.stack);
+      this.logger.error(
+        `Failed to log admin audit for action ${action}: ${err.message}`,
+        err.stack,
+      );
     }
   }
 
@@ -390,17 +504,32 @@ export class NotificationsService {
     }
 
     const totalSent = await this.prisma.notificationDelivery.count();
-    const totalFailed = await this.prisma.notificationDelivery.count({ where: { status: 'FAILED' } });
-    const totalRead = await this.prisma.notification.count({ where: { status: 'READ' } });
+    const totalFailed = await this.prisma.notificationDelivery.count({
+      where: { status: 'FAILED' },
+    });
+    const totalRead = await this.prisma.notification.count({
+      where: { status: 'READ' },
+    });
     const totalNotifications = await this.prisma.notification.count();
-    const openRate = totalNotifications > 0 ? (totalRead / totalNotifications) * 100 : 0;
+    const openRate =
+      totalNotifications > 0 ? (totalRead / totalNotifications) * 100 : 0;
 
     const channelSent = {
-      push: await this.prisma.notificationDelivery.count({ where: { channel: 'PUSH' } }),
-      email: await this.prisma.notificationDelivery.count({ where: { channel: 'EMAIL' } }),
-      bell: await this.prisma.notificationDelivery.count({ where: { channel: 'BELL' } }),
-      socket: await this.prisma.notificationDelivery.count({ where: { channel: 'SOCKET' } }),
-      sms: await this.prisma.notificationDelivery.count({ where: { channel: 'SMS' } }),
+      push: await this.prisma.notificationDelivery.count({
+        where: { channel: 'PUSH' },
+      }),
+      email: await this.prisma.notificationDelivery.count({
+        where: { channel: 'EMAIL' },
+      }),
+      bell: await this.prisma.notificationDelivery.count({
+        where: { channel: 'BELL' },
+      }),
+      socket: await this.prisma.notificationDelivery.count({
+        where: { channel: 'SOCKET' },
+      }),
+      sms: await this.prisma.notificationDelivery.count({
+        where: { channel: 'SMS' },
+      }),
     };
 
     return {
@@ -439,7 +568,9 @@ export class NotificationsService {
   /**
    * Resolve users matching targeted audience cohort
    */
-  async resolveAudienceUsers(audience: NotificationAudience): Promise<{ id: string; partnerId?: string }[]> {
+  async resolveAudienceUsers(
+    audience: NotificationAudience,
+  ): Promise<{ id: string; partnerId?: string }[]> {
     if (audience === NotificationAudience.ALL_USERS) {
       return this.prisma.user.findMany({
         where: { isDeleted: false },
@@ -503,7 +634,7 @@ export class NotificationsService {
         where: { status: 'ACTIVE' },
         select: { id: true },
       });
-      return admins.map(a => ({ id: a.id, partnerId: undefined }));
+      return admins.map((a) => ({ id: a.id, partnerId: undefined }));
     }
 
     return [];
@@ -532,14 +663,14 @@ export class NotificationsService {
           email: true,
           role: true,
           lastLoginAt: true,
-        }
+        },
       });
-      
-      const resolvedUsers = dbAdmins.map(a => {
-        const isOnline = a.lastLoginAt 
-          ? (Date.now() - new Date(a.lastLoginAt).getTime()) < 15 * 60 * 1000 
+
+      const resolvedUsers = dbAdmins.map((a) => {
+        const isOnline = a.lastLoginAt
+          ? Date.now() - new Date(a.lastLoginAt).getTime() < 15 * 60 * 1000
           : false;
-          
+
         return {
           id: a.id,
           name: a.name,
@@ -548,21 +679,21 @@ export class NotificationsService {
           status: 'ACTIVE',
           isOnline,
           isVerified: true,
-          hasActiveInvestment: false
+          hasActiveInvestment: false,
         };
       });
 
       return {
         total: resolvedUsers.length,
-        online: resolvedUsers.filter(u => u.isOnline).length,
+        online: resolvedUsers.filter((u) => u.isOnline).length,
         active: resolvedUsers.length,
         expired: 0,
-        users: resolvedUsers
+        users: resolvedUsers,
       };
     }
 
     const userSummary = await this.resolveAudienceUsers(audience);
-    const userIds = userSummary.map(u => u.id);
+    const userIds = userSummary.map((u) => u.id);
 
     const dbUsers = await this.prisma.user.findMany({
       where: {
@@ -579,17 +710,19 @@ export class NotificationsService {
           where: { status: 'ACTIVE' },
           select: {
             plan: {
-              select: { name: true }
-            }
-          }
-        }
-      }
+              select: { name: true },
+            },
+          },
+        },
+      },
     });
 
-    const resolvedUsers = dbUsers.map(u => {
-      const planName = u.investments[0]?.plan?.name || (u.status === 'VIP' ? 'VIP' : 'Individual');
-      const isOnline = u.lastLoginAt 
-        ? (Date.now() - new Date(u.lastLoginAt).getTime()) < 15 * 60 * 1000 
+    const resolvedUsers = dbUsers.map((u) => {
+      const planName =
+        u.investments[0]?.plan?.name ||
+        (u.status === 'VIP' ? 'VIP' : 'Individual');
+      const isOnline = u.lastLoginAt
+        ? Date.now() - new Date(u.lastLoginAt).getTime() < 15 * 60 * 1000
         : false;
 
       return {
@@ -600,24 +733,25 @@ export class NotificationsService {
         status: u.status,
         isOnline,
         isVerified: u.isVerified,
-        hasActiveInvestment: u.investments.length > 0
+        hasActiveInvestment: u.investments.length > 0,
       };
     });
 
     const total = resolvedUsers.length;
-    const online = resolvedUsers.filter(u => u.isOnline).length;
-    const active = resolvedUsers.filter(u => u.status === 'ACTIVE' || u.status === 'VIP').length;
-    const expired = resolvedUsers.filter(u => u.status === 'EXPIRED').length;
+    const online = resolvedUsers.filter((u) => u.isOnline).length;
+    const active = resolvedUsers.filter(
+      (u) => u.status === 'ACTIVE' || u.status === 'VIP',
+    ).length;
+    const expired = resolvedUsers.filter((u) => u.status === 'EXPIRED').length;
 
     return {
       total,
       online,
       active,
       expired,
-      users: resolvedUsers
+      users: resolvedUsers,
     };
   }
-
 
   /**
    * Create or schedule a broadcast
@@ -641,7 +775,7 @@ export class NotificationsService {
           scheduledAt: new Date(payload.scheduledAt),
           status: NotificationScheduleStatus.PENDING,
           channels: {
-            create: payload.channels.map(c => ({
+            create: payload.channels.map((c) => ({
               channel: c,
             })),
           },
@@ -661,7 +795,7 @@ export class NotificationsService {
         status: BroadcastStatus.DRAFT,
         createdByAdminId: adminId,
         channels: {
-          create: payload.channels.map(c => ({
+          create: payload.channels.map((c) => ({
             channel: c,
           })),
         },
@@ -676,7 +810,11 @@ export class NotificationsService {
   /**
    * Approve and execute broadcast with optimistic locking and 500-user chunking
    */
-  async approveAndSendBroadcast(broadcastId: string, adminId: string, approvalRequestId?: string) {
+  async approveAndSendBroadcast(
+    broadcastId: string,
+    adminId: string,
+    approvalRequestId?: string,
+  ) {
     const broadcast = await this.prisma.notificationBroadcast.findUnique({
       where: { id: broadcastId },
       include: { channels: true },
@@ -686,23 +824,43 @@ export class NotificationsService {
       throw new BadRequestException('Broadcast not found.');
     }
 
-    if (broadcast.status === BroadcastStatus.SENDING || broadcast.status === BroadcastStatus.SENT) {
-      if (approvalRequestId && broadcast.approvalRequestId === approvalRequestId) {
-        this.logger.log(`Idempotent approval request: Broadcast ${broadcastId} already approved with request ID: ${approvalRequestId}`);
-        return { success: true, message: 'Broadcast execution initiated (idempotent).' };
+    if (
+      broadcast.status === BroadcastStatus.SENDING ||
+      broadcast.status === BroadcastStatus.SENT
+    ) {
+      if (
+        approvalRequestId &&
+        broadcast.approvalRequestId === approvalRequestId
+      ) {
+        this.logger.log(
+          `Idempotent approval request: Broadcast ${broadcastId} already approved with request ID: ${approvalRequestId}`,
+        );
+        return {
+          success: true,
+          message: 'Broadcast execution initiated (idempotent).',
+        };
       }
-      throw new ConflictException('Broadcast has already been approved or sent.');
+      throw new ConflictException(
+        'Broadcast has already been approved or sent.',
+      );
     }
 
-    if (broadcast.status !== BroadcastStatus.DRAFT && broadcast.status !== BroadcastStatus.PENDING_APPROVAL) {
-      throw new ConflictException('Broadcast is not in draft or pending status.');
+    if (
+      broadcast.status !== BroadcastStatus.DRAFT &&
+      broadcast.status !== BroadcastStatus.PENDING_APPROVAL
+    ) {
+      throw new ConflictException(
+        'Broadcast is not in draft or pending status.',
+      );
     }
 
     const [updateResult, execution] = await this.prisma.$transaction([
       this.prisma.notificationBroadcast.updateMany({
         where: {
           id: broadcastId,
-          status: { in: [BroadcastStatus.DRAFT, BroadcastStatus.PENDING_APPROVAL] },
+          status: {
+            in: [BroadcastStatus.DRAFT, BroadcastStatus.PENDING_APPROVAL],
+          },
           version: broadcast.version,
         },
         data: {
@@ -729,7 +887,9 @@ export class NotificationsService {
     ]);
 
     if (updateResult.count === 0) {
-      throw new ConflictException('Broadcast has already been approved or modified by another admin.');
+      throw new ConflictException(
+        'Broadcast has already been approved or modified by another admin.',
+      );
     }
 
     this.executeBroadcastChunked(broadcastId, execution.id, broadcast);
@@ -740,12 +900,16 @@ export class NotificationsService {
   /**
    * Asynchronously execute broadcast sending in chunks of 500
    */
-  private async executeBroadcastChunked(broadcastId: string, executionId: string, broadcast: any) {
+  private async executeBroadcastChunked(
+    broadcastId: string,
+    executionId: string,
+    broadcast: any,
+  ) {
     const startTime = Date.now();
     let sentUsers = 0;
     let successCount = 0;
     let failedCount = 0;
-    let skippedCount = 0;
+    const skippedCount = 0;
     let chunkCount = 0;
     let totalUsers = 0;
 
@@ -769,9 +933,9 @@ export class NotificationsService {
       for (let i = 0; i < users.length; i += chunkSize) {
         chunkCount++;
         const chunk = users.slice(i, i + chunkSize);
-        
+
         await Promise.all(
-          chunk.map(async user => {
+          chunk.map(async (user) => {
             try {
               if (broadcast.audience === NotificationAudience.ADMINS) {
                 await this.send(
@@ -800,7 +964,10 @@ export class NotificationsService {
               }
               successCount++;
             } catch (err) {
-              this.logger.error(`Failed to send broadcast to user ${user.id}`, err);
+              this.logger.error(
+                `Failed to send broadcast to user ${user.id}`,
+                err,
+              );
               failedCount++;
             } finally {
               sentUsers++;
@@ -811,9 +978,9 @@ export class NotificationsService {
         // Update progress in database after each chunk
         await this.prisma.broadcastExecution.update({
           where: { id: executionId },
-          data: { 
-            sentUsers, 
-            successCount, 
+          data: {
+            sentUsers,
+            successCount,
             failedCount,
             skippedCount,
             chunkCount,
@@ -832,7 +999,7 @@ export class NotificationsService {
         }
 
         // Add a slight delay between batches to ensure queue limits
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
       const durationMs = Date.now() - startTime;
@@ -840,7 +1007,7 @@ export class NotificationsService {
       // Mark completed
       await this.prisma.broadcastExecution.update({
         where: { id: executionId },
-        data: { 
+        data: {
           completedAt: new Date(),
           durationMs,
           lastHeartbeatAt: new Date(),
@@ -849,17 +1016,26 @@ export class NotificationsService {
 
       await this.prisma.notificationBroadcast.update({
         where: { id: broadcastId },
-        data: { status: BroadcastStatus.SENT, sentAt: new Date(), completedAt: new Date() },
+        data: {
+          status: BroadcastStatus.SENT,
+          sentAt: new Date(),
+          completedAt: new Date(),
+        },
       });
 
-      this.logger.log(`Broadcast ${broadcastId} finished execution successfully.`);
+      this.logger.log(
+        `Broadcast ${broadcastId} finished execution successfully.`,
+      );
     } catch (error) {
-      this.logger.error(`Critical error executing broadcast ${broadcastId}:`, error);
+      this.logger.error(
+        `Critical error executing broadcast ${broadcastId}:`,
+        error,
+      );
       const durationMs = Date.now() - startTime;
 
       await this.prisma.broadcastExecution.update({
         where: { id: executionId },
-        data: { 
+        data: {
           completedAt: new Date(),
           sentUsers,
           successCount,
@@ -873,7 +1049,10 @@ export class NotificationsService {
 
       await this.prisma.notificationBroadcast.update({
         where: { id: broadcastId },
-        data: { status: BroadcastStatus.PARTIALLY_FAILED, completedAt: new Date() },
+        data: {
+          status: BroadcastStatus.PARTIALLY_FAILED,
+          completedAt: new Date(),
+        },
       });
     }
   }
@@ -898,8 +1077,10 @@ export class NotificationsService {
     if (filters.platform) where.platform = filters.platform;
     if (filters.browser) where.browser = filters.browser;
     if (filters.isActive !== undefined) where.isActive = filters.isActive;
-    if (filters.failureCount !== undefined) where.failureCount = { gte: Number(filters.failureCount) };
-    if (filters.lastUsedBefore) where.lastUsedAt = { lte: new Date(filters.lastUsedBefore) };
+    if (filters.failureCount !== undefined)
+      where.failureCount = { gte: Number(filters.failureCount) };
+    if (filters.lastUsedBefore)
+      where.lastUsedAt = { lte: new Date(filters.lastUsedBefore) };
 
     const query: any = {
       where,
@@ -978,44 +1159,103 @@ export class NotificationsService {
   }
 
   /**
-   * Bulk retry failed deliveries (Limit 1000)
+   * Bulk retry failed/pending deliveries (Limit 1000)
    */
   async bulkRetryDeliveries(deliveryIds: string[]) {
     const MAX_BULK_RETRY = 1000;
     if (deliveryIds.length > MAX_BULK_RETRY) {
-      throw new BadRequestException(`Cannot retry more than ${MAX_BULK_RETRY} deliveries at once.`);
+      throw new BadRequestException(
+        `Cannot retry more than ${MAX_BULK_RETRY} deliveries at once.`,
+      );
     }
 
     let count = 0;
     for (const id of deliveryIds) {
-      const delivery = await this.prisma.notificationDelivery.findUnique({
-        where: { id },
-        include: { notification: true },
-      });
-
-      if (delivery && (delivery.status === NotificationDeliveryStatus.FAILED || delivery.status === NotificationDeliveryStatus.PENDING)) {
-        await this.prisma.notificationDelivery.update({
+      try {
+        const delivery = await this.prisma.notificationDelivery.findUnique({
           where: { id },
-          data: { status: NotificationDeliveryStatus.PENDING, error: null },
+          include: { notification: true },
         });
 
-        let targetQueue: Queue;
-        if (delivery.channel === NotificationChannel.PUSH) targetQueue = this.pushQueue;
-        else if (delivery.channel === NotificationChannel.EMAIL) targetQueue = this.emailQueue;
-        else if (delivery.channel === NotificationChannel.SMS) targetQueue = this.smsQueue;
-        else targetQueue = this.socketQueue;
+        if (
+          delivery &&
+          (delivery.status === NotificationDeliveryStatus.FAILED ||
+            delivery.status === NotificationDeliveryStatus.PENDING)
+        ) {
+          let targetQueue: Queue;
+          if (delivery.channel === NotificationChannel.PUSH)
+            targetQueue = this.pushQueue;
+          else if (delivery.channel === NotificationChannel.EMAIL)
+            targetQueue = this.emailQueue;
+          else if (delivery.channel === NotificationChannel.SMS)
+            targetQueue = this.smsQueue;
+          else targetQueue = this.socketQueue;
 
-        await targetQueue.add('deliver', {
-          deliveryId: delivery.id,
-          notificationId: delivery.notificationId,
-          channel: delivery.channel,
-          userId: delivery.notification.userId,
-          title: delivery.notification.title,
-          body: delivery.notification.body,
-          link: delivery.notification.link,
-          payload: delivery.notification.metadata,
-        });
-        count++;
+          try {
+            await this.enqueueWithTimeout(targetQueue, 'deliver', {
+              deliveryId: delivery.id,
+              notificationId: delivery.notificationId,
+              channel: delivery.channel,
+              userId: delivery.notification.userId,
+              title: delivery.notification.title,
+              body: delivery.notification.body,
+              link: delivery.notification.link,
+              payload: delivery.notification.metadata,
+            });
+
+            // Enqueue succeeded: mark as PENDING, clear error, set lastRetryAt
+            await this.prisma.notificationDelivery.update({
+              where: { id },
+              data: {
+                status: NotificationDeliveryStatus.PENDING,
+                error: null,
+                lastRetryAt: new Date(),
+              },
+            });
+
+            this.observabilityService.increment('notification_enqueue_success_total', { channel: delivery.channel });
+            this.observabilityService.increment('notification_retry_attempts_total', { channel: delivery.channel });
+            count++;
+          } catch (queueErr: any) {
+            const nextRetryCount = delivery.retryCount + 1;
+            const isFailed = nextRetryCount >= this.MAX_RETRY_ENQUEUE_FAILURES;
+            const newStatus = isFailed
+              ? NotificationDeliveryStatus.FAILED
+              : NotificationDeliveryStatus.PENDING;
+            const timestampedError = `Retry enqueue failed (${new Date().toISOString()}): ${queueErr.message}`;
+
+            this.logger.warn(
+              `Failed to retry delivery ${id} (attempt ${nextRetryCount}/${this.MAX_RETRY_ENQUEUE_FAILURES}): ${queueErr.message}`,
+            );
+
+            await this.prisma.notificationDelivery.update({
+              where: { id },
+              data: {
+                status: newStatus,
+                retryCount: nextRetryCount,
+                error: timestampedError,
+                lastRetryAt: new Date(),
+              },
+            });
+
+            this.observabilityService.increment('notification_retry_attempts_total', { channel: delivery.channel });
+            const isTimeout = queueErr.message?.includes('timeout');
+            if (isTimeout) {
+              this.observabilityService.increment('notification_enqueue_timeout_total', { channel: delivery.channel });
+            } else {
+              this.observabilityService.increment('notification_enqueue_failure_total', { channel: delivery.channel });
+            }
+
+            if (isFailed) {
+              this.observabilityService.increment('notification_dead_letter_total', { channel: delivery.channel });
+            }
+          }
+        }
+      } catch (err: any) {
+        this.logger.error(
+          `Unexpected error processing delivery retry for ID ${id}: ${err.message}`,
+          err.stack,
+        );
       }
     }
 
@@ -1026,7 +1266,13 @@ export class NotificationsService {
    * Bulk retry failed Bull DLQ jobs
    */
   async bulkRetryDlq() {
-    const jobs = await this.dlqQueue.getJobs(['waiting', 'active', 'completed', 'failed', 'delayed']);
+    const jobs = await this.dlqQueue.getJobs([
+      'waiting',
+      'active',
+      'completed',
+      'failed',
+      'delayed',
+    ]);
     let count = 0;
     for (const job of jobs) {
       const { originalQueue, payload } = job.data;
@@ -1055,7 +1301,13 @@ export class NotificationsService {
    * Bulk clear failed Bull DLQ jobs
    */
   async bulkClearDlq() {
-    const jobs = await this.dlqQueue.getJobs(['waiting', 'active', 'completed', 'failed', 'delayed']);
+    const jobs = await this.dlqQueue.getJobs([
+      'waiting',
+      'active',
+      'completed',
+      'failed',
+      'delayed',
+    ]);
     for (const job of jobs) {
       await job.remove();
     }
@@ -1082,28 +1334,66 @@ export class NotificationsService {
 
     try {
       const pushCounts = await this.pushQueue.getJobCounts();
-      queues.push = { waiting: pushCounts.waiting, active: pushCounts.active, failed: pushCounts.failed };
+      queues.push = {
+        waiting: pushCounts.waiting,
+        active: pushCounts.active,
+        failed: pushCounts.failed,
+      };
 
       const emailCounts = await this.emailQueue.getJobCounts();
-      queues.email = { waiting: emailCounts.waiting, active: emailCounts.active, failed: emailCounts.failed };
+      queues.email = {
+        waiting: emailCounts.waiting,
+        active: emailCounts.active,
+        failed: emailCounts.failed,
+      };
 
       const socketCounts = await this.socketQueue.getJobCounts();
-      queues.socket = { waiting: socketCounts.waiting, active: socketCounts.active, failed: socketCounts.failed };
+      queues.socket = {
+        waiting: socketCounts.waiting,
+        active: socketCounts.active,
+        failed: socketCounts.failed,
+      };
 
       const smsCounts = await this.smsQueue.getJobCounts();
-      queues.sms = { waiting: smsCounts.waiting, active: smsCounts.active, failed: smsCounts.failed };
+      queues.sms = {
+        waiting: smsCounts.waiting,
+        active: smsCounts.active,
+        failed: smsCounts.failed,
+      };
 
       const dlqCounts = await this.dlqQueue.getJobCounts();
-      queues.dlq = { waiting: dlqCounts.waiting, active: dlqCounts.active, failed: dlqCounts.failed };
+      queues.dlq = {
+        waiting: dlqCounts.waiting,
+        active: dlqCounts.active,
+        failed: dlqCounts.failed,
+      };
 
       redisConnected = true;
     } catch (err) {
-      this.logger.error('Failed to connect to Redis for queue health check:', err);
+      this.logger.error(
+        'Failed to connect to Redis for queue health check:',
+        err,
+      );
     }
 
-    const totalWaiting = queues.push.waiting + queues.email.waiting + queues.socket.waiting + queues.sms.waiting + queues.dlq.waiting;
-    const totalActive = queues.push.active + queues.email.active + queues.socket.active + queues.sms.active + queues.dlq.active;
-    const totalFailed = queues.push.failed + queues.email.failed + queues.socket.failed + queues.sms.failed + queues.dlq.failed;
+    const totalWaiting =
+      queues.push.waiting +
+      queues.email.waiting +
+      queues.socket.waiting +
+      queues.sms.waiting +
+      queues.dlq.waiting;
+    const totalActive =
+      queues.push.active +
+      queues.email.active +
+      queues.socket.active +
+      queues.sms.active +
+      queues.dlq.active;
+    const totalFailed =
+      queues.push.failed +
+      queues.email.failed +
+      queues.socket.failed +
+      queues.sms.failed +
+      queues.dlq.failed;
 
     return {
       redis: redisConnected ? 'healthy' : 'unhealthy',

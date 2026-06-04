@@ -59,7 +59,6 @@ export const adminNavGroups = [
       { icon: ChartNoAxesCombined, label: "Reports", href: "/admin/dashboard?section=reports" },
       { icon: Settings, label: "Settings", href: "/admin/dashboard?section=settings" },
       { icon: Crown, label: "Pricing Plans", href: "/admin/dashboard?section=plans" },
-      { icon: Activity, label: "Activity Logs", href: "/admin/dashboard?section=activity-logs" },
     ],
   },
 ];
@@ -169,13 +168,6 @@ export const adminPermissionMatrix = {
     permissions: { view: "Yes", add: "No", edit: "Yes", delete: "No" },
     actions: ["Update referral percentage", "Update UPI ID", "Update QR code", "Update platform fees"],
     safety: "Only listed platform settings are editable.",
-  },
-  "activity-logs": {
-    module: "Activity Logs",
-    scope: "System-generated audit trail.",
-    permissions: { view: "Yes", add: "Auto", edit: "No", delete: "No" },
-    actions: ["View logs", "Filter activity", "Audit sensitive changes"],
-    safety: "Logs are append-only and immutable.",
   },
   "payment-settings": {
     module: "Payment Settings",

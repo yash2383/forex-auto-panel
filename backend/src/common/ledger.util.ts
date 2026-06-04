@@ -23,7 +23,10 @@ interface TransactionGroupInput {
  * Enforces double-entry ledger entries and updates wallet cache.
  * MUST be run within an existing Prisma transaction block ($transaction).
  */
-export async function createTransactionGroup(tx: any, data: TransactionGroupInput) {
+export async function createTransactionGroup(
+  tx: any,
+  data: TransactionGroupInput,
+) {
   // 1. Enforce Balanced Ledger constraint
   const totalDebit = data.entries
     .filter((e) => e.entryType === 'DEBIT')
@@ -35,7 +38,9 @@ export async function createTransactionGroup(tx: any, data: TransactionGroupInpu
 
   // Floating point check up to 4 decimal places
   if (Math.abs(totalDebit - totalCredit) > 0.0001) {
-    throw new Error(`Ledger transaction not balanced. Debits: ${totalDebit.toFixed(4)}, Credits: ${totalCredit.toFixed(4)}`);
+    throw new Error(
+      `Ledger transaction not balanced. Debits: ${totalDebit.toFixed(4)}, Credits: ${totalCredit.toFixed(4)}`,
+    );
   }
 
   // 2. Create the Transaction Group (Audit Journal Header)
@@ -71,16 +76,17 @@ export async function createTransactionGroup(tx: any, data: TransactionGroupInpu
         throw new Error(`Wallet for user ${entry.userId} not found`);
       }
 
-            const multiplier = entry.entryType === 'CREDIT' ? 1 : -1;
+      const multiplier = entry.entryType === 'CREDIT' ? 1 : -1;
       const amountChange = Number(entry.amount) * multiplier;
       const nextBalance = Number(wallet.realizedBalance) + amountChange;
       const nextEquity = Number(wallet.currentEquity) + amountChange;
-      
+
       // If the ledger entry is for a withdrawal, the availableBalance was already
       // decremented at the time of withdrawal submission, so we don't deduct it again.
-      const nextAvailable = data.type === 'WITHDRAWAL'
-        ? Number(wallet.availableBalance)
-        : Number(wallet.availableBalance) + amountChange;
+      const nextAvailable =
+        data.type === 'WITHDRAWAL'
+          ? Number(wallet.availableBalance)
+          : Number(wallet.availableBalance) + amountChange;
 
       if (nextBalance < 0) {
         throw new Error(`Insufficient realized funds for user ${entry.userId}`);
@@ -192,10 +198,13 @@ export async function reverseTransactionGroup(
       }
 
       const multiplier = entry.entryType === 'CREDIT' ? 1 : -1;
-      const nextBalance = Number(wallet.realizedBalance) + entry.amount * multiplier;
+      const nextBalance =
+        Number(wallet.realizedBalance) + entry.amount * multiplier;
 
       if (nextBalance < 0) {
-        throw new Error(`Reversal failed. Insufficient negative realized funds for user ${entry.userId}`);
+        throw new Error(
+          `Reversal failed. Insufficient negative realized funds for user ${entry.userId}`,
+        );
       }
 
       const updated = await tx.wallet.updateMany({

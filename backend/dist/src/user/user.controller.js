@@ -27,13 +27,17 @@ let UserController = class UserController {
             const user = req.user;
             const result = await this.userService.getProfile(user.id);
             if ('error' in result) {
-                return res.status(result.status || 400).json({ message: result.error });
+                return res
+                    .status(result.status || 400)
+                    .json({ message: result.error });
             }
             return res.json(result);
         }
         catch (error) {
             console.error('Profile fetch error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async updateProfile(req, body, res) {
@@ -41,13 +45,17 @@ let UserController = class UserController {
             const user = req.user;
             const result = await this.userService.updateProfile(user.id, body);
             if ('error' in result) {
-                return res.status(result.status || 400).json({ message: result.error });
+                return res
+                    .status(result.status || 400)
+                    .json({ message: result.error });
             }
             return res.json(result);
         }
         catch (error) {
             console.error('Profile update error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getPayments(req, res) {
@@ -58,7 +66,9 @@ let UserController = class UserController {
         }
         catch (error) {
             console.error('Payments fetch error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getSubscription(req, res) {
@@ -69,7 +79,9 @@ let UserController = class UserController {
         }
         catch (error) {
             console.error('Subscription fetch error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async changePassword(req, body, res) {
@@ -77,13 +89,17 @@ let UserController = class UserController {
             const user = req.user;
             const result = await this.userService.changePassword(user.id, body.currentPassword, body.newPassword, body.confirmPassword);
             if ('error' in result) {
-                return res.status(result.status || 400).json({ message: result.error });
+                return res
+                    .status(result.status || 400)
+                    .json({ message: result.error });
             }
             return res.json(result);
         }
         catch (error) {
             console.error('Password change error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getReferralStats(req, res) {
@@ -96,7 +112,9 @@ let UserController = class UserController {
         }
         catch (error) {
             console.error('Fetch referral stats error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getReferrals(req, res) {
@@ -107,7 +125,9 @@ let UserController = class UserController {
         }
         catch (error) {
             console.error('Fetch referrals error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getReferralEarnings(req, res) {
@@ -118,7 +138,9 @@ let UserController = class UserController {
         }
         catch (error) {
             console.error('Fetch referral earnings error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
 };

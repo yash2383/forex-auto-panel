@@ -40,7 +40,12 @@ export class UserService {
       expiresAt.setDate(expiresAt.getDate() + 365);
 
       const now = new Date();
-      const daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      const daysRemaining = Math.max(
+        0,
+        Math.ceil(
+          (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+        ),
+      );
       const isActive = daysRemaining > 0;
 
       activePlan = {
@@ -161,7 +166,10 @@ export class UserService {
     expiresAt.setDate(expiresAt.getDate() + 365);
 
     const now = new Date();
-    const daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    const daysRemaining = Math.max(
+      0,
+      Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+    );
     const isActive = daysRemaining > 0;
 
     return {
@@ -195,11 +203,17 @@ export class UserService {
     }
 
     if (newPassword !== confirmPassword) {
-      return { error: 'New password and confirmation do not match', status: 400 };
+      return {
+        error: 'New password and confirmation do not match',
+        status: 400,
+      };
     }
 
     if (newPassword.length < 6) {
-      return { error: 'New password must be at least 6 characters', status: 400 };
+      return {
+        error: 'New password must be at least 6 characters',
+        status: 400,
+      };
     }
 
     const user = await this.prisma.user.findUnique({
@@ -219,8 +233,14 @@ export class UserService {
       data: { passwordHash: hashPassword(newPassword) },
     });
 
-    this.notificationsService.sendToUser(userId, NotificationEvent.PASSWORD_CHANGED, {})
-      .catch(err => console.error(`Failed to send PASSWORD_CHANGED notification for user ${userId}`, err));
+    this.notificationsService
+      .sendToUser(userId, NotificationEvent.PASSWORD_CHANGED, {})
+      .catch((err) =>
+        console.error(
+          `Failed to send PASSWORD_CHANGED notification for user ${userId}`,
+          err,
+        ),
+      );
 
     return { success: true, message: 'Password changed successfully' };
   }
@@ -230,32 +250,34 @@ export class UserService {
     if (!user) return { error: 'User not found', status: 404 };
 
     const referrals = await this.prisma.referral.findMany({
-      where: { referrerId: userId }
+      where: { referrerId: userId },
     });
 
-    const totalReferrals = await this.prisma.user.count({ where: { referredBy: userId } });
-    const activeReferrals = await this.prisma.user.count({ 
-      where: { 
+    const totalReferrals = await this.prisma.user.count({
+      where: { referredBy: userId },
+    });
+    const activeReferrals = await this.prisma.user.count({
+      where: {
         referredBy: userId,
-        payments: { some: { status: 'APPROVED' } }
-      } 
+        payments: { some: { status: 'APPROVED' } },
+      },
     });
 
     let totalEarnings = 0;
     let pendingEarnings = 0;
     let paidEarnings = 0;
-    let approvedEarnings = 0;
+    const approvedEarnings = 0;
     let totalDepositsGenerated = 0;
 
-    referrals.forEach(r => {
+    referrals.forEach((r) => {
       const amt = Number(r.commissionAmount || 0);
       const depAmt = Number(r.depositAmount || 0);
-      
+
       if (['PENDING', 'PAID'].includes(r.status)) {
         totalEarnings += amt;
         totalDepositsGenerated += depAmt;
       }
-      
+
       if (r.status === 'PENDING') pendingEarnings += amt;
       if (r.status === 'PAID') paidEarnings += amt;
     });
@@ -269,8 +291,8 @@ export class UserService {
         totalEarnings,
         pendingEarnings,
         approvedEarnings,
-        paidEarnings
-      }
+        paidEarnings,
+      },
     };
   }
 
@@ -286,21 +308,21 @@ export class UserService {
           where: { status: 'APPROVED' },
           orderBy: { createdAt: 'desc' },
           take: 1,
-          select: { planName: true, amount: true }
-        }
+          select: { planName: true, amount: true },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     return {
-      referrals: users.map(u => ({
+      referrals: users.map((u) => ({
         id: u.id,
         name: u.name,
         email: u.email,
         joinDate: u.createdAt,
         plan: u.payments[0]?.planName || 'None',
-        depositAmount: u.payments[0] ? Number(u.payments[0].amount) : 0
-      }))
+        depositAmount: u.payments[0] ? Number(u.payments[0].amount) : 0,
+      })),
     };
   }
 
@@ -308,19 +330,19 @@ export class UserService {
     const earnings = await this.prisma.referral.findMany({
       where: { referrerId: userId },
       include: { referredUser: { select: { name: true, email: true } } },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     return {
-      earnings: earnings.map(e => ({
+      earnings: earnings.map((e) => ({
         id: e.id,
         date: e.createdAt,
         referredUser: e.referredUser.name,
         depositAmount: Number(e.depositAmount || 0),
         commissionPct: Number(e.commissionPct || 0),
         commissionAmount: Number(e.commissionAmount || 0),
-        status: e.status
-      }))
+        status: e.status,
+      })),
     };
   }
 }

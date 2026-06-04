@@ -138,17 +138,22 @@ export class ReportsController {
       const user = (req as any).user;
       const isAdmin = ['SUPER_ADMIN', 'MANAGER', 'VIEWER'].includes(user.role);
 
-      const report = await this.reportsService.prisma.generatedReport.findUnique({
-        where: { id },
-        include: { user: true },
-      });
+      const report =
+        await this.reportsService.prisma.generatedReport.findUnique({
+          where: { id },
+          include: { user: true },
+        });
 
       if (!report) {
-        return res.status(HttpStatus.NOT_FOUND).json({ message: 'Report not found' });
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .json({ message: 'Report not found' });
       }
 
       if (!isAdmin && report.userId !== user.id) {
-        return res.status(HttpStatus.FORBIDDEN).json({ message: 'Access denied' });
+        return res
+          .status(HttpStatus.FORBIDDEN)
+          .json({ message: 'Access denied' });
       }
 
       const reportType = report.reportType.toLowerCase();
@@ -170,7 +175,10 @@ export class ReportsController {
         return res.end(buffer);
       } else {
         const { buffer, fileName } =
-          await this.reportsService.generateCsvBuffer(report.userId, reportType);
+          await this.reportsService.generateCsvBuffer(
+            report.userId,
+            reportType,
+          );
 
         res.set({
           'Content-Type': 'text/csv',
@@ -243,8 +251,10 @@ export class ReportsController {
       }
 
       // Default: CSV
-      const { buffer, fileName } =
-        await this.reportsService.generateCsvBuffer(targetUserId, reportType);
+      const { buffer, fileName } = await this.reportsService.generateCsvBuffer(
+        targetUserId,
+        reportType,
+      );
 
       // Persist record
       await this.reportsService.saveReportRecord(
@@ -268,4 +278,3 @@ export class ReportsController {
     }
   }
 }
-

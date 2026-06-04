@@ -79,26 +79,12 @@ export default function ProfitDistributionPage() {
   const [editNote, setEditNote] = useState("");
   const [editDistDate, setEditDistDate] = useState("");
 
-  if (!hasPermission("profit-distribution", "view")) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 rounded-xl border border-red-500/20 bg-red-500/5 text-center p-6 text-white">
-        <ShieldAlert className="h-12 w-12 text-red-400 mb-4 animate-bounce" />
-        <h3 className="text-xl font-bold text-white">Access Denied</h3>
-        <p className="mt-2 text-sm text-neutral-400 max-w-md">
-          You do not have the required permissions to view the <strong>Profit Distribution</strong> section. 
-          Please contact a Super Admin if you believe this is an error.
-        </p>
-        <Link href="/admin/dashboard" className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-white/[0.08] px-4 text-xs font-bold text-white hover:bg-white/[0.15] transition">
-          Return to Dashboard
-        </Link>
-      </div>
-    );
-  }
-
+  const canView = hasPermission("profit-distribution", "view");
   const canEdit = hasPermission("profit-distribution", "edit");
 
   // Filter distributions
   const filteredDistributions = useMemo(() => {
+    if (!canView) return [];
     return profitDistributions.filter((d) => {
       const matchesSearch =
         d.reference?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -108,10 +94,11 @@ export default function ProfitDistributionPage() {
       const matchesStatus = statusFilter === "ALL" || d.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [profitDistributions, searchQuery, statusFilter]);
+  }, [canView, profitDistributions, searchQuery, statusFilter]);
 
   // Dynamic top stats
   const topStats = useMemo(() => {
+    if (!canView) return [];
     const totalPaid = profitDistributions
       .filter((d) => d.status === "PAID")
       .reduce((sum, d) => sum + d.amount, 0);
@@ -127,7 +114,23 @@ export default function ProfitDistributionPage() {
       { label: "Total Payout Logs", value: String(totalRecords), icon: Layers, tone: "text-white" },
       { label: "Profit Receivers (Users)", value: String(uniqueUsersCount), icon: Users, tone: "text-cyan-300" },
     ];
-  }, [profitDistributions]);
+  }, [canView, profitDistributions]);
+
+  if (!canView) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 rounded-xl border border-red-500/20 bg-red-500/5 text-center p-6 text-white">
+        <ShieldAlert className="h-12 w-12 text-red-400 mb-4 animate-bounce" />
+        <h3 className="text-xl font-bold text-white">Access Denied</h3>
+        <p className="mt-2 text-sm text-neutral-400 max-w-md">
+          You do not have the required permissions to view the <strong>Profit Distribution</strong> section. 
+          Please contact a Super Admin if you believe this is an error.
+        </p>
+        <Link href="/admin/dashboard" className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-white/[0.08] px-4 text-xs font-bold text-white hover:bg-white/[0.15] transition">
+          Return to Dashboard
+        </Link>
+      </div>
+    );
+  }
 
   const handleOpenAddModal = () => {
     if (users.length > 0) {
@@ -613,7 +616,11 @@ export default function ProfitDistributionPage() {
                 <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 text-center">
                   <p className="text-xs text-neutral-400 uppercase font-semibold">{bulkSummary.dryRun ? "Est. Payout" : "Total Payout"}</p>
                   <p className="mt-2 text-xl font-bold font-mono text-green-300">
-                    ₹{(bulkSummary.dryRun ? bulkSummary.estimatedAmount : bulkSummary.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    ₹{Number(
+                      bulkSummary.totalNetProfit ??
+                      (bulkSummary.dryRun ? bulkSummary.estimatedAmount : bulkSummary.totalAmount) ??
+                      0
+                    ).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>

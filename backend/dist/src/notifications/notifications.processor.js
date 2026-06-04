@@ -219,7 +219,7 @@ let SocketProcessor = SocketProcessor_1 = class SocketProcessor {
         this.dlqQueue = dlqQueue;
     }
     async handleDelivery(job) {
-        const { deliveryId, notificationId, channel, userId, title, body, link, payload } = job.data;
+        const { deliveryId, notificationId, channel, userId, title, body, link, payload, } = job.data;
         this.logger.log(`Processing socket job ${job.id} for delivery: ${deliveryId}`);
         const delivery = await this.prisma.notificationDelivery.findUnique({
             where: { id: deliveryId },

@@ -25,14 +25,18 @@ let InvestmentController = class InvestmentController {
     async getPlansAdmin(partnerId, res) {
         try {
             if (!partnerId) {
-                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'partnerId is required.' });
+                return res
+                    .status(common_1.HttpStatus.BAD_REQUEST)
+                    .json({ message: 'partnerId is required.' });
             }
             const result = await this.investmentService.getPlansAdmin(partnerId);
             return res.json(result);
         }
         catch (error) {
             console.error('Fetch admin investment plans error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getPlanInvestors(planId, res) {
@@ -42,14 +46,24 @@ let InvestmentController = class InvestmentController {
         }
         catch (error) {
             console.error('Fetch plan investors error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async createPlan(body, res) {
         try {
-            const { partnerId, name, description, image, minAmount, maxAmount, weeklyProfit, lockPeriod, referralBonus, status } = body;
-            if (!partnerId || !name || minAmount === undefined || maxAmount === undefined || weeklyProfit === undefined || lockPeriod === undefined || referralBonus === undefined) {
-                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Missing required fields.' });
+            const { partnerId, name, description, image, minAmount, maxAmount, weeklyProfit, lockPeriod, referralBonus, status, } = body;
+            if (!partnerId ||
+                !name ||
+                minAmount === undefined ||
+                maxAmount === undefined ||
+                weeklyProfit === undefined ||
+                lockPeriod === undefined ||
+                referralBonus === undefined) {
+                return res
+                    .status(common_1.HttpStatus.BAD_REQUEST)
+                    .json({ message: 'Missing required fields.' });
             }
             const result = await this.investmentService.createPlan(partnerId, {
                 name,
@@ -67,7 +81,9 @@ let InvestmentController = class InvestmentController {
         catch (error) {
             console.error('Create investment plan error:', error);
             const status = error.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR;
-            return res.status(status).json({ message: error.message || 'Internal server error' });
+            return res
+                .status(status)
+                .json({ message: error.message || 'Internal server error' });
         }
     }
     async updatePlan(planId, body, res) {
@@ -78,7 +94,9 @@ let InvestmentController = class InvestmentController {
         catch (error) {
             console.error('Update investment plan error:', error);
             const status = error.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR;
-            return res.status(status).json({ message: error.message || 'Internal server error' });
+            return res
+                .status(status)
+                .json({ message: error.message || 'Internal server error' });
         }
     }
     async deletePlan(planId, res) {
@@ -89,7 +107,9 @@ let InvestmentController = class InvestmentController {
         catch (error) {
             console.error('Delete investment plan error:', error);
             const status = error.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR;
-            return res.status(status).json({ message: error.message || 'Internal server error' });
+            return res
+                .status(status)
+                .json({ message: error.message || 'Internal server error' });
         }
     }
     async getActivePlansUser(req, res) {
@@ -100,7 +120,9 @@ let InvestmentController = class InvestmentController {
         }
         catch (error) {
             console.error('Fetch active plans error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getUserInvestments(req, res) {
@@ -111,7 +133,9 @@ let InvestmentController = class InvestmentController {
         }
         catch (error) {
             console.error('Fetch user investments error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async createInvestment(req, body, res) {
@@ -119,7 +143,9 @@ let InvestmentController = class InvestmentController {
             const user = req.user;
             const { planId, amount } = body;
             if (!planId || amount === undefined) {
-                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'planId and amount are required.' });
+                return res
+                    .status(common_1.HttpStatus.BAD_REQUEST)
+                    .json({ message: 'planId and amount are required.' });
             }
             const result = await this.investmentService.createInvestment(user.id, user.partnerId, planId, Number(amount));
             return res.json(result);
@@ -127,7 +153,9 @@ let InvestmentController = class InvestmentController {
         catch (error) {
             console.error('Create user investment error:', error);
             const status = error.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR;
-            return res.status(status).json({ message: error.message || 'Internal server error' });
+            return res
+                .status(status)
+                .json({ message: error.message || 'Internal server error' });
         }
     }
 };

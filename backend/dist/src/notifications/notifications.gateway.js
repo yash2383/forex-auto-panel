@@ -35,7 +35,8 @@ let NotificationsGateway = class NotificationsGateway {
         if (token) {
             try {
                 const decoded = (0, crypto_util_1.verifyJwt)(token);
-                if (decoded && ['SUPER_ADMIN', 'MANAGER', 'VIEWER'].includes(decoded.role)) {
+                if (decoded &&
+                    ['SUPER_ADMIN', 'MANAGER', 'VIEWER'].includes(decoded.role)) {
                     client.join('admins');
                 }
             }
@@ -66,10 +67,7 @@ __decorate([
 exports.NotificationsGateway = NotificationsGateway = __decorate([
     (0, websockets_1.WebSocketGateway)({
         cors: {
-            origin: [
-                'http://localhost:3000',
-                'http://localhost:3001',
-            ],
+            origin: ['http://localhost:3000', 'http://localhost:3001'],
             credentials: true,
         },
         namespace: '/notifications',

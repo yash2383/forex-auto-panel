@@ -33,7 +33,9 @@ let DashboardController = class DashboardController {
         }
         catch (error) {
             console.error('Dashboard data load error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async initiatePayment(req, body, res) {
@@ -44,7 +46,9 @@ let DashboardController = class DashboardController {
         }
         catch (error) {
             console.error('Payment initiation error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async deposit(req, body, res) {
@@ -53,7 +57,7 @@ let DashboardController = class DashboardController {
             const actor = {
                 id: user.id,
                 role: user.role,
-                partnerId: user.partnerId
+                partnerId: user.partnerId,
             };
             const result = await this.dashboardService.deposit(actor, body);
             if ('error' in result) {
@@ -63,7 +67,9 @@ let DashboardController = class DashboardController {
         }
         catch (error) {
             console.error('Deposit submission error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async withdraw(req, body, res) {
@@ -77,7 +83,9 @@ let DashboardController = class DashboardController {
         }
         catch (error) {
             console.error('Withdrawal submission error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async settings(req, body, res) {
@@ -91,7 +99,9 @@ let DashboardController = class DashboardController {
         }
         catch (error) {
             console.error('Settings update error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getMyPaymentStatus(req, res) {
@@ -102,7 +112,9 @@ let DashboardController = class DashboardController {
         }
         catch (error) {
             console.error('Payment status check error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
 };

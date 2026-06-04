@@ -18,6 +18,9 @@ export declare class AdminController {
     deletePlan(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     getSettings(res: Response): Promise<Response<any, Record<string, any>>>;
     updateSettings(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    updateFinancialSettings(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    updateDistributionSettings(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    updateSystemSettings(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     uploadQr(req: Request, body: {
         image: string;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
@@ -44,6 +47,8 @@ export declare class AdminController {
         reason: string;
     }, res: Response): Promise<Response<any, Record<string, any>>>;
     bulkDistributeProfit(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    previewDistribution(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
+    reverseDistribution(batchId: string, reason: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     createProfitDistribution(body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     updateProfitDistribution(id: string, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     deleteProfitDistribution(id: string, res: Response): Promise<Response<any, Record<string, any>>>;

@@ -35,13 +35,17 @@ export class TradeEngineService implements OnModuleInit {
 
       for (const trade of activeTrades) {
         const entryPrice = trade.entryPrice;
-        const currentPrice = trade.currentPrice.isZero() ? entryPrice : trade.currentPrice;
+        const currentPrice = trade.currentPrice.isZero()
+          ? entryPrice
+          : trade.currentPrice;
         const quantity = trade.quantity;
 
         // Volatility: up to 1% movement in random direction
         const volatility = Math.random() * 0.01;
         const direction = Math.random() > 0.5 ? 1 : -1;
-        const multiplier = new (Prisma as any).Decimal(1 + volatility * direction);
+        const multiplier = new (Prisma as any).Decimal(
+          1 + volatility * direction,
+        );
         const nextPrice = currentPrice.mul(multiplier);
 
         // PnL Calculation
@@ -52,7 +56,8 @@ export class TradeEngineService implements OnModuleInit {
         }
 
         // Age Check: Close after 30 seconds
-        const ageSecs = (Date.now() - new Date(trade.createdAt).getTime()) / 1000;
+        const ageSecs =
+          (Date.now() - new Date(trade.createdAt).getTime()) / 1000;
         const shouldClose = ageSecs >= 30;
 
         if (shouldClose) {
@@ -74,10 +79,14 @@ export class TradeEngineService implements OnModuleInit {
             if (trade.user?.wallet) {
               const originalMargin = entryPrice.mul(quantity);
               const returnAmount = originalMargin.add(pnl);
-              const nextBalance = trade.user.wallet.realizedBalance.add(returnAmount);
+              const nextBalance =
+                trade.user.wallet.realizedBalance.add(returnAmount);
 
-              const nextEquity = Number(trade.user.wallet.currentEquity) + Number(returnAmount);
-              const nextAvailable = Number(trade.user.wallet.availableBalance) + Number(returnAmount);
+              const nextEquity =
+                Number(trade.user.wallet.currentEquity) + Number(returnAmount);
+              const nextAvailable =
+                Number(trade.user.wallet.availableBalance) +
+                Number(returnAmount);
 
               await tx.wallet.update({
                 where: { id: trade.user.wallet.id },
@@ -111,12 +120,21 @@ export class TradeEngineService implements OnModuleInit {
             }
           });
 
-          this.logger.log(`Closed trade ${trade.id} for ${trade.user.email} with PnL: ₹${pnl.toFixed(4)}`);
+          this.logger.log(
+            `Closed trade ${trade.id} for ${trade.user.email} with PnL: ₹${pnl.toFixed(4)}`,
+          );
 
-          this.notificationsService.sendToUser(trade.userId, NotificationEvent.TRADE_CLOSED, {
-            pair: trade.pair,
-            pnl: pnl.toFixed(2),
-          }).catch(err => this.logger.error(`Failed to send auto-trade close notification for user ${trade.userId}`, err.stack));
+          this.notificationsService
+            .sendToUser(trade.userId, NotificationEvent.TRADE_CLOSED, {
+              pair: trade.pair,
+              pnl: pnl.toFixed(2),
+            })
+            .catch((err) =>
+              this.logger.error(
+                `Failed to send auto-trade close notification for user ${trade.userId}`,
+                err.stack,
+              ),
+            );
         } else {
           // Just update current price and PnL
           await this.prisma.trade.update({
@@ -171,10 +189,13 @@ export class TradeEngineService implements OnModuleInit {
         const type = Math.random() > 0.5 ? 'BUY' : 'SELL';
 
         // entryPrice generator
-        let entryPriceVal = 1.0850;
-        if (pair === 'BTC/USDT') entryPriceVal = 68000 + (Math.random() - 0.5) * 500;
-        else if (pair === 'ETH/USDT') entryPriceVal = 3700 + (Math.random() - 0.5) * 50;
-        else if (pair === 'XAU/USDT') entryPriceVal = 2370 + (Math.random() - 0.5) * 20;
+        let entryPriceVal = 1.085;
+        if (pair === 'BTC/USDT')
+          entryPriceVal = 68000 + (Math.random() - 0.5) * 500;
+        else if (pair === 'ETH/USDT')
+          entryPriceVal = 3700 + (Math.random() - 0.5) * 50;
+        else if (pair === 'XAU/USDT')
+          entryPriceVal = 2370 + (Math.random() - 0.5) * 20;
 
         const entryPrice = new (Prisma as any).Decimal(entryPriceVal);
         const tradeAmount = new (Prisma as any).Decimal(amount);
@@ -201,21 +222,34 @@ export class TradeEngineService implements OnModuleInit {
             where: { id: user.wallet!.id },
             data: {
               realizedBalance: balance.minus(tradeAmount),
-              currentEquity: new Prisma.Decimal(Number(user.wallet!.currentEquity) - amount),
-              availableBalance: new Prisma.Decimal(Number(user.wallet!.availableBalance) - amount),
+              currentEquity: new Prisma.Decimal(
+                Number(user.wallet!.currentEquity) - amount,
+              ),
+              availableBalance: new Prisma.Decimal(
+                Number(user.wallet!.availableBalance) - amount,
+              ),
             },
           });
 
           return t;
         });
 
-        this.notificationsService.sendToUser(user.id, NotificationEvent.TRADE_OPENED, {
-          type: spawnedTrade.type,
-          pair: spawnedTrade.pair,
-          entryPrice: Number(spawnedTrade.entryPrice),
-        }).catch(err => this.logger.error(`Failed to send auto-trade open notification for user ${user.id}`, err.stack));
+        this.notificationsService
+          .sendToUser(user.id, NotificationEvent.TRADE_OPENED, {
+            type: spawnedTrade.type,
+            pair: spawnedTrade.pair,
+            entryPrice: Number(spawnedTrade.entryPrice),
+          })
+          .catch((err) =>
+            this.logger.error(
+              `Failed to send auto-trade open notification for user ${user.id}`,
+              err.stack,
+            ),
+          );
 
-        this.logger.log(`Auto-spawned active trade for ${user.email}: ${pair} ${type} at ₹${entryPrice.toFixed(4)}`);
+        this.logger.log(
+          `Auto-spawned active trade for ${user.email}: ${pair} ${type} at ₹${entryPrice.toFixed(4)}`,
+        );
       }
     } catch (error: any) {
       this.logger.error('Error in auto trading loop:', error);

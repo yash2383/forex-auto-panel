@@ -19,9 +19,9 @@ export declare class DevController {
         priority: import("@prisma/client").$Enums.NotificationPriority;
         link: string | null;
         userId: string | null;
+        type: import("@prisma/client").$Enums.NotificationEvent;
         idempotencyKey: string | null;
         adminId: string | null;
-        type: import("@prisma/client").$Enums.NotificationEvent;
         severity: import("@prisma/client").$Enums.NotificationSeverity;
         category: import("@prisma/client").$Enums.NotificationCategory;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;

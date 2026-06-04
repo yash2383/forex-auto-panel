@@ -30,7 +30,9 @@ let TradeController = class TradeController {
         }
         catch (error) {
             console.error('Fetch trades API error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async createTrade(req, body, res) {
@@ -44,7 +46,9 @@ let TradeController = class TradeController {
         }
         catch (error) {
             console.error('Manual trade create API error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async closeTrade(req, body, res) {
@@ -58,7 +62,9 @@ let TradeController = class TradeController {
         }
         catch (error) {
             console.error('Manual trade close API error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
 };

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bull';
 import { ThrottlerModule } from '@nestjs/throttler';
@@ -15,7 +16,9 @@ import { InvestmentModule } from './investment/investment.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ObservabilityModule } from './observability/observability.module';
 import { DevModule } from './dev/dev.module';
+import { MaintenanceGuard } from './common/guards/maintenance.guard';
 
 const optionalModules = [];
 if (process.env.NODE_ENV !== 'production') {
@@ -48,10 +51,18 @@ if (process.env.NODE_ENV !== 'production') {
     WalletModule,
     InvestmentModule,
     NotificationsModule,
+    ObservabilityModule,
     ...optionalModules,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // MaintenanceGuard must run AFTER JwtAuthGuard so request.user is populated.
+    // JwtAuthGuard is registered per-module; maintenance runs globally here.
+    {
+      provide: APP_GUARD,
+      useClass: MaintenanceGuard,
+    },
+  ],
 })
 export class AppModule {}
-

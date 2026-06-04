@@ -16,6 +16,7 @@ exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
 const auth_service_1 = require("./auth.service");
 const jwt_auth_guard_1 = require("../common/guards/jwt-auth.guard");
+const allow_during_maintenance_decorator_1 = require("../common/decorators/allow-during-maintenance.decorator");
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -25,7 +26,9 @@ let AuthController = class AuthController {
         try {
             const { email, password } = body;
             if (!email || !password) {
-                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Email and password are required' });
+                return res
+                    .status(common_1.HttpStatus.BAD_REQUEST)
+                    .json({ message: 'Email and password are required' });
             }
             const clientIp = req.headers['x-forwarded-for'] || '127.0.0.1';
             const result = await this.authService.login(email, password, clientIp);
@@ -33,20 +36,28 @@ let AuthController = class AuthController {
                 return res.status(result.status || 400).json({ message: result.error });
             }
             if (result.otpRequired) {
-                return res.json({ otpRequired: true, otpToken: result.otpToken, email: result.email });
+                return res.json({
+                    otpRequired: true,
+                    otpToken: result.otpToken,
+                    email: result.email,
+                });
             }
             return res.json({ token: result.token, user: result.user });
         }
         catch (error) {
             console.error('Login error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async verifyLoginOtp(body, req, res) {
         try {
             const { otpToken, otp } = body;
             if (!otpToken || !otp) {
-                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'OTP token and verification code are required' });
+                return res
+                    .status(common_1.HttpStatus.BAD_REQUEST)
+                    .json({ message: 'OTP token and verification code are required' });
             }
             const clientIp = req.headers['x-forwarded-for'] || '127.0.0.1';
             const result = await this.authService.verifyLoginOtp(otpToken, otp, clientIp);
@@ -57,14 +68,18 @@ let AuthController = class AuthController {
         }
         catch (error) {
             console.error('Verify login OTP error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async sendOtp(body, res) {
         try {
-            const { email, partnerSlug, password, firstName, lastName, referralCode } = body;
+            const { email, partnerSlug, password, firstName, lastName, referralCode, } = body;
             if (!email) {
-                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Email is required' });
+                return res
+                    .status(common_1.HttpStatus.BAD_REQUEST)
+                    .json({ message: 'Email is required' });
             }
             const result = await this.authService.sendSignupOtp(email, partnerSlug, password, firstName, lastName, referralCode);
             if (result && 'error' in result) {
@@ -74,14 +89,18 @@ let AuthController = class AuthController {
         }
         catch (error) {
             console.error('Send OTP error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async signup(body, res) {
         try {
-            const { email, password, otp, firstName, lastName, partnerSlug, referralCode } = body;
+            const { email, password, otp, firstName, lastName, partnerSlug, referralCode, } = body;
             if (!email) {
-                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Email is required' });
+                return res
+                    .status(common_1.HttpStatus.BAD_REQUEST)
+                    .json({ message: 'Email is required' });
             }
             const result = await this.authService.signup(email, password, otp, firstName, lastName, partnerSlug, referralCode);
             if (result && 'error' in result) {
@@ -91,13 +110,17 @@ let AuthController = class AuthController {
         }
         catch (error) {
             console.error('Signup error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async requestManualVerification(email, res) {
         try {
             if (!email) {
-                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Email is required' });
+                return res
+                    .status(common_1.HttpStatus.BAD_REQUEST)
+                    .json({ message: 'Email is required' });
             }
             const result = await this.authService.requestManualVerification(email);
             if (result && 'error' in result) {
@@ -107,7 +130,9 @@ let AuthController = class AuthController {
         }
         catch (error) {
             console.error('Request manual verification error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getOtpSettings(res) {
@@ -117,7 +142,9 @@ let AuthController = class AuthController {
         }
         catch (error) {
             console.error('Get OTP settings error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async updateOtpSettings(body, res) {
@@ -127,7 +154,9 @@ let AuthController = class AuthController {
         }
         catch (error) {
             console.error('Update OTP settings error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async me(req, res) {
@@ -146,7 +175,9 @@ let AuthController = class AuthController {
         }
         catch (error) {
             console.error('Auth context error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async logout(res) {
@@ -228,6 +259,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "logout", null);
 exports.AuthController = AuthController = __decorate([
+    (0, allow_during_maintenance_decorator_1.AllowDuringMaintenance)(),
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService])
 ], AuthController);

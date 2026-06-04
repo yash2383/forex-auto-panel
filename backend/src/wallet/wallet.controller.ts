@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Req, UseGuards, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Req,
+  UseGuards,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../common/guards/roles.guard';
@@ -60,7 +69,13 @@ export class WalletController {
   @Post('withdrawals')
   async createWithdrawal(
     @Req() req: Request,
-    @Body() body: { amount: number; method: string; accountDetails: any; notes?: string },
+    @Body()
+    body: {
+      amount: number;
+      method: string;
+      accountDetails: any;
+      notes?: string;
+    },
   ) {
     try {
       const user = (req as any).user;

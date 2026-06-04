@@ -280,6 +280,7 @@ async function main() {
   console.log("Seeding plans...");
   await prisma.plan.create({
     data: {
+      slug: "club",
       name: "Club Plan",
       subtitle: "Micro Capital",
       capitalLabel: "$10 - $100",
@@ -297,6 +298,7 @@ async function main() {
 
   await prisma.plan.create({
     data: {
+      slug: "individual",
       name: "Individual Plan",
       subtitle: "Advanced / Full Access",
       capitalLabel: "$1000+",
@@ -314,6 +316,7 @@ async function main() {
 
   await prisma.plan.create({
     data: {
+      slug: "custom",
       name: "Custom Plan",
       subtitle: "Flexible / Tailored",
       capitalLabel: "Custom Pricing",

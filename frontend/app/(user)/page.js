@@ -405,7 +405,7 @@ export default function Home() {
                   </div>
 
                   {(() => {
-                    const planSlug = plan.name.split(" ")[0].toLowerCase();
+                    const planSlug = plan.slug || plan.name.split(" ")[0].toLowerCase();
                     const minAmounts = { club: 10, individual: 1000, custom: 5000 };
                     const amount = plan.amount || minAmounts[planSlug] || 0;
                     return (

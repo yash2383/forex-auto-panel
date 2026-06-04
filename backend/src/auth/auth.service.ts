@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { hashPassword, verifyPassword, signJwt, verifyJwt } from '../common/crypto.util';
+import {
+  hashPassword,
+  verifyPassword,
+  signJwt,
+  verifyJwt,
+} from '../common/crypto.util';
 import { OtpService } from './otp.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationEvent } from '@prisma/client';
@@ -45,10 +50,17 @@ export class AuthService {
         });
 
         // Trigger notification
-        this.notificationsService.sendToAdmin(admin.id, NotificationEvent.ADMIN_LOGIN, {
-          name: admin.name,
-          ipAddress: clientIp,
-        }).catch(err => console.error(`Failed to send ADMIN_LOGIN notification for admin ${admin.id}`, err));
+        this.notificationsService
+          .sendToAdmin(admin.id, NotificationEvent.ADMIN_LOGIN, {
+            name: admin.name,
+            ipAddress: clientIp,
+          })
+          .catch((err) =>
+            console.error(
+              `Failed to send ADMIN_LOGIN notification for admin ${admin.id}`,
+              err,
+            ),
+          );
 
         return {
           token,
@@ -78,27 +90,39 @@ export class AuthService {
         // Generate and send OTP
         let generated;
         try {
-          generated = await this.otpService.generateOtp(user.partnerId, user.email, user.partner.name);
+          generated = await this.otpService.generateOtp(
+            user.partnerId,
+            user.email,
+            user.partner.name,
+          );
         } catch (err: any) {
           return { error: err.message, status: 400 };
         }
 
         if (!generated.success) {
-          return { error: 'Failed to send login OTP via email. Please check your SMTP configuration.', status: 500 };
+          return {
+            error:
+              'Failed to send login OTP via email. Please check your SMTP configuration.',
+            status: 500,
+          };
         }
 
         // Generate temporary login OTP token (expires in 5 minutes)
-        const otpToken = signJwt({
-          email: user.email,
-          partnerId: user.partnerId,
-          target: 'login',
-        }, 300);
+        const otpToken = signJwt(
+          {
+            email: user.email,
+            partnerId: user.partnerId,
+            target: 'login',
+          },
+          300,
+        );
 
         return {
           otpRequired: true,
           otpToken,
           email: user.email,
-          otp: process.env.NODE_ENV !== 'production' ? generated.otp : undefined,
+          otp:
+            process.env.NODE_ENV !== 'production' ? generated.otp : undefined,
         };
       }
     }
@@ -142,7 +166,10 @@ export class AuthService {
   async verifyLoginOtp(otpToken: string, otp: string, clientIp: string) {
     const payload = verifyJwt(otpToken);
     if (!payload || payload.target !== 'login') {
-      return { error: 'Invalid or expired OTP token. Please try logging in again.', status: 400 };
+      return {
+        error: 'Invalid or expired OTP token. Please try logging in again.',
+        status: 400,
+      };
     }
 
     const { email, partnerId } = payload;
@@ -183,9 +210,16 @@ export class AuthService {
       },
     });
 
-    this.notificationsService.sendToUser(user.id, NotificationEvent.NEW_LOGIN, {
-      ipAddress: clientIp,
-    }).catch(err => console.error(`Failed to send NEW_LOGIN notification for user ${user.id}`, err));
+    this.notificationsService
+      .sendToUser(user.id, NotificationEvent.NEW_LOGIN, {
+        ipAddress: clientIp,
+      })
+      .catch((err) =>
+        console.error(
+          `Failed to send NEW_LOGIN notification for user ${user.id}`,
+          err,
+        ),
+      );
 
     return {
       token,
@@ -209,7 +243,7 @@ export class AuthService {
           emailOtpEnabled: true,
           otpLength: 6,
           otpExpiryMinutes: 10,
-          supportContact: "+91 XXXXX XXXXX",
+          supportContact: '+91 XXXXX XXXXX',
         },
       });
     }
@@ -221,20 +255,35 @@ export class AuthService {
     if (!settings) {
       settings = await this.prisma.otpSettings.create({
         data: {
-          emailOtpEnabled: body.emailOtpEnabled !== undefined ? Boolean(body.emailOtpEnabled) : true,
+          emailOtpEnabled:
+            body.emailOtpEnabled !== undefined
+              ? Boolean(body.emailOtpEnabled)
+              : true,
           otpLength: body.otpLength ? Number(body.otpLength) : 6,
-          otpExpiryMinutes: body.otpExpiryMinutes ? Number(body.otpExpiryMinutes) : 10,
-          supportContact: body.supportContact || "+91 XXXXX XXXXX",
+          otpExpiryMinutes: body.otpExpiryMinutes
+            ? Number(body.otpExpiryMinutes)
+            : 10,
+          supportContact: body.supportContact || '+91 XXXXX XXXXX',
         },
       });
     } else {
       settings = await this.prisma.otpSettings.update({
         where: { id: settings.id },
         data: {
-          emailOtpEnabled: body.emailOtpEnabled !== undefined ? Boolean(body.emailOtpEnabled) : settings.emailOtpEnabled,
-          otpLength: body.otpLength ? Number(body.otpLength) : settings.otpLength,
-          otpExpiryMinutes: body.otpExpiryMinutes ? Number(body.otpExpiryMinutes) : settings.otpExpiryMinutes,
-          supportContact: body.supportContact !== undefined ? body.supportContact : settings.supportContact,
+          emailOtpEnabled:
+            body.emailOtpEnabled !== undefined
+              ? Boolean(body.emailOtpEnabled)
+              : settings.emailOtpEnabled,
+          otpLength: body.otpLength
+            ? Number(body.otpLength)
+            : settings.otpLength,
+          otpExpiryMinutes: body.otpExpiryMinutes
+            ? Number(body.otpExpiryMinutes)
+            : settings.otpExpiryMinutes,
+          supportContact:
+            body.supportContact !== undefined
+              ? body.supportContact
+              : settings.supportContact,
         },
       });
     }
@@ -291,9 +340,12 @@ export class AuthService {
             });
 
             if (referrerWallet) {
-              const newRealized = Number(referrerWallet.realizedBalance) + bonusAmount;
-              const newAvailable = Number(referrerWallet.availableBalance) + bonusAmount;
-              const newEquity = Number(referrerWallet.currentEquity) + bonusAmount;
+              const newRealized =
+                Number(referrerWallet.realizedBalance) + bonusAmount;
+              const newAvailable =
+                Number(referrerWallet.availableBalance) + bonusAmount;
+              const newEquity =
+                Number(referrerWallet.currentEquity) + bonusAmount;
 
               await tx.wallet.update({
                 where: { id: referrerWallet.id },
@@ -331,9 +383,15 @@ export class AuthService {
 
       // Send welcome email
       try {
-        await this.otpService['emailService'].sendWelcomeEmail(user.email, user.name);
+        await this.otpService['emailService'].sendWelcomeEmail(
+          user.email,
+          user.name,
+        );
       } catch (err: any) {
-        console.error(`Failed to send welcome email to ${user.email}:`, err.message);
+        console.error(
+          `Failed to send welcome email to ${user.email}:`,
+          err.message,
+        );
       }
 
       return updated;
@@ -342,13 +400,18 @@ export class AuthService {
 
   private async handleOtpDispatch(user: any, partner: any, otpSettings: any) {
     try {
-      const generated = await this.otpService.generateOtp(partner.id, user.email, partner.name);
-      
+      const generated = await this.otpService.generateOtp(
+        partner.id,
+        user.email,
+        partner.name,
+      );
+
       if (!generated.success) {
         return {
           success: false,
           otpSent: false,
-          error: 'Failed to deliver verification code via email. Please check your SMTP configuration.',
+          error:
+            'Failed to deliver verification code via email. Please check your SMTP configuration.',
           status: 500,
         };
       }
@@ -389,7 +452,6 @@ export class AuthService {
     const settingsResult = await this.getOtpSettings();
     const otpSettings = settingsResult.settings;
 
-
     // 2. Check duplicate email under this partner
     const existingUser = await this.prisma.user.findFirst({
       where: {
@@ -401,11 +463,18 @@ export class AuthService {
 
     if (existingUser) {
       if (existingUser.isVerified) {
-        return { error: 'Email is already registered under this platform', status: 400 };
+        return {
+          error: 'Email is already registered under this platform',
+          status: 400,
+        };
       }
       // If user exists but is NOT verified yet, we can reuse this user record!
-      const passwordHash = password ? hashPassword(password) : existingUser.passwordHash;
-      const name = password ? `${firstName || ''} ${lastName || ''}`.trim() || email.split('@')[0] : existingUser.name;
+      const passwordHash = password
+        ? hashPassword(password)
+        : existingUser.passwordHash;
+      const name = password
+        ? `${firstName || ''} ${lastName || ''}`.trim() || email.split('@')[0]
+        : existingUser.name;
       await this.prisma.user.update({
         where: { id: existingUser.id },
         data: { name, passwordHash },
@@ -420,15 +489,22 @@ export class AuthService {
         where: { referralCode: referralCode.trim().toUpperCase() },
       });
       if (!referrerUser) {
-        return { error: 'Invalid referral code. Please check and try again.', status: 400 };
+        return {
+          error: 'Invalid referral code. Please check and try again.',
+          status: 400,
+        };
       }
       referrerId = referrerUser.id;
     }
 
     // Generate unique referral code for the new user
-    const userReferralCode = "REF" + Math.random().toString(36).substring(2, 8).toUpperCase();
-    const name = `${firstName || ''} ${lastName || ''}`.trim() || email.split('@')[0];
-    const passwordHash = password ? hashPassword(password) : hashPassword('defaultPassword123');
+    const userReferralCode =
+      'REF' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    const name =
+      `${firstName || ''} ${lastName || ''}`.trim() || email.split('@')[0];
+    const passwordHash = password
+      ? hashPassword(password)
+      : hashPassword('defaultPassword123');
 
     // Create User, Wallet, and Referral record in transaction
     const newUser = await this.prisma.$transaction(async (tx: any) => {
@@ -531,5 +607,4 @@ export class AuthService {
       },
     };
   }
-
 }

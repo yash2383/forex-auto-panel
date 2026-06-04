@@ -27,17 +27,17 @@ let OtpService = class OtpService {
     async generateOtp(partnerId, email, partnerName) {
         const normalizedEmail = email.toLowerCase().trim();
         const now = new Date();
-        const settings = await this.prisma.otpSettings.findFirst() || {
+        const settings = (await this.prisma.otpSettings.findFirst()) || {
             emailOtpEnabled: true,
             otpLength: 6,
             otpExpiryMinutes: 10,
-            supportContact: "+91 XXXXX XXXXX"
+            supportContact: '+91 XXXXX XXXXX',
         };
         const length = settings.otpLength || 6;
         const otp = Array.from({ length }, () => (0, crypto_1.randomInt)(0, 10)).join('');
         const expiresAt = new Date(now.getTime() + (settings.otpExpiryMinutes || 10) * 60 * 1000);
         const user = await this.prisma.user.findFirst({
-            where: { partnerId, email: normalizedEmail, isDeleted: false }
+            where: { partnerId, email: normalizedEmail, isDeleted: false },
         });
         if (!user) {
             throw new common_1.BadRequestException('User not found.');
@@ -46,8 +46,8 @@ let OtpService = class OtpService {
             where: { id: user.id },
             data: {
                 otpCode: otp,
-                otpExpiresAt: expiresAt
-            }
+                otpExpiresAt: expiresAt,
+            },
         });
         let emailSent = false;
         try {
@@ -63,7 +63,7 @@ let OtpService = class OtpService {
         const normalizedEmail = email.toLowerCase().trim();
         const now = new Date();
         const user = await this.prisma.user.findFirst({
-            where: { partnerId, email: normalizedEmail, isDeleted: false }
+            where: { partnerId, email: normalizedEmail, isDeleted: false },
         });
         if (!user) {
             throw new common_1.BadRequestException('User not found.');
@@ -81,8 +81,8 @@ let OtpService = class OtpService {
             where: { id: user.id },
             data: {
                 otpCode: null,
-                otpExpiresAt: null
-            }
+                otpExpiresAt: null,
+            },
         });
         return true;
     }

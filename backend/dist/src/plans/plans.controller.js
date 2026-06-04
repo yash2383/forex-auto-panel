@@ -29,7 +29,9 @@ let PlansController = class PlansController {
         }
         catch (error) {
             console.error('Fetch active plans error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getAllPlans(res) {
@@ -39,7 +41,9 @@ let PlansController = class PlansController {
         }
         catch (error) {
             console.error('Fetch all plans error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getPaymentMethods(res) {
@@ -49,37 +53,49 @@ let PlansController = class PlansController {
         }
         catch (error) {
             console.error('Fetch payment methods error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getPlanBySlug(slug, res) {
         try {
             const result = await this.plansService.getPlanBySlug(slug);
             if (!result) {
-                return res.status(common_1.HttpStatus.NOT_FOUND).json({ message: 'Plan not found' });
+                return res
+                    .status(common_1.HttpStatus.NOT_FOUND)
+                    .json({ message: 'Plan not found' });
             }
             return res.json(result);
         }
         catch (error) {
             console.error('Fetch plan by slug error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getPlanById(id, res) {
         try {
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
             if (!isUuid) {
-                return res.status(common_1.HttpStatus.BAD_REQUEST).json({ message: 'Invalid plan ID format (UUID expected)' });
+                return res
+                    .status(common_1.HttpStatus.BAD_REQUEST)
+                    .json({ message: 'Invalid plan ID format (UUID expected)' });
             }
             const result = await this.plansService.getPlanById(id);
             if (!result) {
-                return res.status(common_1.HttpStatus.NOT_FOUND).json({ message: 'Plan not found' });
+                return res
+                    .status(common_1.HttpStatus.NOT_FOUND)
+                    .json({ message: 'Plan not found' });
             }
             return res.json(result);
         }
         catch (error) {
             console.error('Fetch plan by id error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async createPlan(body, res) {
@@ -89,7 +105,9 @@ let PlansController = class PlansController {
         }
         catch (error) {
             console.error('Create plan error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async updatePlan(id, body, res) {
@@ -99,7 +117,9 @@ let PlansController = class PlansController {
         }
         catch (error) {
             console.error('Update plan error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async deletePlan(id, res) {
@@ -109,7 +129,9 @@ let PlansController = class PlansController {
         }
         catch (error) {
             console.error('Delete plan error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
 };

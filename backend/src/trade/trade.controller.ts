@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Req, Res, HttpStatus, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Req,
+  Res,
+  HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { TradeService } from './trade.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -18,12 +27,18 @@ export class TradeController {
       return res.json(result);
     } catch (error: any) {
       console.error('Fetch trades API error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
   @Post('create')
-  async createTrade(@Req() req: Request, @Body() body: { pair?: string; type?: string }, @Res() res: Response) {
+  async createTrade(
+    @Req() req: Request,
+    @Body() body: { pair?: string; type?: string },
+    @Res() res: Response,
+  ) {
     try {
       const user = (req as any).user;
       const result = await this.tradeService.createTrade(user.id, body);
@@ -35,12 +50,18 @@ export class TradeController {
       return res.json(result);
     } catch (error: any) {
       console.error('Manual trade create API error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 
   @Post('close')
-  async closeTrade(@Req() req: Request, @Body() body: { tradeId: string }, @Res() res: Response) {
+  async closeTrade(
+    @Req() req: Request,
+    @Body() body: { tradeId: string },
+    @Res() res: Response,
+  ) {
     try {
       const user = (req as any).user;
       const result = await this.tradeService.closeTrade(user.id, body.tradeId);
@@ -52,7 +73,9 @@ export class TradeController {
       return res.json(result);
     } catch (error: any) {
       console.error('Manual trade close API error:', error);
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
     }
   }
 }

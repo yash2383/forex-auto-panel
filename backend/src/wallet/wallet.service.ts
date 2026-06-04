@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, NotificationEvent } from '@prisma/client';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -45,7 +49,9 @@ export class WalletService {
     notes?: string,
   ) {
     if (isNaN(amount) || amount <= 0) {
-      throw new BadRequestException('Withdrawal amount must be a positive number');
+      throw new BadRequestException(
+        'Withdrawal amount must be a positive number',
+      );
     }
 
     if (!method) {
@@ -64,7 +70,9 @@ export class WalletService {
 
       const available = Number(wallet.availableBalance);
       if (available < amount) {
-        throw new BadRequestException(`Insufficient available funds. Available: ₹${available.toLocaleString('en-IN')}`);
+        throw new BadRequestException(
+          `Insufficient available funds. Available: ₹${available.toLocaleString('en-IN')}`,
+        );
       }
 
       // 2. Generate secure sequential human-readable withdrawal ID
@@ -72,7 +80,10 @@ export class WalletService {
       const withdrawalId = `WD-${String(sequence + 1001).padStart(6, '0')}`;
 
       // 3. Serialize account details
-      const detailsStr = typeof accountDetails === 'object' ? JSON.stringify(accountDetails) : String(accountDetails);
+      const detailsStr =
+        typeof accountDetails === 'object'
+          ? JSON.stringify(accountDetails)
+          : String(accountDetails);
 
       // 4. Update wallet balances atomically
       const nextAvailable = available - amount;
@@ -105,9 +116,16 @@ export class WalletService {
     });
 
     if (result) {
-      this.notificationsService.sendToUser(userId, NotificationEvent.WITHDRAWAL_REQUESTED, {
-        amount: Number(result.amount),
-      }).catch(err => console.error(`Failed to send WITHDRAWAL_REQUESTED notification for user ${userId}`, err));
+      this.notificationsService
+        .sendToUser(userId, NotificationEvent.WITHDRAWAL_REQUESTED, {
+          amount: Number(result.amount),
+        })
+        .catch((err) =>
+          console.error(
+            `Failed to send WITHDRAWAL_REQUESTED notification for user ${userId}`,
+            err,
+          ),
+        );
     }
 
     return result;

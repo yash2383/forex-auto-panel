@@ -132,10 +132,14 @@ let ReportsController = class ReportsController {
                 include: { user: true },
             });
             if (!report) {
-                return res.status(common_1.HttpStatus.NOT_FOUND).json({ message: 'Report not found' });
+                return res
+                    .status(common_1.HttpStatus.NOT_FOUND)
+                    .json({ message: 'Report not found' });
             }
             if (!isAdmin && report.userId !== user.id) {
-                return res.status(common_1.HttpStatus.FORBIDDEN).json({ message: 'Access denied' });
+                return res
+                    .status(common_1.HttpStatus.FORBIDDEN)
+                    .json({ message: 'Access denied' });
             }
             const reportType = report.reportType.toLowerCase();
             const isPdf = report.fileName.toLowerCase().endsWith('.pdf');

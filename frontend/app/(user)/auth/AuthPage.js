@@ -127,10 +127,16 @@ export default function AuthPage({ mode }) {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const next = params.get("next") || params.get("callbackUrl");
-    if (next && next.startsWith("/")) {
-      queueMicrotask(() => setNextTarget(next));
+    const target = params.get("redirect") || params.get("next") || params.get("callbackUrl");
+    let validatedTarget = "/dashboard";
+    if (target) {
+      const isSafe = target.startsWith("/") && !target.startsWith("//") && !target.startsWith("/\\");
+      if (isSafe) {
+        validatedTarget = target;
+      }
     }
+    queueMicrotask(() => setNextTarget(validatedTarget));
+
     const ref = params.get("ref") || params.get("referralCode");
     if (ref) {
       setRefCode(ref);
@@ -398,8 +404,7 @@ export default function AuthPage({ mode }) {
     }
   };
 
-
-  const authSwitchHref = `${isSignup ? "/login" : "/signup"}${nextTarget ? `?next=${encodeURIComponent(nextTarget)}` : ""}`;
+  const authSwitchHref = `${isSignup ? "/login" : "/signup"}${nextTarget && nextTarget !== "/dashboard" ? `?redirect=${encodeURIComponent(nextTarget)}` : ""}`;
 
   return (
     <main className="min-h-screen bg-black p-3 pt-24 text-white sm:p-4 sm:pt-24">
@@ -441,11 +446,11 @@ export default function AuthPage({ mode }) {
         <section className="flex items-center justify-center px-2 py-8 sm:px-8 lg:px-16 xl:px-24">
           <div className="w-full max-w-xl">
             <div className="mb-8 flex items-center justify-end gap-4">
-              <a
+              <Link
                 href={authSwitchHref}
                 className="rounded-full border border-green-500/30 bg-green-500/10 px-4 py-2 text-xs font-semibold text-green-300 transition hover:bg-green-500 hover:text-black">
-                {isSignup ? "Log in" : "Sign up"}
-              </a>
+                {isSignup ? "Sign In" : "Create Account"}
+              </Link>
             </div>
 
               <>
@@ -673,10 +678,10 @@ export default function AuthPage({ mode }) {
                 </form>
 
                 <p className="mt-8 text-center text-sm text-neutral-500 lg:text-left">
-                  {isSignup ? "Member of the team?" : "New to Tradebot?"}{" "}
-                  <a href={authSwitchHref} className="font-semibold text-white underline underline-offset-4">
-                    {isSignup ? "Log in" : "Create account"}
-                  </a>
+                  {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
+                  <Link href={authSwitchHref} className="font-semibold text-white underline underline-offset-4">
+                    {isSignup ? "Sign In" : "Create Account"}
+                  </Link>
                 </p>
               </>
 

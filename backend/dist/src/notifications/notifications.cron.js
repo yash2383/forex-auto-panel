@@ -16,13 +16,16 @@ const schedule_1 = require("@nestjs/schedule");
 const prisma_service_1 = require("../prisma/prisma.service");
 const client_1 = require("@prisma/client");
 const notifications_service_1 = require("./notifications.service");
+const observability_service_1 = require("../observability/observability.service");
 let NotificationsCron = NotificationsCron_1 = class NotificationsCron {
     prisma;
     notificationsService;
+    observabilityService;
     logger = new common_1.Logger(NotificationsCron_1.name);
-    constructor(prisma, notificationsService) {
+    constructor(prisma, notificationsService, observabilityService) {
         this.prisma = prisma;
         this.notificationsService = notificationsService;
+        this.observabilityService = observabilityService;
     }
     async handleDailyMaintenance() {
         this.logger.log('Starting Notification System Daily Maintenance...');
@@ -110,7 +113,9 @@ let NotificationsCron = NotificationsCron_1 = class NotificationsCron {
             yesterday.setDate(yesterday.getDate() - 1);
             const startOfYesterday = new Date(yesterday.setHours(0, 0, 0, 0));
             const endOfYesterday = new Date(yesterday.setHours(23, 59, 59, 999));
-            const partners = await this.prisma.partner.findMany({ select: { id: true } });
+            const partners = await this.prisma.partner.findMany({
+                select: { id: true },
+            });
             const partnerIds = [null, ...partners.map((p) => p.id)];
             for (const partnerId of partnerIds) {
                 const metrics = await this.prisma.notificationDelivery.groupBy({
@@ -139,7 +144,8 @@ let NotificationsCron = NotificationsCron_1 = class NotificationsCron {
                     if (metric.status === client_1.NotificationDeliveryStatus.FAILED) {
                         failed += count;
                     }
-                    else if (metric.status === client_1.NotificationDeliveryStatus.DELIVERED || metric.status === client_1.NotificationDeliveryStatus.SENT) {
+                    else if (metric.status === client_1.NotificationDeliveryStatus.DELIVERED ||
+                        metric.status === client_1.NotificationDeliveryStatus.SENT) {
                         if (metric.channel === client_1.NotificationChannel.PUSH)
                             pushSent += count;
                         if (metric.channel === client_1.NotificationChannel.EMAIL)
@@ -278,6 +284,8 @@ let NotificationsCron = NotificationsCron_1 = class NotificationsCron {
         }
     }
     async reconcilePendingDeliveries() {
+        const startTime = Date.now();
+        this.observabilityService.increment('notification_reconciliation_runs_total');
         try {
             this.logger.log('Starting reconciliation of pending deliveries...');
             const twoMinutesAgo = new Date();
@@ -293,15 +301,32 @@ let NotificationsCron = NotificationsCron_1 = class NotificationsCron {
             });
             if (pendingDeliveries.length === 0) {
                 this.logger.log('No pending deliveries found to reconcile.');
+                const durationSeconds = (Date.now() - startTime) / 1000;
+                this.observabilityService.recordDuration('notification_reconciliation_duration_seconds', durationSeconds);
                 return;
             }
             this.logger.log(`Found ${pendingDeliveries.length} pending deliveries. Re-enqueuing...`);
-            const deliveryIds = pendingDeliveries.map(d => d.id);
-            const result = await this.notificationsService.bulkRetryDeliveries(deliveryIds);
+            const deliveryIds = pendingDeliveries.map((d) => d.id);
+            let result;
+            try {
+                result = await this.notificationsService.bulkRetryDeliveries(deliveryIds);
+            }
+            catch (err) {
+                this.logger.error('Notification reconciliation failed', err.stack);
+                this.observabilityService.increment('notification_reconciliation_failures_total');
+                const durationSeconds = (Date.now() - startTime) / 1000;
+                this.observabilityService.recordDuration('notification_reconciliation_duration_seconds', durationSeconds);
+                return;
+            }
             this.logger.log(`Reconciled ${result.count}/${deliveryIds.length} pending deliveries successfully.`);
+            const durationSeconds = (Date.now() - startTime) / 1000;
+            this.observabilityService.recordDuration('notification_reconciliation_duration_seconds', durationSeconds);
         }
         catch (err) {
             this.logger.error('Failed to reconcile pending deliveries', err.stack);
+            this.observabilityService.increment('notification_reconciliation_failures_total');
+            const durationSeconds = (Date.now() - startTime) / 1000;
+            this.observabilityService.recordDuration('notification_reconciliation_duration_seconds', durationSeconds);
         }
     }
     async handleStuckPaymentInitiations() {
@@ -367,6 +392,7 @@ __decorate([
 exports.NotificationsCron = NotificationsCron = NotificationsCron_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
-        notifications_service_1.NotificationsService])
+        notifications_service_1.NotificationsService,
+        observability_service_1.ObservabilityService])
 ], NotificationsCron);
 //# sourceMappingURL=notifications.cron.js.map

@@ -35,7 +35,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Admin data load error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getPnlReports(res) {
@@ -45,7 +47,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Admin pnl reports error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async createUser(req, body, res) {
@@ -58,7 +62,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Create user error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async updateUser(id, req, body, res) {
@@ -71,7 +77,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Update user error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async deleteUser(id, req, res) {
@@ -84,7 +92,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Delete user error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getUserDetail(id, req, res) {
@@ -97,7 +107,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Get user detail error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async createPartner(req, body, res) {
@@ -110,7 +122,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Create partner error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async createPlan(req, body, res) {
@@ -123,7 +137,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Create plan error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async updatePlan(id, req, body, res) {
@@ -136,7 +152,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Update plan error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async deletePlan(id, req, res) {
@@ -149,7 +167,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Delete plan error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getSettings(res) {
@@ -159,7 +179,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Fetch settings error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async updateSettings(req, body, res) {
@@ -172,7 +194,60 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Save settings error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
+        }
+    }
+    async updateFinancialSettings(req, body, res) {
+        try {
+            const user = req.user;
+            const result = await this.adminService.updateFinancialSettings(user.id, body, this.getClientIp(req));
+            if ('error' in result)
+                return res
+                    .status(result.status || 400)
+                    .json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Save financial settings error:', error);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
+        }
+    }
+    async updateDistributionSettings(req, body, res) {
+        try {
+            const user = req.user;
+            const result = await this.adminService.updateDistributionSettings(user.id, body, this.getClientIp(req));
+            if ('error' in result)
+                return res
+                    .status(result.status || 400)
+                    .json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Save distribution settings error:', error);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
+        }
+    }
+    async updateSystemSettings(req, body, res) {
+        try {
+            const user = req.user;
+            const result = await this.adminService.updateSystemSettings(user.id, body, this.getClientIp(req));
+            if ('error' in result)
+                return res
+                    .status(result.status || 400)
+                    .json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Save system settings error:', error);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async uploadQr(req, body, res) {
@@ -184,7 +259,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('QR upload error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getReferralSettings(res) {
@@ -194,7 +271,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Fetch referral settings error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async updateReferralSettings(req, body, res) {
@@ -205,7 +284,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Save referral settings error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getReferrals(res) {
@@ -215,7 +296,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Get referrals error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async updateReferralStatus(id, status, req, res) {
@@ -228,7 +311,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Update referral status error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getTrades(res) {
@@ -238,7 +323,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Get trades error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async createTradeRecord(body, res) {
@@ -250,7 +337,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Create trade record error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async updateTradeRecord(id, body, res) {
@@ -262,7 +351,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Update trade record error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async deleteTradeRecord(id, res) {
@@ -274,7 +365,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Delete trade record error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async publishTradeRecord(id, res) {
@@ -286,7 +379,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Publish trade record error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async unpublishTradeRecord(id, res) {
@@ -298,7 +393,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Unpublish trade record error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async approvePayment(id, req, res) {
@@ -309,7 +406,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Approve payment error:', error.message);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: error.message || 'Internal server error' });
         }
     }
     async rejectPayment(id, req, body, res) {
@@ -322,7 +421,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Reject payment error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async verifyPayment(id, req, res) {
@@ -335,7 +436,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Verify payment error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async listWithdrawals(res) {
@@ -345,7 +448,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('List withdrawals error:', error.message);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: error.message || 'Internal server error' });
         }
     }
     async getWithdrawalDetail(id, res) {
@@ -355,7 +460,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Get withdrawal details error:', error.message);
-            return res.status(common_1.HttpStatus.NOT_FOUND).json({ message: error.message || 'Withdrawal not found' });
+            return res
+                .status(common_1.HttpStatus.NOT_FOUND)
+                .json({ message: error.message || 'Withdrawal not found' });
         }
     }
     async approveWithdrawal(id, req, res) {
@@ -368,7 +475,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Approve withdrawal error:', error.message);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: error.message || 'Internal server error' });
         }
     }
     async rejectWithdrawal(id, req, res) {
@@ -381,7 +490,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Reject withdrawal error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async reverseTransaction(id, req, body, res) {
@@ -392,7 +503,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Reverse transaction error:', error.message);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: error.message || 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: error.message || 'Internal server error' });
         }
     }
     async bulkDistributeProfit(req, body, res) {
@@ -400,37 +513,83 @@ let AdminController = class AdminController {
             const user = req.user;
             const result = await this.adminService.bulkDistributeProfit(user.id, this.getClientIp(req), body);
             if (!result.success) {
-                return res.status(result.status || 400).json({ message: result.error });
+                return res
+                    .status(result.status || 400)
+                    .json({ message: result.error });
             }
             return res.json(result);
         }
         catch (error) {
             console.error('Bulk profit distribution error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
+        }
+    }
+    async previewDistribution(req, body, res) {
+        try {
+            const result = await this.adminService.previewDistribution(body);
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Distribution preview error:', error);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
+        }
+    }
+    async reverseDistribution(batchId, reason, req, res) {
+        try {
+            const user = req.user;
+            if (!reason?.trim()) {
+                return res.status(400).json({
+                    message: 'A reason is required to reverse a distribution batch',
+                });
+            }
+            const result = await this.adminService.reverseDistribution(user.id, batchId, reason, this.getClientIp(req));
+            if ('error' in result)
+                return res
+                    .status(result.status || 400)
+                    .json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Distribution reversal error:', error);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async createProfitDistribution(body, res) {
         try {
             const result = await this.adminService.createProfitDistribution(body);
             if ('error' in result)
-                return res.status(result.status || 400).json({ message: result.error });
+                return res
+                    .status(result.status || 400)
+                    .json({ message: result.error });
             return res.json(result);
         }
         catch (error) {
             console.error('Create profit distribution error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async updateProfitDistribution(id, body, res) {
         try {
             const result = await this.adminService.updateProfitDistribution(id, body);
             if ('error' in result)
-                return res.status(result.status || 400).json({ message: result.error });
+                return res
+                    .status(result.status || 400)
+                    .json({ message: result.error });
             return res.json(result);
         }
         catch (error) {
             console.error('Update profit distribution error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async deleteProfitDistribution(id, res) {
@@ -440,7 +599,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Delete profit distribution error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getInquiries(res) {
@@ -450,19 +611,25 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Get inquiries error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async updateInquiryStatus(id, body, res) {
         try {
             const result = await this.adminService.updateInquiryStatus(id, body.status);
             if ('error' in result)
-                return res.status(result.status || 400).json({ message: result.error });
+                return res
+                    .status(result.status || 400)
+                    .json({ message: result.error });
             return res.json(result);
         }
         catch (error) {
             console.error('Update inquiry status error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async getInitiatedPayments(res) {
@@ -472,7 +639,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Get initiated payments error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
     async updateInitiatedPayment(id, req, body, res) {
@@ -485,7 +654,9 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Update initiated payment error:', error);
-            return res.status(common_1.HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
         }
     }
 };
@@ -606,6 +777,36 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "updateSettings", null);
+__decorate([
+    (0, common_1.Put)('settings/financial'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "updateFinancialSettings", null);
+__decorate([
+    (0, common_1.Put)('settings/distribution'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "updateDistributionSettings", null);
+__decorate([
+    (0, common_1.Put)('settings/system'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "updateSystemSettings", null);
 __decorate([
     (0, common_1.Post)('upload-qr'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN'),
@@ -798,6 +999,27 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "bulkDistributeProfit", null);
+__decorate([
+    (0, common_1.Post)('profit-distributions/preview'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "previewDistribution", null);
+__decorate([
+    (0, common_1.Post)('profit-distributions/batches/:batchId/reverse'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN'),
+    __param(0, (0, common_1.Param)('batchId')),
+    __param(1, (0, common_1.Body)('reason')),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "reverseDistribution", null);
 __decorate([
     (0, common_1.Post)('profit-distributions'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),

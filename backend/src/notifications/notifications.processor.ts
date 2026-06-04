@@ -43,7 +43,9 @@ async function handleDeliveryFailure(
 
   // If final attempt failed, route to DLQ
   if (isFinalAttempt) {
-    logger.warn(`Job ${job.id} exceeded max attempts. Routing to notifications-dlq.`);
+    logger.warn(
+      `Job ${job.id} exceeded max attempts. Routing to notifications-dlq.`,
+    );
     try {
       await dlqQueue.add('failed-job', {
         notificationId: job.data.notificationId,
@@ -54,7 +56,9 @@ async function handleDeliveryFailure(
         failedAt: new Date(),
       });
     } catch (dlqErr) {
-      logger.error(`Failed to route job ${job.id} to DLQ queue: ${dlqErr.message}`);
+      logger.error(
+        `Failed to route job ${job.id} to DLQ queue: ${dlqErr.message}`,
+      );
     }
   }
 }
@@ -74,8 +78,11 @@ export class PushProcessor {
 
   @Process('deliver')
   async handleDelivery(job: Job<any>) {
-    const { deliveryId, notificationId, userId, title, body, link, payload } = job.data;
-    this.logger.log(`Processing push job ${job.id} for delivery: ${deliveryId}`);
+    const { deliveryId, notificationId, userId, title, body, link, payload } =
+      job.data;
+    this.logger.log(
+      `Processing push job ${job.id} for delivery: ${deliveryId}`,
+    );
 
     const delivery = await this.prisma.notificationDelivery.findUnique({
       where: { id: deliveryId },
@@ -132,14 +139,18 @@ export class PushProcessor {
     });
 
     if (tokens.length === 0) {
-      this.logger.log(`No active device tokens found for user ${userId}. Push skipped.`);
+      this.logger.log(
+        `No active device tokens found for user ${userId}. Push skipped.`,
+      );
       return;
     }
 
     for (const device of tokens) {
       try {
-        this.logger.log(`Sending FCM push to token ${device.token.substring(0, 10)}... for user ${userId}`);
-        
+        this.logger.log(
+          `Sending FCM push to token ${device.token.substring(0, 10)}... for user ${userId}`,
+        );
+
         // Execute real FCM dispatch
         await sendFcmMessage(device.token, title, body, {
           link: link || '',
@@ -151,8 +162,10 @@ export class PushProcessor {
           data: { lastUsedAt: new Date() },
         });
       } catch (err: any) {
-        this.logger.error(`FCM send failed for token ${device.id}: ${err.message}`);
-        
+        this.logger.error(
+          `FCM send failed for token ${device.id}: ${err.message}`,
+        );
+
         const isBadToken =
           err.code === 'messaging/invalid-registration-token' ||
           err.code === 'messaging/registration-token-not-registered' ||
@@ -185,8 +198,11 @@ export class EmailProcessor {
 
   @Process('deliver')
   async handleDelivery(job: Job<any>) {
-    const { deliveryId, notificationId, userId, title, body, link, payload } = job.data;
-    this.logger.log(`Processing email job ${job.id} for delivery: ${deliveryId}`);
+    const { deliveryId, notificationId, userId, title, body, link, payload } =
+      job.data;
+    this.logger.log(
+      `Processing email job ${job.id} for delivery: ${deliveryId}`,
+    );
 
     const delivery = await this.prisma.notificationDelivery.findUnique({
       where: { id: deliveryId },
@@ -264,8 +280,19 @@ export class SocketProcessor {
 
   @Process('deliver')
   async handleDelivery(job: Job<any>) {
-    const { deliveryId, notificationId, channel, userId, title, body, link, payload } = job.data;
-    this.logger.log(`Processing socket job ${job.id} for delivery: ${deliveryId}`);
+    const {
+      deliveryId,
+      notificationId,
+      channel,
+      userId,
+      title,
+      body,
+      link,
+      payload,
+    } = job.data;
+    this.logger.log(
+      `Processing socket job ${job.id} for delivery: ${deliveryId}`,
+    );
 
     const delivery = await this.prisma.notificationDelivery.findUnique({
       where: { id: deliveryId },
@@ -339,7 +366,8 @@ export class SmsProcessor {
 
   @Process('deliver')
   async handleDelivery(job: Job<any>) {
-    const { deliveryId, notificationId, userId, title, body, payload } = job.data;
+    const { deliveryId, notificationId, userId, title, body, payload } =
+      job.data;
     this.logger.log(`Processing SMS job ${job.id} for delivery: ${deliveryId}`);
 
     const delivery = await this.prisma.notificationDelivery.findUnique({
@@ -397,11 +425,15 @@ export class SmsProcessor {
     });
 
     if (!user || !user.phone) {
-      this.logger.log(`No phone number registered for user ${userId}. SMS skipped.`);
+      this.logger.log(
+        `No phone number registered for user ${userId}. SMS skipped.`,
+      );
       return;
     }
 
-    this.logger.log(`Sending SMS to ${user.phone}: ${body.substring(0, 30)}...`);
+    this.logger.log(
+      `Sending SMS to ${user.phone}: ${body.substring(0, 30)}...`,
+    );
   }
 }
 

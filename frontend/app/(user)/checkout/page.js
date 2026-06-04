@@ -423,7 +423,7 @@ export default function CheckoutPage() {
     const isAuthenticated = localStorage.getItem("tradebot-authenticated") === "true";
     if (!isAuthenticated) {
       setTimeout(() => {
-        router.replace(`/login?next=${encodeURIComponent(`/checkout?plan=${requestedPlan}&step=${selectedStep}`)}`);
+        router.replace(`/login?redirect=${encodeURIComponent(`/checkout?plan=${requestedPlan}&step=${selectedStep}`)}`);
       }, 0);
       return;
     }

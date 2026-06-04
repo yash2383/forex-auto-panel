@@ -30,16 +30,24 @@ let JwtAuthGuard = class JwtAuthGuard {
             throw new common_1.UnauthorizedException('Invalid or expired token');
         }
         let exists = false;
-        if (payload.role === 'SUPER_ADMIN' || payload.role === 'MANAGER' || payload.role === 'VIEWER') {
-            const admin = await this.prisma.admin.findUnique({ where: { id: payload.id } });
+        if (payload.role === 'SUPER_ADMIN' ||
+            payload.role === 'MANAGER' ||
+            payload.role === 'VIEWER') {
+            const admin = await this.prisma.admin.findUnique({
+                where: { id: payload.id },
+            });
             exists = !!admin;
         }
         else if (payload.role === 'PARTNER') {
-            const partner = await this.prisma.partner.findUnique({ where: { id: payload.id } });
+            const partner = await this.prisma.partner.findUnique({
+                where: { id: payload.id },
+            });
             exists = !!partner;
         }
         else {
-            const user = await this.prisma.user.findUnique({ where: { id: payload.id } });
+            const user = await this.prisma.user.findUnique({
+                where: { id: payload.id },
+            });
             exists = !!user;
         }
         if (!exists) {

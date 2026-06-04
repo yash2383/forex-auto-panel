@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { createTransactionGroup } from '../common/ledger.util';
 
@@ -26,8 +30,13 @@ export class InvestmentService {
     });
 
     return plans.map((p) => {
-      const activeInvestments = p.userInvestments.filter((ui) => ui.status === 'ACTIVE');
-      const totalInvested = activeInvestments.reduce((sum, ui) => sum + Number(ui.amount), 0);
+      const activeInvestments = p.userInvestments.filter(
+        (ui) => ui.status === 'ACTIVE',
+      );
+      const totalInvested = activeInvestments.reduce(
+        (sum, ui) => sum + Number(ui.amount),
+        0,
+      );
       const weeklyLiability = activeInvestments.reduce(
         (sum, ui) => sum + (Number(ui.amount) * Number(p.weeklyProfit)) / 100,
         0,
@@ -97,7 +106,9 @@ export class InvestmentService {
       throw new BadRequestException('Invalid min/max investment bounds.');
     }
     if (data.weeklyProfit < 0 || data.weeklyProfit > 100) {
-      throw new BadRequestException('Weekly profit rate must be between 0% and 100%.');
+      throw new BadRequestException(
+        'Weekly profit rate must be between 0% and 100%.',
+      );
     }
 
     return this.prisma.investmentPlan.create({
@@ -130,7 +141,9 @@ export class InvestmentService {
       status?: boolean;
     },
   ) {
-    const plan = await this.prisma.investmentPlan.findUnique({ where: { id: planId } });
+    const plan = await this.prisma.investmentPlan.findUnique({
+      where: { id: planId },
+    });
     if (!plan) {
       throw new NotFoundException('Investment plan not found.');
     }
@@ -138,15 +151,22 @@ export class InvestmentService {
     const updateData: any = { ...data };
 
     if (data.minAmount !== undefined || data.maxAmount !== undefined) {
-      const min = data.minAmount !== undefined ? data.minAmount : Number(plan.minAmount);
-      const max = data.maxAmount !== undefined ? data.maxAmount : Number(plan.maxAmount);
+      const min =
+        data.minAmount !== undefined ? data.minAmount : Number(plan.minAmount);
+      const max =
+        data.maxAmount !== undefined ? data.maxAmount : Number(plan.maxAmount);
       if (min <= 0 || max < min) {
         throw new BadRequestException('Invalid min/max investment bounds.');
       }
     }
 
-    if (data.weeklyProfit !== undefined && (data.weeklyProfit < 0 || data.weeklyProfit > 100)) {
-      throw new BadRequestException('Weekly profit rate must be between 0% and 100%.');
+    if (
+      data.weeklyProfit !== undefined &&
+      (data.weeklyProfit < 0 || data.weeklyProfit > 100)
+    ) {
+      throw new BadRequestException(
+        'Weekly profit rate must be between 0% and 100%.',
+      );
     }
 
     return this.prisma.investmentPlan.update({
@@ -156,7 +176,9 @@ export class InvestmentService {
   }
 
   async deletePlan(planId: string) {
-    const plan = await this.prisma.investmentPlan.findUnique({ where: { id: planId } });
+    const plan = await this.prisma.investmentPlan.findUnique({
+      where: { id: planId },
+    });
     if (!plan) {
       throw new NotFoundException('Investment plan not found.');
     }
@@ -167,7 +189,9 @@ export class InvestmentService {
     });
 
     if (activeInvestmentsCount > 0) {
-      throw new BadRequestException('Cannot delete plan with active user investments.');
+      throw new BadRequestException(
+        'Cannot delete plan with active user investments.',
+      );
     }
 
     await this.prisma.investmentPlan.delete({ where: { id: planId } });
@@ -223,9 +247,16 @@ export class InvestmentService {
     }));
   }
 
-  async createInvestment(userId: string, partnerId: string, planId: string, amount: number) {
+  async createInvestment(
+    userId: string,
+    partnerId: string,
+    planId: string,
+    amount: number,
+  ) {
     if (amount <= 0) {
-      throw new BadRequestException('Investment amount must be greater than zero.');
+      throw new BadRequestException(
+        'Investment amount must be greater than zero.',
+      );
     }
 
     return this.prisma.$transaction(async (tx: any) => {
@@ -257,7 +288,9 @@ export class InvestmentService {
       }
 
       if (Number(wallet.availableBalance) < amount) {
-        throw new BadRequestException('Insufficient wallet balance to proceed with this investment.');
+        throw new BadRequestException(
+          'Insufficient wallet balance to proceed with this investment.',
+        );
       }
 
       // 4. Create Ledger entries & debit wallet

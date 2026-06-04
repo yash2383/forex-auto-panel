@@ -15,23 +15,32 @@ export function initializeFirebaseAdmin() {
         credential: admin.credential.applicationDefault(),
       });
       isFirebaseInitialized = true;
-      console.log('Firebase Admin SDK initialized successfully via applicationDefault credentials.');
+      console.log(
+        'Firebase Admin SDK initialized successfully via applicationDefault credentials.',
+      );
       return firebaseAdminApp;
     }
 
     // 2. Check for firebase-service-account.json in the backend root directory
-    const defaultServiceAccountPath = path.join(process.cwd(), 'firebase-service-account.json');
+    const defaultServiceAccountPath = path.join(
+      process.cwd(),
+      'firebase-service-account.json',
+    );
     if (fs.existsSync(defaultServiceAccountPath)) {
       firebaseAdminApp = admin.initializeApp({
         credential: admin.credential.cert(defaultServiceAccountPath),
       });
       isFirebaseInitialized = true;
-      console.log(`Firebase Admin SDK initialized successfully via cert at: ${defaultServiceAccountPath}`);
+      console.log(
+        `Firebase Admin SDK initialized successfully via cert at: ${defaultServiceAccountPath}`,
+      );
       return firebaseAdminApp;
     }
 
     // 3. Fallback: FCM will run in SIMULATION/DEV mode
-    console.warn('Firebase Service Account credentials not found. FCM will run in SIMULATION/DEV mode.');
+    console.warn(
+      'Firebase Service Account credentials not found. FCM will run in SIMULATION/DEV mode.',
+    );
   } catch (err: any) {
     console.error('Failed to initialize Firebase Admin SDK:', err.message);
   }
@@ -39,11 +48,18 @@ export function initializeFirebaseAdmin() {
   return null;
 }
 
-export async function sendFcmMessage(token: string, title: string, body: string, data: Record<string, string> = {}) {
+export async function sendFcmMessage(
+  token: string,
+  title: string,
+  body: string,
+  data: Record<string, string> = {},
+) {
   const app = initializeFirebaseAdmin();
-  
+
   if (!app) {
-    console.log(`[FCM SIMULATION] Send Push to: ${token.substring(0, 10)}... Title: "${title}", Body: "${body}"`);
+    console.log(
+      `[FCM SIMULATION] Send Push to: ${token.substring(0, 10)}... Title: "${title}", Body: "${body}"`,
+    );
     return { success: true, messageId: 'simulated-msg-id-' + Date.now() };
   }
 

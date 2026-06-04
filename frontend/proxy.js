@@ -66,7 +66,7 @@ export function proxy(req) {
 
   // 3. AUTH LOGGED-IN REDIRECTS (Admins and Users going to login/signup/etc.)
   if (isAuthenticated) {
-    if (path === "/login" || path === "/signup" || path === "/admin/login") {
+    if (path === "/login" || path === "/signup") {
       if (isAdmin) {
         return NextResponse.redirect(new URL("/admin/dashboard", req.url));
       } else {

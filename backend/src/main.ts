@@ -17,8 +17,8 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
-  // Global prefix
-  app.setGlobalPrefix('api');
+  // Global prefix (exclude root / to handle health checks cleanly)
+  app.setGlobalPrefix('api', { exclude: ['/'] });
 
   const port = process.env.PORT || 4000;
   await app.listen(port);

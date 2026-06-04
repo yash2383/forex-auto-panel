@@ -1,9 +1,9 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Req, Res, HttpStatus, UseGuards, Query, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Req, Res, HttpStatus, UseGuards, Query, ForbiddenException, ConflictException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../common/guards/roles.guard';
-import { NotificationCategory, NotificationStatus, NotificationAudience, NotificationChannel, BroadcastStatus } from '@prisma/client';
+import { NotificationCategory, NotificationStatus, NotificationAudience, NotificationChannel, BroadcastStatus, NotificationEvent } from '@prisma/client';
 import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { NotificationsService } from './notifications.service';
 
@@ -371,9 +371,25 @@ export class NotificationsController {
     }
   }
 
+  @Get('admin/audience-preview')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async getAudiencePreview(@Query('segment') segment: NotificationAudience, @Res() res: Response) {
+    try {
+      if (!Object.values(NotificationAudience).includes(segment)) {
+        return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid segment.' });
+      }
+      const preview = await this.notificationsService.getAudiencePreviewDetails(segment);
+      return res.json(preview);
+    } catch (err: any) {
+      console.error('Audience preview details error:', err);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
   @Post('admin/broadcasts/preview')
   @Roles('SUPER_ADMIN', 'MANAGER')
   async previewBroadcast(@Body() body: { audience: NotificationAudience }, @Res() res: Response) {
+
     try {
       if (!Object.values(NotificationAudience).includes(body.audience)) {
         return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Invalid audience.' });
@@ -680,8 +696,30 @@ export class NotificationsController {
         });
       }
 
-      const events = await this.prisma.notificationEventSetting.findMany();
-      return res.json({ global, events });
+      const dbEvents = await this.prisma.notificationEventSetting.findMany();
+      const existingMap = new Map(dbEvents.map((s) => [s.event, s]));
+      const resultEvents = [];
+      const allEvents = Object.values(NotificationEvent);
+      for (const event of allEvents) {
+        if (existingMap.has(event)) {
+          resultEvents.push(existingMap.get(event));
+        } else {
+          const newSetting = await this.prisma.notificationEventSetting.create({
+            data: {
+              event,
+              enabled: true,
+              bellEnabled: true,
+              pushEnabled: true,
+              emailEnabled: true,
+              toastEnabled: true,
+              socketEnabled: true,
+              smsEnabled: false,
+            },
+          });
+          resultEvents.push(newSetting);
+        }
+      }
+      return res.json({ global, events: resultEvents });
     } catch (err: any) {
       console.error('Fetch settings error:', err);
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
@@ -753,9 +791,9 @@ export class NotificationsController {
       await this.notificationsService.logAdminAudit(
         user.id,
         'UPDATE_SETTINGS',
-        'Setting',
+        'System',
         undefined,
-        body,
+        { updatedGlobal: !!global, updatedEvents: events?.length || 0 },
         ipAddress,
         userAgent,
       );
@@ -763,6 +801,51 @@ export class NotificationsController {
       return res.json({ success: true, message: 'Settings updated successfully' });
     } catch (err: any) {
       console.error('Update settings error:', err);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
+  @Put('admin/settings/events/:id')
+  @Roles('SUPER_ADMIN')
+  async updateEventSetting(@Param('id') id: string, @Body() body: any, @Req() req: Request, @Res() res: Response) {
+    try {
+      const user = (req as any).user;
+      
+      const existing = await this.prisma.notificationEventSetting.findUnique({
+        where: { id },
+      });
+      if (!existing) {
+        return res.status(HttpStatus.NOT_FOUND).json({ message: 'Event setting not found' });
+      }
+
+      const updated = await this.prisma.notificationEventSetting.update({
+        where: { id },
+        data: {
+          enabled: body.enabled !== undefined ? body.enabled : existing.enabled,
+          bellEnabled: body.bellEnabled !== undefined ? body.bellEnabled : existing.bellEnabled,
+          pushEnabled: body.pushEnabled !== undefined ? body.pushEnabled : existing.pushEnabled,
+          emailEnabled: body.emailEnabled !== undefined ? body.emailEnabled : existing.emailEnabled,
+          toastEnabled: body.toastEnabled !== undefined ? body.toastEnabled : existing.toastEnabled,
+          socketEnabled: body.socketEnabled !== undefined ? body.socketEnabled : existing.socketEnabled,
+          smsEnabled: body.smsEnabled !== undefined ? body.smsEnabled : existing.smsEnabled,
+        },
+      });
+
+      const ipAddress = (req.headers['x-forwarded-for'] as string) || req.ip;
+      const userAgent = req.headers['user-agent'] as string;
+      await this.notificationsService.logAdminAudit(
+        user.id,
+        'UPDATE_EVENT_SETTING',
+        'EventSetting',
+        id,
+        body,
+        ipAddress,
+        userAgent,
+      );
+
+      return res.json({ success: true, event: updated });
+    } catch (err: any) {
+      console.error('Update event setting error:', err);
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
     }
   }

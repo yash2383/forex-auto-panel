@@ -79,8 +79,25 @@ export class NotificationsService {
     const body = customBody || this.compileTemplate(eventDef.body, payload);
     const link = EVENT_ROUTES[event] || '/dashboard';
 
-    // 2. Fetch User preferences if userId is provided
+    // 2. Fetch Admin global event overrides
+    const eventSettings = await this.prisma.notificationEventSetting.findUnique({
+      where: { event },
+    });
+
     let allowedChannels = customChannels || [...eventDef.channels];
+
+    if (eventSettings) {
+      allowedChannels = allowedChannels.filter(channel => {
+        if (channel === NotificationChannel.PUSH) return eventSettings.pushEnabled;
+        if (channel === NotificationChannel.EMAIL) return eventSettings.emailEnabled;
+        if (channel === NotificationChannel.BELL) return eventSettings.bellEnabled;
+        if (channel === NotificationChannel.SOCKET) return eventSettings.socketEnabled;
+        if (channel === NotificationChannel.SMS) return eventSettings.smsEnabled;
+        return true;
+      });
+    }
+
+    // 2.5 Fetch User preferences if userId is provided
     if (userId) {
       const userPrefs = await this.prisma.userNotificationPreference.findMany({
         where: { userId, category: eventDef.category },
@@ -501,6 +518,106 @@ export class NotificationsService {
       resolvedAudience: users.length,
     };
   }
+
+  /**
+   * Get detailed audience preview for admin UI recipient panel
+   */
+  async getAudiencePreviewDetails(audience: NotificationAudience) {
+    if (audience === NotificationAudience.ADMINS) {
+      const dbAdmins = await this.prisma.admin.findMany({
+        where: { status: 'ACTIVE' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          lastLoginAt: true,
+        }
+      });
+      
+      const resolvedUsers = dbAdmins.map(a => {
+        const isOnline = a.lastLoginAt 
+          ? (Date.now() - new Date(a.lastLoginAt).getTime()) < 15 * 60 * 1000 
+          : false;
+          
+        return {
+          id: a.id,
+          name: a.name,
+          email: a.email,
+          plan: a.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Manager',
+          status: 'ACTIVE',
+          isOnline,
+          isVerified: true,
+          hasActiveInvestment: false
+        };
+      });
+
+      return {
+        total: resolvedUsers.length,
+        online: resolvedUsers.filter(u => u.isOnline).length,
+        active: resolvedUsers.length,
+        expired: 0,
+        users: resolvedUsers
+      };
+    }
+
+    const userSummary = await this.resolveAudienceUsers(audience);
+    const userIds = userSummary.map(u => u.id);
+
+    const dbUsers = await this.prisma.user.findMany({
+      where: {
+        id: { in: userIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        status: true,
+        lastLoginAt: true,
+        isVerified: true,
+        investments: {
+          where: { status: 'ACTIVE' },
+          select: {
+            plan: {
+              select: { name: true }
+            }
+          }
+        }
+      }
+    });
+
+    const resolvedUsers = dbUsers.map(u => {
+      const planName = u.investments[0]?.plan?.name || (u.status === 'VIP' ? 'VIP' : 'Individual');
+      const isOnline = u.lastLoginAt 
+        ? (Date.now() - new Date(u.lastLoginAt).getTime()) < 15 * 60 * 1000 
+        : false;
+
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        plan: planName,
+        status: u.status,
+        isOnline,
+        isVerified: u.isVerified,
+        hasActiveInvestment: u.investments.length > 0
+      };
+    });
+
+    const total = resolvedUsers.length;
+    const online = resolvedUsers.filter(u => u.isOnline).length;
+    const active = resolvedUsers.filter(u => u.status === 'ACTIVE' || u.status === 'VIP').length;
+    const expired = resolvedUsers.filter(u => u.status === 'EXPIRED').length;
+
+    return {
+      total,
+      online,
+      active,
+      expired,
+      users: resolvedUsers
+    };
+  }
+
 
   /**
    * Create or schedule a broadcast

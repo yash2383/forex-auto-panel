@@ -352,4 +352,50 @@ export class NotificationsCron {
       this.logger.error('Failed to reconcile pending deliveries', err.stack);
     }
   }
+
+  /**
+   * PaymentInitiation Stuck Recovery: Scan every 5 minutes for payment initiations in 'processing' status
+   * that have been stuck for over 10 minutes and have no completed payment record.
+   */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async handleStuckPaymentInitiations() {
+    try {
+      this.logger.log('Checking for stuck payment initiations...');
+      const tenMinutesAgo = new Date();
+      tenMinutesAgo.setMinutes(tenMinutesAgo.getMinutes() - 10);
+
+      // Find PIs that are stuck in 'processing' status for more than 10 minutes,
+      // and do not have an associated Payment record.
+      const stuckPIs = await this.prisma.paymentInitiation.findMany({
+        where: {
+          status: 'processing',
+          updatedAt: { lt: tenMinutesAgo }, // Race-condition guard
+          payment: null, // ensures no linked Payment was successfully written
+        },
+      });
+
+      if (stuckPIs.length === 0) {
+        this.logger.log('No stuck payment initiations found.');
+        return;
+      }
+
+      this.logger.warn(`Found ${stuckPIs.length} stuck payment initiations. Resetting...`);
+
+      const result = await this.prisma.paymentInitiation.updateMany({
+        where: {
+          id: { in: stuckPIs.map((pi) => pi.id) },
+          status: 'processing',
+          updatedAt: { lt: tenMinutesAgo },
+        },
+        data: {
+          status: 'initiated',
+          processingAt: null,
+        },
+      });
+
+      this.logger.warn(`Successfully reset ${result.count} stuck payment initiations back to 'initiated'.`);
+    } catch (err) {
+      this.logger.error('Failed to process stuck payment initiations recovery check', err.stack);
+    }
+  }
 }

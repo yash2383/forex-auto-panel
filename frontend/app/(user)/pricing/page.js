@@ -119,27 +119,33 @@ export default function PricingPage() {
   const router = useRouter();
 
   const handlePlanSelect = async (plan) => {
+    const planId = plan.id;
+    const minAmounts = { club: 10, individual: 1000, custom: 5000 };
     const planSlug = plan.name.split(" ")[0].toLowerCase();
+    const amount = (plan.amount != null && Number(plan.amount) > 0)
+      ? Number(plan.amount)
+      : (minAmounts[planSlug] || 0);
+
     if (!currentUser) {
-      router.push(`/signup?next=${encodeURIComponent(`/checkout?plan=${planSlug}`)}`);
+      router.push(`/signup?next=${encodeURIComponent(`/checkout?plan=${planId}`)}`);
       return;
     }
     try {
       const res = await apiFetch("/api/dashboard/initiate-payment", {
         method: "POST",
-        body: JSON.stringify({ planId: plan.id, amount: plan.amount, paymentGateway: "usdt", source: "Pricing Page - " + plan.name })
+        body: JSON.stringify({ planId: plan.id, amount: amount, paymentGateway: "usdt", source: "Pricing Page - " + plan.name })
       });
       if (res.ok) {
         const data = await res.json();
         if (data.initiationId) {
-          router.push(`/checkout?plan=${planSlug}&initId=${data.initiationId}`);
+          router.push(`/checkout?plan=${planId}&initId=${data.initiationId}`);
           return;
         }
       }
     } catch (e) {
       console.error(e);
     }
-    router.push(`/checkout?plan=${planSlug}`);
+    router.push(`/checkout?plan=${planId}`);
   };
 
   useEffect(() => {
@@ -162,8 +168,8 @@ export default function PricingPage() {
 
     const planSlug = plan.name.split(" ")[0].toLowerCase();
     const href = currentUser
-      ? `/checkout?plan=${planSlug}`
-      : `/signup?next=${encodeURIComponent(`/checkout?plan=${planSlug}`)}`;
+      ? `/checkout?plan=${plan.id}`
+      : `/signup?next=${encodeURIComponent(`/checkout?plan=${plan.id}`)}`;
 
     return {
       name: plan.name,

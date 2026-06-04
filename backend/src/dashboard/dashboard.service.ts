@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { NotificationEvent } from '@prisma/client';
+import { NotificationEvent, Prisma } from '@prisma/client';
 
 @Injectable()
 export class DashboardService {
@@ -150,12 +150,21 @@ export class DashboardService {
 
   async initiatePayment(userId: string, partnerId: string, body: any) {
     const { amount, paymentGateway, source, planId } = body;
+
+    let finalAmount = Number(amount) || 0;
+    if (planId) {
+      const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
+      if (plan && plan.pricingType === 'FIXED' && plan.amount !== null) {
+        finalAmount = Number(plan.amount);
+      }
+    }
+
     const initiation = await this.prisma.paymentInitiation.create({
       data: {
         userId,
         partnerId,
         planId: planId || null,
-        amount: Number(amount) || 0,
+        amount: finalAmount,
         paymentGateway: paymentGateway || 'usdt',
         source: source || 'Direct',
         status: 'initiated',
@@ -164,46 +173,300 @@ export class DashboardService {
     return { success: true, initiationId: initiation.id };
   }
 
-  async deposit(userId: string, partnerId: string, body: any) {
-    const { planName, amount, txnHash, utr, paymentType, network, initiationId } = body;
+  async deposit(actor: { id: string; role: string; partnerId?: string }, body: any) {
+    const {
+      planName,
+      amount,
+      txnHash,
+      utr,
+      paymentType,
+      network,
+      initiationId,
+      idempotencyKey,
+      email,
+      screenshot,
+      remark,
+    } = body;
 
-    if (!planName || amount === undefined || amount === null || isNaN(Number(amount))) {
-      return { error: 'Plan name and amount are required', status: 400 };
+    if (!planName || amount === undefined || amount === null || isNaN(Number(amount)) || Number(amount) <= 0) {
+      return { error: 'Plan name and a positive amount are required', status: 400 };
     }
 
-    const payment = await this.prisma.payment.create({
-      data: {
-        userId,
-        partnerId,
-        planName,
-        amount: Number(amount),
-        currency: 'INR',
-        paymentType: paymentType || 'USDT',
-        network: network || null,
-        txnHash: txnHash || null,
-        utr: utr || null,
-        status: 'PENDING',
-      },
+    const actorUserId = actor.id;
+    let targetUserId = actor.id;
+    let targetPartnerId = actor.partnerId;
+
+    // ── Resolve target user ─────────────────────────────────────────────────
+    if (actor.role !== 'USER') {
+      if (!email?.trim()) {
+        return { error: 'Target user email is required for admin/partner deposit creation', status: 400 };
+      }
+
+      const normalizedEmail = email.toLowerCase().trim();
+      const targetUser = await this.prisma.user.findFirst({
+        where: {
+          email: normalizedEmail,
+          isDeleted: false,
+          ...(actor.role === 'PARTNER' ? { partnerId: actor.partnerId } : {}),
+        },
+      });
+
+      if (!targetUser) {
+        return { error: `User with email "${email}" not found`, status: 404 };
+      }
+      if (targetUser.id === actorUserId) {
+        return { error: 'Admin cannot initiate deposit for self via admin flow', status: 400 };
+      }
+
+      targetUserId = targetUser.id;
+      targetPartnerId = targetUser.partnerId;
+    }
+
+    // ── Early partnerId validation (before any transaction) ─────────────────
+    if (!targetPartnerId) {
+      console.error('DEPOSIT FLOW: targetPartnerId is missing', { actorUserId, targetUserId });
+      return { error: 'Partner context could not be resolved for target user', status: 400 };
+    }
+
+    // ── Anti-tampering check: verify deposit amount matches plan configuration ─
+    let matchedPlan = null;
+    if (initiationId) {
+      const initiation = await this.prisma.paymentInitiation.findUnique({
+        where: { id: initiationId },
+        include: { plan: true },
+      });
+      if (initiation?.plan) {
+        matchedPlan = initiation.plan;
+      }
+    }
+
+    if (!matchedPlan && planName) {
+      const cleanName = planName.replace(/\s+\d+\s+Days$/i, '').trim();
+      matchedPlan = await this.prisma.plan.findFirst({
+        where: {
+          OR: [
+            { name: planName },
+            { name: cleanName }
+          ],
+          isActive: true
+        }
+      });
+    }
+
+    if (matchedPlan) {
+      if (matchedPlan.pricingType === 'FIXED') {
+        const expected = new Prisma.Decimal(matchedPlan.amount!);
+        const actual = new Prisma.Decimal(amount);
+        if (!expected.equals(actual)) {
+          return { error: `Invalid payment amount. The ${planName} plan requires a deposit of ${expected.toString()}.`, status: 400 };
+        }
+      } else if (matchedPlan.pricingType === 'FLEXIBLE') {
+        if (Number(amount) <= 0) {
+          return { error: 'A positive deposit amount is required for flexible pricing plans.', status: 400 };
+        }
+      }
+    }
+
+    // ── Pre-DB Logging ────────────────────────────────────────────────────────
+    console.log('DEPOSIT FLOW:', {
+      actor: actorUserId,
+      role: actor.role,
+      targetUserId,
+      targetPartnerId,
+      amount: Number(amount),
+      initiationId: initiationId || null,
+      idempotencyKey: idempotencyKey || null,
+      email: email || null,
     });
 
-    this.notificationsService.sendToUser(userId, NotificationEvent.PAYMENT_SUBMITTED, {
-      amount: Number(payment.amount),
-    }).catch(err => console.error(`Failed to send PAYMENT_SUBMITTED notification for user ${userId}`, err));
+    // ── Pre-transaction idempotency short-circuit ────────────────────────────
+    // If this idempotencyKey was already used, return the cached payment immediately.
+    // This avoids unnecessary transaction overhead on duplicate requests.
+    if (idempotencyKey) {
+      const existingPayment = await this.prisma.payment.findUnique({
+        where: { idempotencyKey },
+      });
+      if (existingPayment) {
+        // Guard: ensure the key isn't being reused with mismatching parameters (prevents exploits)
+        const expectedDec = new Prisma.Decimal(existingPayment.amount);
+        const actualDec = new Prisma.Decimal(amount);
+        const amountMismatch = !expectedDec.equals(actualDec);
+        const planMismatch = existingPayment.planName !== planName;
+        const initiationMismatch = initiationId && existingPayment.initiationId !== initiationId;
 
-    if (initiationId) {
-      try {
-        await this.prisma.paymentInitiation.update({
-          where: { id: initiationId },
-          data: {
-            status: 'completed',
-            completedAt: new Date(),
-            converted: true,
-            followUpStatus: 'CONVERTED'
-          }
-        });
-      } catch (e) {
-        console.error('Failed to update initiation record', e);
+        if (amountMismatch || planMismatch || initiationMismatch) {
+          console.error('DEPOSIT FLOW: idempotency key reused with mismatching parameters', {
+            idempotencyKey,
+            existing: {
+              amount: expectedDec.toString(),
+              planName: existingPayment.planName,
+              initiationId: existingPayment.initiationId,
+            },
+            incoming: {
+              amount: actualDec.toString(),
+              planName,
+              initiationId,
+            },
+          });
+          return {
+            error: 'Idempotency key reused with mismatching payment parameters (amount, plan, or intent mismatch). Use a new key.',
+            status: 409,
+          };
+        }
+        console.log('DEPOSIT FLOW: idempotency short-circuit — returning cached payment', existingPayment.id);
+        return { success: true, payment: existingPayment, cached: true };
       }
+    }
+
+    // ── Atomic PI state lock (CAS: initiated → processing) ──────────────────
+    // Uses updateMany so no separate read is needed — eliminates the race window.
+    // If two requests reach here simultaneously, only one will get count === 1.
+    let piLocked = false;
+    if (initiationId) {
+      const lockResult = await this.prisma.paymentInitiation.updateMany({
+        where: { id: initiationId, status: 'initiated' },
+        data: { status: 'processing', processingAt: new Date() },
+      });
+      piLocked = lockResult.count === 1;
+
+      if (!piLocked) {
+        // Check why: is it already processing/completed, or does it not exist?
+        const pi = await this.prisma.paymentInitiation.findUnique({
+          where: { id: initiationId },
+        });
+        if (!pi) {
+          return { error: 'Payment initiation record not found', status: 404 };
+        }
+        if (pi.status === 'completed') {
+          return { error: 'This payment initiation has already been completed', status: 409 };
+        }
+        if (pi.status === 'processing') {
+          return { error: 'This payment is already being processed. Please wait.', status: 409 };
+        }
+        return { error: `Payment initiation is in an invalid state: ${pi.status}`, status: 409 };
+      }
+    }
+
+    // ── ACID transaction: create Payment + complete PI ────────────────────────
+    let payment: any;
+    try {
+      payment = await this.prisma.$transaction(async (tx: any) => {
+        // Create the payment record
+        const newPayment = await tx.payment.create({
+          data: {
+            userId: targetUserId,
+            partnerId: targetPartnerId,
+            planName,
+            amount: Number(amount),
+            currency: 'INR',
+            paymentType: paymentType || 'USDT',
+            network: network || null,
+            txnHash: txnHash || null,
+            utr: utr || null,
+            screenshot: screenshot || null,
+            remark: remark || null,
+            status: 'PENDING',
+            initiationId: initiationId || null,
+            idempotencyKey: idempotencyKey || null,
+          },
+        });
+
+        // Idempotent PI completion — only updates if still "processing" (safe against double-update)
+        if (initiationId && piLocked) {
+          await tx.paymentInitiation.updateMany({
+            where: { id: initiationId, status: 'processing' },
+            data: {
+              status: 'completed',
+              completedAt: new Date(),
+              converted: true,
+              followUpStatus: 'CONVERTED',
+              amount: Number(amount), // Lock final amount
+            },
+          });
+        }
+
+        return newPayment;
+      });
+    } catch (err: any) {
+      // P2002 = unique constraint violation (duplicate idempotencyKey or initiationId)
+      // This is the hard safety net — DB-level protection catches any race that slipped through.
+      if (err?.code === 'P2002') {
+        console.warn('DEPOSIT FLOW: P2002 unique constraint — recovering cached payment', {
+          idempotencyKey,
+          initiationId,
+          target: err?.meta?.target,
+        });
+
+        // Roll back PI lock if we held it (PI stays processing but payment didn't create — reset to initiated)
+        if (initiationId && piLocked) {
+          await this.prisma.paymentInitiation.updateMany({
+            where: { id: initiationId, status: 'processing' },
+            data: { status: 'initiated', processingAt: null },
+          }).catch(e => console.error('DEPOSIT FLOW: Failed to reset PI after P2002', e));
+        }
+
+        // Return the existing payment (idempotent recovery with strict verification)
+        const cached = await this.prisma.payment.findFirst({
+          where: {
+            ...(idempotencyKey ? { idempotencyKey } : {}),
+            ...(initiationId ? { initiationId } : {}),
+          },
+        });
+        if (cached) {
+          const expectedDec = new Prisma.Decimal(cached.amount);
+          const actualDec = new Prisma.Decimal(amount);
+          const amountMismatch = !expectedDec.equals(actualDec);
+          const planMismatch = cached.planName !== planName;
+          const initiationMismatch = initiationId && cached.initiationId !== initiationId;
+
+          if (amountMismatch || planMismatch || initiationMismatch) {
+            console.error('DEPOSIT FLOW: idempotency key reused with mismatching parameters during P2002 race recovery', {
+              idempotencyKey,
+              existing: {
+                amount: expectedDec.toString(),
+                planName: cached.planName,
+                initiationId: cached.initiationId,
+              },
+              incoming: {
+                amount: actualDec.toString(),
+                planName,
+                initiationId,
+              },
+            });
+            return {
+              error: 'Idempotency key reused with mismatching payment parameters (amount, plan, or intent mismatch). Use a new key.',
+              status: 409,
+            };
+          }
+          console.log('DEPOSIT FLOW: idempotency short-circuit via P2002 recovery — returning cached payment', cached.id);
+          return { success: true, payment: cached, cached: true };
+        }
+      }
+
+      console.error('DEPOSIT FLOW: Transaction failed', err);
+      // If PI was locked but transaction failed, roll back PI status
+      if (initiationId && piLocked) {
+        await this.prisma.paymentInitiation.updateMany({
+          where: { id: initiationId, status: 'processing' },
+          data: { status: 'initiated', processingAt: null },
+        }).catch(e => console.error('DEPOSIT FLOW: Failed to reset PI on transaction error', e));
+      }
+      return { error: err?.message || 'Payment creation failed', status: 500 };
+    }
+
+    // ── Side effects (outside transaction — decoupled from request lifecycle) ─
+    this.notificationsService.sendToUser(targetUserId, NotificationEvent.PAYMENT_SUBMITTED, {
+      amount: Number(payment.amount),
+    }).catch(err => console.error(`Failed to send PAYMENT_SUBMITTED notification for user ${targetUserId}`, err));
+
+    if (actor.role !== 'USER') {
+      this.notificationsService.logAdminAudit(
+        actorUserId,
+        'PAYMENT_CREATED_BY_ADMIN',
+        'Payment',
+        payment.id,
+        { targetUserId, targetUserEmail: email },
+      ).catch(err => console.error('Failed to log admin audit for manual payment creation', err));
     }
 
     return { success: true, payment };

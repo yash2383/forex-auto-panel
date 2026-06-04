@@ -291,6 +291,10 @@ async function main() {
       btnText: "Get Started",
       status: "Active",
       isPopular: false,
+      amount: null,
+      pricingType: "FLEXIBLE",
+      weeklyProfit: 5,
+      durationDays: 30,
     },
   });
 
@@ -304,6 +308,10 @@ async function main() {
       btnText: "Start Trading",
       status: "Active",
       isPopular: true,
+      amount: 1000,
+      pricingType: "FIXED",
+      weeklyProfit: 4,
+      durationDays: 365,
     },
   });
 
@@ -317,6 +325,10 @@ async function main() {
       btnText: "Contact Us",
       status: "Active",
       isPopular: false,
+      amount: null,
+      pricingType: "FLEXIBLE",
+      weeklyProfit: 5,
+      durationDays: 30,
     },
   });
 

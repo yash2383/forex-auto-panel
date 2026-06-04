@@ -8,6 +8,7 @@ import { userNavItems } from "./dashboardData";
 import { useAdminStore } from "../../../../hooks/adminStore";
 import { apiFetch } from "../../../../lib/apiFetch";
 import NotificationDropdown from "../../components/NotificationDropdown";
+import { useFcmToken } from "../../../../hooks/useFcmToken";
 
 export default function DashboardShell({ children }) {
   const pathname = usePathname();
@@ -17,6 +18,9 @@ export default function DashboardShell({ children }) {
   const currentUser = useAdminStore((s) => s.currentUser);
   const payments = useAdminStore((s) => s.payments || []);
   const fetchData = useAdminStore((s) => s.fetchData);
+
+  // Initialize FCM and register device token automatically
+  useFcmToken(currentUser);
 
   const hasActivePlan = payments.some(p => p.status === "Approved");
 

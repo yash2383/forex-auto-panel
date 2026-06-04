@@ -43,7 +43,12 @@ export class DashboardController {
   async deposit(@Req() req: Request, @Body() body: any, @Res() res: Response) {
     try {
       const user = (req as any).user;
-      const result = await this.dashboardService.deposit(user.id, user.partnerId, body);
+      const actor = {
+        id: user.id,
+        role: user.role,
+        partnerId: user.partnerId
+      };
+      const result = await this.dashboardService.deposit(actor, body);
 
       if ('error' in result) {
         return res.status(result.status || 400).json({ message: result.error });

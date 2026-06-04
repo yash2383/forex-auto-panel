@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAdminStore } from "../../../hooks/adminStore";
 import { apiFetch } from "../../../lib/apiFetch";
+import { calculateCheckoutPreview } from "../../../lib/calculateCheckoutPreview";
 
 // Pricing plans are dynamically loaded from the database via Zustand store.
 
@@ -30,6 +31,12 @@ const instructions = [
   ["Submit Transaction ID", "Enter the correct USDT transaction ID to help us verify your payment quickly."],
   ["Wait for Verification", "Your payment will be verified within 5-30 minutes after submission."],
 ];
+
+const PLAN_MIN_AMOUNTS = {
+  club: 10,
+  individual: 1000,
+  custom: 5000,
+};
 
 function QrPattern() {
   const cells = useMemo(() => Array.from({ length: 225 }, (_, index) => {
@@ -346,43 +353,12 @@ function PaymentStatusView({ moveToStep }) {
 export default function CheckoutPage() {
   const router = useRouter();
   const addPayment = useAdminStore((s) => s.addPayment);
-  const storePlans = useAdminStore((s) => s.plans) || [];
-  const fetchPlans = useAdminStore((s) => s.fetchPlans);
 
-  useEffect(() => {
-    fetchPlans();
-  }, [fetchPlans]);
+  const [fetchedPlan, setFetchedPlan] = useState(null);
+  const [planLoading, setPlanLoading] = useState(true);
+  const [planError, setPlanError] = useState(null);
+  const [planParam, setPlanParam] = useState("");
 
-  const plans = useMemo(() => {
-    const map = {};
-    storePlans.forEach((p) => {
-      const slug = p.name.split(" ")[0].toLowerCase();
-      let gradient = "from-cyan-500/25 to-green-500/10";
-      if (slug === "club") {
-        gradient = "from-green-500/25 to-emerald-500/10";
-      } else if (slug === "individual") {
-        gradient = "from-violet-500/30 to-green-500/10";
-      }
-
-      map[slug] = {
-        id: p.id,
-        name: p.name,
-        subtitle: p.subtitle || p.desc,
-        description: p.desc,
-        capital: p.capitalLabel || `₹${Number(p.amount).toLocaleString()}`,
-        profitFee: `${p.weeklyProfit}%`,
-        planType: p.durationDays + " Days",
-        amount: `₹${Number(p.amount).toLocaleString()}`,
-        rawAmount: p.amount,
-        gradient,
-        popular: p.isPopular,
-      };
-    });
-    return map;
-  }, [storePlans]);
-
-  const [ready, setReady] = useState(false);
-  const [planSlug, setPlanSlug] = useState("individual");
   const [step, setStep] = useState("payment");
   const [paymentUser, setPaymentUser] = useState({ name: "Guest", email: "" });
   const [screenshotPreview, setScreenshotPreview] = useState("");
@@ -390,34 +366,96 @@ export default function CheckoutPage() {
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState("");
   const [initiationId, setInitiationId] = useState(null);
-  const plan = plans[planSlug] || Object.values(plans)[0] || {
-    name: "Loading Plan...",
-    planType: "",
-    amount: "₹0",
-    rawAmount: 0,
-    gradient: "from-gray-500/25 to-gray-500/10"
-  };
+  const [amountInput, setAmountInput] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const requestedPlan = params.get("plan");
-    const selectedPlan = plans[requestedPlan] ? requestedPlan : (Object.keys(plans)[0] || "individual");
+    const requestedPlan = params.get("plan") || "individual";
     const selectedStep = ["payment", "status"].includes(params.get("step")) ? params.get("step") : "payment";
     const initId = params.get("initId");
     if (initId) setInitiationId(initId);
-    const isAuthenticated = localStorage.getItem("tradebot-authenticated") === "true";
+    setPlanParam(requestedPlan);
+    setStep(selectedStep);
 
+    const isAuthenticated = localStorage.getItem("tradebot-authenticated") === "true";
     if (!isAuthenticated) {
-      router.replace(`/login?next=${encodeURIComponent(`/checkout?plan=${selectedPlan}&step=payment`)}`);
+      router.replace(`/login?next=${encodeURIComponent(`/checkout?plan=${requestedPlan}&step=${selectedStep}`)}`);
       return;
     }
 
-    queueMicrotask(() => {
-      setPlanSlug(selectedPlan);
-      setStep(selectedStep);
-      setReady(true);
-    });
-  }, [router, plans]);
+    setPlanLoading(true);
+    setPlanError(null);
+
+    apiFetch(`/api/plans/${requestedPlan}`)
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error("Plan not found");
+        }
+        const data = await res.json();
+        if (data && data.plan) {
+          setFetchedPlan(data.plan);
+          setPlanLoading(false);
+        } else {
+          throw new Error("Invalid plan details received");
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        setPlanError("Failed to fetch plan details. Please check your plan selection.");
+        setPlanLoading(false);
+      });
+  }, [router]);
+
+  useEffect(() => {
+    if (!fetchedPlan) return;
+    const isFlexible = fetchedPlan.pricingType === "FLEXIBLE" || fetchedPlan.amount == null;
+    if (!isFlexible) {
+      setAmountInput(Number(fetchedPlan.amount).toString());
+    } else {
+      const slug = fetchedPlan.name.split(" ")[0].toLowerCase();
+      const fallback = PLAN_MIN_AMOUNTS[slug] || "";
+      setAmountInput(fallback.toString());
+    }
+  }, [fetchedPlan]);
+
+  const plan = useMemo(() => {
+    if (!fetchedPlan) {
+      return {
+        name: "Loading Plan...",
+        planType: "",
+        amount: "USDT 0",
+        rawAmount: 0,
+        gradient: "from-gray-500/25 to-gray-500/10"
+      };
+    }
+
+    const slug = fetchedPlan.name.split(" ")[0].toLowerCase();
+    let gradient = "from-cyan-500/25 to-green-500/10";
+    if (slug === "club") {
+      gradient = "from-green-500/25 to-emerald-500/10";
+    } else if (slug === "individual") {
+      gradient = "from-violet-500/30 to-green-500/10";
+    }
+
+    return {
+      ...fetchedPlan,
+      slug,
+      subtitle: fetchedPlan.subtitle || fetchedPlan.desc,
+      description: fetchedPlan.desc,
+      capital: fetchedPlan.capitalLabel || (fetchedPlan.amount ? `$${Number(fetchedPlan.amount).toLocaleString()}` : "Flexible"),
+      profitFee: `${fetchedPlan.weeklyProfit ?? 0}%`,
+      planType: (fetchedPlan.durationDays ?? 0) + " Days",
+      gradient,
+      popular: fetchedPlan.isPopular,
+    };
+  }, [fetchedPlan]);
+
+  const pricing = useMemo(() => {
+    if (!fetchedPlan) return null;
+    return calculateCheckoutPreview(fetchedPlan, amountInput);
+  }, [fetchedPlan, amountInput]);
+
+  const ready = !planLoading && fetchedPlan !== null;
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -444,7 +482,7 @@ export default function CheckoutPage() {
 
   const moveToStep = (nextStep) => {
     setStep(nextStep);
-    window.history.pushState(null, "", `/checkout?plan=${planSlug}&step=${nextStep}`);
+    window.history.pushState(null, "", `/checkout?plan=${planParam}&step=${nextStep}`);
   };
 
   const copyWalletAddress = () => {
@@ -459,11 +497,29 @@ export default function CheckoutPage() {
     setScreenshotPreview(URL.createObjectURL(file));
   };
 
-  if (!ready) {
+  if (planError) {
     return (
       <main className="min-h-screen bg-[#050505] px-4 pb-20 pt-28 text-white">
-        <div className="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-neutral-900/50 p-8 text-center">
-          <Clock3 className="mx-auto h-8 w-8 animate-pulse text-green-300" />
+        <div className="mx-auto max-w-3xl rounded-2xl border border-red-500/25 bg-[#0A0A0A]/95 p-8 text-center shadow-[0_0_80px_-30px_rgba(239,68,68,0.4)]">
+          <XCircle className="mx-auto h-12 w-12 text-red-400" />
+          <h2 className="mt-6 text-2xl font-semibold text-white">Error Loading Plan</h2>
+          <p className="mt-2 text-sm text-neutral-400">{planError}</p>
+          <button
+            onClick={() => router.push("/pricing")}
+            className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-green-500 px-6 text-sm font-bold text-black transition hover:bg-green-400"
+          >
+            Back to Pricing
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (planLoading || !fetchedPlan) {
+    return (
+      <main className="min-h-screen bg-[#050505] px-4 pb-20 pt-28 text-white">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-[#0A0A0A]/95 p-8 text-center">
+          <RefreshCw className="mx-auto h-8 w-8 animate-spin text-green-300" />
           <p className="mt-4 text-sm text-neutral-400">Preparing your checkout...</p>
         </div>
       </main>
@@ -526,7 +582,9 @@ export default function CheckoutPage() {
                     </div>
                     <div>
                       <p className="text-xs font-semibold text-neutral-500">Amount to Pay</p>
-                      <p className="mt-1 text-3xl font-bold tracking-tight text-green-300">{plan.amount}</p>
+                      <p className="mt-1 text-3xl font-bold tracking-tight text-green-300">
+                        {pricing ? `$${pricing.entryFee.toLocaleString()} ${pricing.currency}` : "Loading..."}
+                      </p>
                     </div>
                     <p className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-relaxed text-neutral-400">
                       Note: Please send the exact USDT amount and use the correct network.
@@ -550,7 +608,7 @@ export default function CheckoutPage() {
                       user: paymentUser.name,
                       email: paymentUser.email,
                       plan: `${plan.name} ${plan.planType}`,
-                      amount: plan.rawAmount,
+                      amount: pricing?.entryFee || 0,
                       txnHash,
                       screenshot: screenshotPreview,
                       network: "TRC20",
@@ -569,6 +627,34 @@ export default function CheckoutPage() {
                 <p className="mt-1 text-sm text-neutral-500">After payment, provide the transaction details below.</p>
 
                 <label className="mt-5 block">
+                  <span className="text-sm font-semibold text-white">Deposit Amount (USDT)</span>
+                  <input
+                    name="amount"
+                    required
+                    type="number"
+                    min="1"
+                    step="any"
+                    placeholder="Enter exact amount paid"
+                    value={amountInput ?? ""}
+                    onChange={(e) => setAmountInput(e.target.value)}
+                    readOnly={!pricing?.isFlexible}
+                    disabled={!pricing?.isFlexible}
+                    className={`mt-2 h-12 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white outline-none placeholder:text-neutral-600 focus:border-green-500/50 ${
+                      !pricing?.isFlexible ? "cursor-not-allowed text-neutral-400 bg-neutral-900/50" : ""
+                    }`}
+                  />
+                  <p className="mt-1 text-[11px] text-neutral-500">
+                    Specify the exact amount you sent. Target range/minimum for this plan: <span className="text-green-300 font-semibold">{plan.capital}</span>.
+                  </p>
+                  {(!pricing?.isFlexible) && (
+                    <p className="mt-2 text-xs text-neutral-400 flex items-center gap-1.5">
+                      <Info className="h-3.5 w-3.5 text-neutral-500" />
+                      This plan has a fixed entry fee.
+                    </p>
+                  )}
+                </label>
+
+                <label className="mt-4 block">
                   <span className="text-sm font-semibold text-white">USDT Transaction ID</span>
                   <input
                     name="txnHash"
@@ -642,8 +728,13 @@ export default function CheckoutPage() {
                     <SummaryRow label="Capital Range" value={plan.capital} />
                     <SummaryRow label="Profit Fee" value={plan.profitFee} highlight />
                     <SummaryRow label="Plan Type" value={plan.planType} />
-                    <SummaryRow label="Amount to Pay" value={plan.amount} highlight />
+                    <SummaryRow label="Amount to Pay" value={pricing ? `$${pricing.entryFee.toLocaleString()} ${pricing.currency}` : "Loading..."} highlight />
                   </div>
+                  {pricing?.platformFeeNote && (
+                    <p className="mt-3 text-xs text-neutral-400 italic">
+                      Note: {pricing.platformFeeNote} (not charged upfront).
+                    </p>
+                  )}
                 </div>
               </div>
 

@@ -472,6 +472,7 @@ model PaymentInitiation {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   
+  processingAt    DateTime?      // Set when status = processing; used for crash recovery
   followUpStatus  FollowUpStatus @default(PENDING)
   contactedAt     DateTime?
   remarks         String?
@@ -480,6 +481,7 @@ model PaymentInitiation {
   // Relations
   user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan            Plan?          @relation(fields: [planId], references: [id])
+  payment         Payment?
 
   // Indexes
   @@index([userId])
@@ -503,11 +505,14 @@ model Payment {
   remark                   String?
   status                   PaymentStatus @default(PENDING)
   ledgerTransactionGroupId String?       @unique // Links to Ledger ONLY after APPROVAL status
+  initiationId             String?       @unique
+  idempotencyKey           String?       @unique
   createdAt                DateTime      @default(now())
   updatedAt                DateTime      @updatedAt
 
   // Relations
   user                     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  initiation               PaymentInitiation? @relation(fields: [initiationId], references: [id], onDelete: SetNull)
 
   // Indexes for tenant verification tables
   @@index([userId])
@@ -643,7 +648,8 @@ model Plan {
   status       String   @default("Active")
   isPopular    Boolean  @default(false)
   
-  amount        Decimal   @default(0) @db.Decimal(18, 4)
+  amount        Decimal?  @db.Decimal(18, 4)
+  pricingType   String    @default("FIXED") @db.VarChar(20)
   weeklyProfit  Decimal   @default(5) @db.Decimal(5, 2)
   durationDays  Int       @default(30)
   sortOrder     Int       @default(0)

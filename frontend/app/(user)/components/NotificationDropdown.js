@@ -72,7 +72,7 @@ export default function NotificationDropdown() {
 
     // Setup Shared Socket.IO Client for Real-Time notifications
     socket.io.opts.query = { userId: currentUser.id };
-    socket.io.opts.auth = { token };
+    socket.auth = { token };
     
     if (!socket.connected) {
       socket.connect();

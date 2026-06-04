@@ -32,6 +32,20 @@ export class PlansController {
     }
   }
 
+  @Get(':id')
+  async getPlanById(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const result = await this.plansService.getPlanById(id);
+      if (!result) {
+        return res.status(HttpStatus.NOT_FOUND).json({ message: 'Plan not found' });
+      }
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Fetch plan by id error:', error);
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({ message: 'Internal server error' });
+    }
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('SUPER_ADMIN', 'MANAGER')

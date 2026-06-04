@@ -2488,6 +2488,10 @@ export default function DashboardPage() {
   const [planBtnText, setPlanBtnText] = useState("Get Started");
   const [planStatus, setPlanStatus] = useState("Active");
   const [planIsPopular, setPlanIsPopular] = useState(false);
+  const [planAmount, setPlanAmount] = useState(0);
+  const [planWeeklyProfit, setPlanWeeklyProfit] = useState(5);
+  const [planDurationDays, setPlanDurationDays] = useState(30);
+  const [planPricingType, setPlanPricingType] = useState("FIXED");
 
   const [isEditPlanOpen, setIsEditPlanOpen] = useState(false);
   const [activePlanId, setActivePlanId] = useState("");
@@ -2499,6 +2503,10 @@ export default function DashboardPage() {
   const [editPlanBtnText, setEditPlanBtnText] = useState("");
   const [editPlanStatus, setEditPlanStatus] = useState("Active");
   const [editPlanIsPopular, setEditPlanIsPopular] = useState(false);
+  const [editPlanAmount, setEditPlanAmount] = useState(0);
+  const [editPlanWeeklyProfit, setEditPlanWeeklyProfit] = useState(5);
+  const [editPlanDurationDays, setEditPlanDurationDays] = useState(30);
+  const [editPlanPricingType, setEditPlanPricingType] = useState("FIXED");
 
   // NOTIFICATIONS / CAMPAIGNS / REFERRALS MODAL STATE
   const [recordModal, setRecordModal] = useState({ type: null, mode: "add", id: "" });
@@ -2670,12 +2678,16 @@ export default function DashboardPage() {
     setPlanBtnText("Get Started");
     setPlanStatus("Active");
     setPlanIsPopular(false);
+    setPlanAmount(0);
+    setPlanWeeklyProfit(5);
+    setPlanDurationDays(30);
+    setPlanPricingType("FIXED");
   };
 
-  const handleAddPlanSubmit = (e) => {
+  const handleAddPlanSubmit = async (e) => {
     e.preventDefault();
     if (!planName || !planSubtitle || !planCapitalLabel || !planDesc) return;
-    addPlan({
+    const res = await addPlan({
       name: planName,
       subtitle: planSubtitle,
       capitalLabel: planCapitalLabel,
@@ -2683,11 +2695,19 @@ export default function DashboardPage() {
       features: parsePlanFeatures(planFeatures),
       btnText: planBtnText,
       status: planStatus,
-      isPopular: planIsPopular
+      isPopular: planIsPopular,
+      amount: planPricingType === "FLEXIBLE" ? null : (Number(planAmount) || 0),
+      weeklyProfit: Number(planWeeklyProfit) || 0,
+      durationDays: Number(planDurationDays) || 0,
+      pricingType: planPricingType,
     });
-    resetAddPlanForm();
-    setIsAddPlanOpen(false);
-    showToast("Pricing plan added successfully");
+    if (res?.success) {
+      resetAddPlanForm();
+      setIsAddPlanOpen(false);
+      showToast("Pricing plan added successfully");
+    } else {
+      showToast(res?.error || "Failed to add plan", "error");
+    }
   };
 
   const handleEditPlanClick = (id) => {
@@ -2702,12 +2722,32 @@ export default function DashboardPage() {
     setEditPlanBtnText(planObj.btnText || "Get Started");
     setEditPlanStatus(planObj.status || "Active");
     setEditPlanIsPopular(Boolean(planObj.isPopular));
+    setEditPlanAmount(Number(planObj.amount) || 0);
+    setEditPlanWeeklyProfit(Number(planObj.weeklyProfit) || 0);
+    setEditPlanDurationDays(Number(planObj.durationDays) || 0);
+    setEditPlanPricingType(planObj.pricingType || "FIXED");
     setIsEditPlanOpen(true);
   };
 
-  const handleEditPlanSubmit = (e) => {
+  const resetEditPlanForm = () => {
+    setActivePlanId("");
+    setEditPlanName("");
+    setEditPlanSubtitle("");
+    setEditPlanCapitalLabel("");
+    setEditPlanDesc("");
+    setEditPlanFeatures("");
+    setEditPlanBtnText("Get Started");
+    setEditPlanStatus("Active");
+    setEditPlanIsPopular(false);
+    setEditPlanAmount(0);
+    setEditPlanWeeklyProfit(5);
+    setEditPlanDurationDays(30);
+    setEditPlanPricingType("FIXED");
+  };
+
+  const handleEditPlanSubmit = async (e) => {
     e.preventDefault();
-    editPlan(activePlanId, {
+    const res = await editPlan(activePlanId, {
       name: editPlanName,
       subtitle: editPlanSubtitle,
       capitalLabel: editPlanCapitalLabel,
@@ -2715,10 +2755,19 @@ export default function DashboardPage() {
       features: parsePlanFeatures(editPlanFeatures),
       btnText: editPlanBtnText,
       status: editPlanStatus,
-      isPopular: editPlanIsPopular
+      isPopular: editPlanIsPopular,
+      amount: editPlanPricingType === "FLEXIBLE" ? null : (Number(editPlanAmount) || 0),
+      weeklyProfit: Number(editPlanWeeklyProfit) || 0,
+      durationDays: Number(editPlanDurationDays) || 0,
+      pricingType: editPlanPricingType,
     });
-    setIsEditPlanOpen(false);
-    showToast("Pricing plan updated successfully");
+    if (res?.success) {
+      resetEditPlanForm();
+      setIsEditPlanOpen(false);
+      showToast("Pricing plan updated successfully");
+    } else {
+      showToast(res?.error || "Failed to update plan", "error");
+    }
   };
 
   const resetRecordForms = () => {
@@ -2883,7 +2932,7 @@ export default function DashboardPage() {
             }
           }}
           onBlock={(id) => { blockUser(id); showToast("User status updated"); }}
-          onDelete={(id) => {
+          onDelete={async (id) => {
             if (section.permissionKey === "trades") {
               deleteTrade(id);
               showToast("Trade record deleted");
@@ -2891,8 +2940,9 @@ export default function DashboardPage() {
               deleteAdmin(id);
               showToast("Admin account deactivated");
             } else if (section.permissionKey === "plans") {
-              deletePlan(id);
-              showToast("Pricing plan deleted");
+              const res = await deletePlan(id);
+              if (res?.success) showToast("Pricing plan deleted");
+              else showToast(res?.error || "Failed to delete plan", "error");
             } else if (["notifications", "campaigns", "referrals"].includes(section.permissionKey)) {
               handleRecordDelete(section.permissionKey, id);
             } else {
@@ -3747,6 +3797,32 @@ export default function DashboardPage() {
                 <input type="text" required value={planSubtitle} onChange={(e) => setPlanSubtitle(e.target.value)} placeholder="Micro Capital" className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
               </label>
             </div>
+            <div className="grid gap-4 sm:grid-cols-2 border-t border-white/[0.05] pt-4">
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Pricing Type</span>
+                <select value={planPricingType} onChange={(e) => {
+                  setPlanPricingType(e.target.value);
+                  if (e.target.value === "FLEXIBLE") setPlanAmount(0);
+                }} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
+                  <option value="FIXED">Fixed Price (Required Entry Fee)</option>
+                  <option value="FLEXIBLE">Flexible / Custom (User enters amount)</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Entry Fee / Deposit (INR)</span>
+                <input type="number" required={planPricingType === "FIXED"} disabled={planPricingType === "FLEXIBLE"} min="0" value={planPricingType === "FLEXIBLE" ? "" : planAmount} onChange={(e) => setPlanAmount(e.target.value)} placeholder={planPricingType === "FLEXIBLE" ? "Flexible Pricing" : "0"} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:opacity-40" />
+              </label>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Profit Fee Share (%)</span>
+                <input type="number" required min="0" max="100" value={planWeeklyProfit} onChange={(e) => setPlanWeeklyProfit(e.target.value)} placeholder="5" className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              </label>
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Duration (Days)</span>
+                <input type="number" required min="1" value={planDurationDays} onChange={(e) => setPlanDurationDays(e.target.value)} placeholder="30" className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              </label>
+            </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <label className="block sm:col-span-1">
                 <span className="block text-xs font-semibold text-neutral-400 mb-2">Capital Limit</span>
@@ -3786,11 +3862,11 @@ export default function DashboardPage() {
 
       {/* EDIT PRICING PLAN MODAL */}
       {isEditPlanOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div key={activePlanId} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <form onSubmit={handleEditPlanSubmit} className="w-full max-w-2xl rounded-2xl border border-white/[0.1] bg-[#0b141b] p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-white/[0.08] pb-3">
               <h3 className="text-lg font-bold text-white">Edit Pricing Plan</h3>
-              <button type="button" onClick={() => setIsEditPlanOpen(false)} className="text-neutral-400 hover:text-white">X</button>
+              <button type="button" onClick={() => { resetEditPlanForm(); setIsEditPlanOpen(false); }} className="text-neutral-400 hover:text-white">X</button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
@@ -3800,6 +3876,32 @@ export default function DashboardPage() {
               <label className="block">
                 <span className="block text-xs font-semibold text-neutral-400 mb-2">Subtitle</span>
                 <input type="text" required value={editPlanSubtitle} onChange={(e) => setEditPlanSubtitle(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              </label>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 border-t border-white/[0.05] pt-4">
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Pricing Type</span>
+                <select value={editPlanPricingType} onChange={(e) => {
+                  setEditPlanPricingType(e.target.value);
+                  if (e.target.value === "FLEXIBLE") setEditPlanAmount(0);
+                }} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
+                  <option value="FIXED">Fixed Price (Required Entry Fee)</option>
+                  <option value="FLEXIBLE">Flexible / Custom (User enters amount)</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Entry Fee / Deposit (INR)</span>
+                <input type="number" required={editPlanPricingType === "FIXED"} disabled={editPlanPricingType === "FLEXIBLE"} min="0" value={editPlanPricingType === "FLEXIBLE" ? "" : editPlanAmount} onChange={(e) => setEditPlanAmount(e.target.value)} placeholder={editPlanPricingType === "FLEXIBLE" ? "Flexible Pricing" : "0"} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:opacity-40" />
+              </label>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Profit Fee Share (%)</span>
+                <input type="number" required min="0" max="100" value={editPlanWeeklyProfit} onChange={(e) => setEditPlanWeeklyProfit(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
+              </label>
+              <label className="block">
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Duration (Days)</span>
+                <input type="number" required min="1" value={editPlanDurationDays} onChange={(e) => setEditPlanDurationDays(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
               </label>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -3832,9 +3934,14 @@ export default function DashboardPage() {
               Mark as popular
               <input type="checkbox" checked={editPlanIsPopular} onChange={(e) => setEditPlanIsPopular(e.target.checked)} className="accent-green-500" />
             </label>
-            <button type="submit" className="w-full h-11 rounded-lg bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition mt-2">
-              Save Plan
-            </button>
+            <div className="flex gap-3 mt-2">
+              <button type="button" onClick={() => { resetEditPlanForm(); setIsEditPlanOpen(false); }} className="flex-1 h-11 rounded-lg border border-white/[0.1] text-neutral-300 text-sm hover:border-white/30 transition">
+                Cancel
+              </button>
+              <button type="submit" className="flex-1 h-11 rounded-lg bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition">
+                Save Plan
+              </button>
+            </div>
           </form>
         </div>
       )}

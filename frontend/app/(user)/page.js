@@ -404,16 +404,23 @@ export default function Home() {
                     </ul>
                   </div>
 
-                  <a
-                    href={`/checkout?plan=${plan.name.split(" ")[0].toLowerCase()}`}
-                    className={`mt-10 block w-full text-center text-xs font-semibold rounded-full py-3 transition-colors ${
-                      isPopular
-                        ? "bg-white text-black hover:bg-neutral-200 shadow-md"
-                        : "relative border-gradient bg-white/5 hover:bg-white/10 text-white"
-                    }`}
-                  >
-                    {plan.btnText || "Get Started"}
-                  </a>
+                  {(() => {
+                    const planSlug = plan.name.split(" ")[0].toLowerCase();
+                    const minAmounts = { club: 10, individual: 1000, custom: 5000 };
+                    const amount = plan.amount || minAmounts[planSlug] || 0;
+                    return (
+                      <a
+                        href={`/checkout?plan=${planSlug}&amount=${amount}`}
+                        className={`mt-10 block w-full text-center text-xs font-semibold rounded-full py-3 transition-colors ${
+                          isPopular
+                            ? "bg-white text-black hover:bg-neutral-200 shadow-md"
+                            : "relative border-gradient bg-white/5 hover:bg-white/10 text-white"
+                        }`}
+                      >
+                        {plan.btnText || "Get Started"}
+                      </a>
+                    );
+                  })()}
                 </div>
               );
             })}

@@ -13,6 +13,29 @@ export class PlansService {
     return { plans };
   }
 
+  async getPlanById(idOrSlug: string) {
+    let plan = null;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+    if (isUuid) {
+      plan = await this.prisma.plan.findUnique({ where: { id: idOrSlug } });
+    }
+
+    if (!plan) {
+      const activePlans = await this.prisma.plan.findMany({ where: { isActive: true } });
+      plan = activePlans.find(p => p.name.split(" ")[0].toLowerCase() === idOrSlug.toLowerCase());
+    }
+
+    if (!plan || !plan.isActive) return null;
+    return {
+      plan: {
+        ...plan,
+        amount: plan.amount !== null ? Number(plan.amount) : null,
+        weeklyProfit: Number(plan.weeklyProfit),
+        durationDays: Number(plan.durationDays),
+      },
+    };
+  }
+
   async getAllPlans() {
     const plans = await this.prisma.plan.findMany({
       orderBy: { sortOrder: 'asc' },
@@ -21,6 +44,13 @@ export class PlansService {
   }
 
   async createPlan(data: any) {
+    const pricingType = data.pricingType || 'FIXED';
+    const amountVal = data.amount !== undefined && data.amount !== null && data.amount !== '' ? Number(data.amount) : null;
+
+    if (amountVal === null && pricingType === 'FIXED') {
+      throw new Error('Plan must have a fixed amount if pricingType is FIXED.');
+    }
+
     const plan = await this.prisma.plan.create({
       data: {
         name: data.name,
@@ -31,7 +61,8 @@ export class PlansService {
         btnText: data.btnText || 'Get Started',
         status: data.status || 'Active',
         isPopular: data.isPopular || false,
-        amount: data.amount || 0,
+        amount: pricingType === 'FLEXIBLE' ? null : amountVal,
+        pricingType: pricingType,
         weeklyProfit: data.weeklyProfit || 5,
         durationDays: data.durationDays || 30,
         sortOrder: data.sortOrder || 0,
@@ -42,6 +73,18 @@ export class PlansService {
   }
 
   async updatePlan(id: string, data: any) {
+    const current = await this.prisma.plan.findUnique({ where: { id } });
+    if (!current) throw new Error('Plan not found');
+
+    const pricingType = data.pricingType || current.pricingType;
+    let amountVal = data.amount !== undefined ? (data.amount !== null && data.amount !== '' ? Number(data.amount) : null) : (current.amount ? Number(current.amount) : null);
+
+    if (pricingType === 'FLEXIBLE') {
+      data.amount = null;
+    } else if (pricingType === 'FIXED' && amountVal === null) {
+      throw new Error('Plan must have a fixed amount if pricingType is FIXED.');
+    }
+
     const plan = await this.prisma.plan.update({
       where: { id },
       data,

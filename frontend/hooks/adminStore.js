@@ -235,57 +235,7 @@ export const useAdminStore = create((set, get) => ({
     }
   },
 
-  addPlan: async (payload) => {
-    try {
-      const res = await apiFetch("/api/plans", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        await get().fetchAllPlans();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      console.error("addPlan error:", e);
-      return false;
-    }
-  },
 
-  updatePlan: async (id, payload) => {
-    try {
-      const res = await apiFetch(`/api/plans/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        await get().fetchAllPlans();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      console.error("updatePlan error:", e);
-      return false;
-    }
-  },
-
-  deletePlan: async (id) => {
-    try {
-      const res = await apiFetch(`/api/plans/${id}`, {
-        method: "DELETE"
-      });
-      if (res.ok) {
-        await get().fetchAllPlans();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      console.error("deletePlan error:", e);
-      return false;
-    }
-  },
 
   setCurrentUserRole: (role) =>
     set((state) => ({
@@ -416,6 +366,14 @@ export const useAdminStore = create((set, get) => ({
   addPayment: async (payment) => {
     try {
       const cleanAmount = Number(String(payment.amount).replace(/[^\d.-]/g, ""));
+      // Generate a stable idempotency key for this payment attempt.
+      // Passed by caller if already set (e.g. from PI flow); otherwise generate a fresh UUID.
+      const idempotencyKey =
+        payment.idempotencyKey ||
+        (typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `ik-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
       const res = await apiFetch("/api/dashboard/deposit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -427,6 +385,10 @@ export const useAdminStore = create((set, get) => ({
           paymentType: payment.paymentType || "USDT",
           network: payment.network || "TRC20",
           initiationId: payment.initiationId || null,
+          idempotencyKey,
+          email: payment.email || null,
+          screenshot: payment.screenshot || null,
+          remark: payment.remark || null,
         }),
       });
       if (res.ok) {
@@ -806,9 +768,13 @@ export const useAdminStore = create((set, get) => ({
       });
       if (res.ok) {
         await get().fetchData();
+        return { success: true };
       }
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.message || "Failed to create plan" };
     } catch (e) {
       console.error("addPlan API error:", e);
+      return { success: false, error: e.message || "Network error" };
     }
   },
 
@@ -821,9 +787,13 @@ export const useAdminStore = create((set, get) => ({
       });
       if (res.ok) {
         await get().fetchData();
+        return { success: true };
       }
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.message || "Failed to update plan" };
     } catch (e) {
       console.error("editPlan API error:", e);
+      return { success: false, error: e.message || "Network error" };
     }
   },
 
@@ -834,9 +804,13 @@ export const useAdminStore = create((set, get) => ({
       });
       if (res.ok) {
         await get().fetchData();
+        return { success: true };
       }
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.message || "Failed to delete plan" };
     } catch (e) {
       console.error("deletePlan API error:", e);
+      return { success: false, error: e.message || "Network error" };
     }
   },
 

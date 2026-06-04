@@ -7,47 +7,110 @@ import { socket } from "../../../../lib/socket";
 import {
   BarChart3,
   Send,
-  Calendar,
   ListFilter,
-  Activity,
   Code,
   ToggleLeft,
-  Settings,
-  Tablet,
-  ShieldAlert,
-  Database,
   Search,
   Plus,
   RefreshCw,
-  Trash2,
-  Check,
   X,
-  Eye,
   AlertCircle,
-  Clock,
   CheckCircle,
-  AlertTriangle
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  Bell,
+  Smartphone,
+  Zap,
+  Info
 } from "lucide-react";
 
 const adminPanel = "rounded-xl border border-white/[0.08] bg-[#081118]/95 shadow-[0_18px_65px_-55px_rgba(0,208,156,0.65)]";
 const adminInput = "h-10 w-full rounded-lg border border-white/[0.08] bg-black/20 px-3 text-xs text-white outline-none focus:border-green-500/35 transition placeholder:text-neutral-600 disabled:text-neutral-500";
 
 const tabList = [
-  { id: "analytics", label: "Analytics", icon: BarChart3 },
-  { id: "broadcasts", label: "Broadcasts", icon: Send },
-  { id: "schedules", label: "Schedules", icon: Calendar },
-  { id: "delivery-logs", label: "Delivery Logs", icon: ListFilter },
-  { id: "dlq", label: "DLQ (Queue Health)", icon: Activity },
-  { id: "templates", label: "Templates", icon: Code },
   { id: "events", label: "Event Settings", icon: ToggleLeft },
-  { id: "global-config", label: "Global Config", icon: Settings },
-  { id: "device-registry", label: "Device Registry", icon: Tablet },
-  { id: "preferences-audit", label: "Preferences Audit", icon: ShieldAlert },
-  { id: "archive-maintenance", label: "Archive & Maintenance", icon: Database }
+  { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "broadcasts", label: "Broadcasts", icon: Send },
+  { id: "logs", label: "Notification Logs", icon: ListFilter },
+  { id: "templates", label: "Templates", icon: Code }
+];
+
+const EVENT_CATEGORIES = [
+  {
+    key: "security",
+    title: "Security Notifications",
+    events: [
+      { type: "NEW_LOGIN", label: "Login Success" },
+      { type: "ADMIN_LOGIN", label: "Admin Login Alert" },
+      { type: "PASSWORD_CHANGED", label: "Password Reset / Changed" },
+      { type: "EMAIL_CHANGED", label: "Email Changed Alert" },
+      { type: "ACCOUNT_BLOCKED", label: "Account Blocked" },
+      { type: "TWO_FACTOR_ENABLED", label: "2FA Enabled" },
+      { type: "TWO_FACTOR_DISABLED", label: "2FA Disabled" },
+    ]
+  },
+  {
+    key: "transaction",
+    title: "Transaction Notifications",
+    events: [
+      { type: "PAYMENT_SUBMITTED", label: "Deposit Received / Under Review" },
+      { type: "PAYMENT_APPROVED", label: "Deposit Approved" },
+      { type: "PAYMENT_REJECTED", label: "Deposit Rejected" },
+      { type: "DEPOSIT_APPROVED", label: "Deposit Confirmed" },
+      { type: "DEPOSIT_REJECTED", label: "Deposit Rejected" },
+      { type: "WITHDRAWAL_REQUESTED", label: "Withdrawal Requested" },
+      { type: "WITHDRAWAL_APPROVED", label: "Withdrawal Approved" },
+      { type: "WITHDRAWAL_REJECTED", label: "Withdrawal Rejected" },
+    ]
+  },
+  {
+    key: "trading",
+    title: "Trading Notifications",
+    events: [
+      { type: "TRADE_PUBLISHED", label: "New Trade Signal" },
+      { type: "TRADE_OPENED", label: "Trade Opened" },
+      { type: "TRADE_CLOSED", label: "Trade Closed" },
+      { type: "TRADE_CANCELLED", label: "Trade Cancelled" },
+      { type: "TAKE_PROFIT_HIT", label: "Take Profit Hit" },
+      { type: "STOP_LOSS_HIT", label: "Stop Loss Hit (Loss Alert)" },
+      { type: "SIGNAL_UPDATED", label: "Trade Signal Updated" },
+      { type: "PROFIT_DISTRIBUTED", label: "Profit Credited" },
+    ]
+  },
+  {
+    key: "kycSystem",
+    title: "KYC & System Notifications",
+    events: [
+      { type: "PLAN_ACTIVATED", label: "KYC / Plan Approved" },
+      { type: "PLAN_EXPIRING", label: "Plan Expiring Warning" },
+      { type: "PLAN_EXPIRED", label: "Plan Expired Alert" },
+      { type: "PLAN_UPGRADED", label: "Plan Upgraded" },
+      { type: "PLAN_DOWNGRADED", label: "Plan Downgraded" },
+      { type: "REPORT_READY", label: "Report Ready to Download" },
+      { type: "TICKET_CREATED", label: "Support Ticket Created" },
+      { type: "TICKET_REPLIED", label: "Support Ticket Replied" },
+      { type: "TICKET_CLOSED", label: "Support Ticket Closed" },
+      { type: "ADMIN_CREATED", label: "Operator Added" },
+      { type: "ADMIN_REMOVED", label: "Operator Removed" },
+      { type: "SYSTEM", label: "General System Alert" },
+    ]
+  }
+];
+
+const TEMPLATE_EVENTS = [
+  { event: "NEW_LOGIN", label: "Login Alert" },
+  { event: "DEPOSIT_APPROVED", label: "Deposit Success" },
+  { event: "WITHDRAWAL_APPROVED", label: "Withdrawal Success" },
+  { event: "WITHDRAWAL_REJECTED", label: "Withdrawal Rejected" },
+  { event: "TRADE_OPENED", label: "Trade Executed" },
+  { event: "PROFIT_DISTRIBUTED", label: "Profit Distribution" },
+  { event: "ACCOUNT_BLOCKED", label: "Security Alert" },
+  { event: "SYSTEM", label: "Broadcast Message" }
 ];
 
 export default function AdminNotificationsPage() {
-  const [activeTab, setActiveTab] = useState("analytics");
+  const [activeTab, setActiveTab] = useState("events");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -56,60 +119,61 @@ export default function AdminNotificationsPage() {
   const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
   const isManager = currentUser?.role === "MANAGER" || isSuperAdmin;
 
-  // TAB 1: Analytics
+  // TAB state: Overview
   const [analytics, setAnalytics] = useState(null);
+  const [activeDevicesCount, setActiveDevicesCount] = useState(0);
 
-  // TAB 2: Broadcasts
+  // TAB state: Broadcasts
   const [broadcasts, setBroadcasts] = useState([]);
   const [showCreateBroadcast, setShowCreateBroadcast] = useState(false);
+  const [scheduleMode, setScheduleMode] = useState("now");
   const [broadcastForm, setBroadcastForm] = useState({
     title: "",
     body: "",
     audience: "ALL_USERS",
-    channels: ["BELL", "SOCKET", "TOAST"],
+    channels: ["BELL", "PUSH"],
     scheduledAt: ""
   });
   const [previewing, setPreviewing] = useState(false);
   const [previewData, setPreviewData] = useState(null);
 
-  // TAB 3: Schedules
-  const [schedules, setSchedules] = useState([]);
+  // V2 Broadcast Recipient Preview Panel state
+  const [audiencePreviewData, setAudiencePreviewData] = useState(null);
+  const [audiencePreviewLoading, setAudiencePreviewLoading] = useState(false);
+  const [audienceSearch, setAudienceSearch] = useState("");
+  const [audiencePage, setAudiencePage] = useState(1);
+  const [filterActiveOnly, setFilterActiveOnly] = useState(false);
+  const [filterOnlineOnly, setFilterOnlineOnly] = useState(false);
+  const [filterKycVerified, setFilterKycVerified] = useState(false);
+  const [filterHasActiveInvestment, setFilterHasActiveInvestment] = useState(false);
 
-  // TAB 4: Delivery Logs
+  // TAB state: Notification Logs
   const [deliveries, setDeliveries] = useState([]);
-  const [deliveryFilters, setDeliveryFilters] = useState({ status: "", channel: "" });
   const [selectedDeliveries, setSelectedDeliveries] = useState([]);
-  const [deliveryCursor, setDeliveryCursor] = useState(null);
   const [deliveryNextCursor, setDeliveryNextCursor] = useState(null);
+  const [logFilters, setLogFilters] = useState({
+    status: "",
+    channel: "",
+    event: "",
+    user: "",
+  });
 
-  // TAB 5: DLQ / Health
-  const [queueHealth, setQueueHealth] = useState(null);
-
-  // TAB 6: Templates
+  // TAB state: Templates
   const [templates, setTemplates] = useState([]);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedTemplateEvent, setSelectedTemplateEvent] = useState("NEW_LOGIN");
+  const [templateChannel, setTemplateChannel] = useState("BELL");
+  const [editedTemplate, setEditedTemplate] = useState(null);
 
-  // TAB 7: Events Settings
+  // TAB state: Event Settings
   const [events, setEvents] = useState([]);
-  const [editingEvent, setEditingEvent] = useState(null);
+  const [eventSearchQuery, setEventSearchQuery] = useState("");
+  const [expandedGroups, setExpandedGroups] = useState({
+    security: true,
+    transaction: true,
+    trading: true,
+    kycSystem: true
+  });
 
-  // TAB 8: Global Config
-  const [globalConfig, setGlobalConfig] = useState(null);
-
-  // TAB 9: Device Registry
-  const [devices, setDevices] = useState([]);
-  const [deviceFilters, setDeviceFilters] = useState({ userId: "", platform: "", browser: "", isActive: "" });
-  const [deviceCursor, setDeviceCursor] = useState(null);
-  const [deviceNextCursor, setDeviceNextCursor] = useState(null);
-
-  // TAB 10: User Preference Audits
-  const [preferences, setPreferences] = useState([]);
-  const [preferenceSearch, setPreferenceSearch] = useState("");
-
-  // TAB 11: Archive Stats
-  const [archiveStats, setArchiveStats] = useState(null);
-
-  // Global Actions
   const showStatus = (text, type = "success") => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 5000);
@@ -118,38 +182,26 @@ export default function AdminNotificationsPage() {
   const loadTabData = async (tab) => {
     setLoading(true);
     try {
-      if (tab === "analytics") {
+      if (tab === "overview") {
         const res = await apiFetch("/api/notifications/admin/analytics");
         if (res.ok) {
           const data = await res.json();
           setAnalytics(data);
         }
+        const devRes = await apiFetch("/api/notifications/admin/devices?isActive=true&limit=1");
+        if (devRes.ok) {
+          const devData = await devRes.json();
+          setActiveDevicesCount(devData.total || devData.devices?.length || 0);
+        }
+        await fetchDeliveries(null, 20); 
       } else if (tab === "broadcasts") {
         const res = await apiFetch("/api/notifications/admin/broadcasts");
         if (res.ok) {
           const data = await res.json();
           setBroadcasts(data.broadcasts || []);
         }
-      } else if (tab === "schedules") {
-        // Find schedules directly
-        const res = await apiFetch("/api/notifications/admin/broadcasts");
-        if (res.ok) {
-          const data = await res.json();
-          // Filter schedules if possible, or fetch separate schedules list (schedules are returned from DB)
-          const allBroadcasts = data.broadcasts || [];
-          // We also list the scheduled ones
-        }
-        // Let's load the schedules table instead
-        const schedulesRes = await apiFetch("/api/notifications/admin/settings"); // We can fetch global settings
-        // To be safe, we will render scheduled notices from system broadcasts
-      } else if (tab === "delivery-logs") {
+      } else if (tab === "logs") {
         await fetchDeliveries();
-      } else if (tab === "dlq") {
-        const res = await apiFetch("/api/notifications/admin/health");
-        if (res.ok) {
-          const data = await res.json();
-          setQueueHealth(data);
-        }
       } else if (tab === "templates") {
         const res = await apiFetch("/api/notifications/admin/templates");
         if (res.ok) {
@@ -161,28 +213,6 @@ export default function AdminNotificationsPage() {
         if (res.ok) {
           const data = await res.json();
           setEvents(data.events || []);
-        }
-      } else if (tab === "global-config") {
-        const res = await apiFetch("/api/notifications/admin/settings");
-        if (res.ok) {
-          const data = await res.json();
-          setGlobalConfig(data.global || null);
-        }
-      } else if (tab === "device-registry") {
-        await fetchDevices();
-      } else if (tab === "preferences-audit") {
-        // Audit preferences
-        const res = await apiFetch("/api/admin/data");
-        if (res.ok) {
-          const data = await res.json();
-          // Fetch raw users count
-          setPreferences(data.users || []);
-        }
-      } else if (tab === "archive-maintenance") {
-        const res = await apiFetch("/api/notifications/admin/archive/stats");
-        if (res.ok) {
-          const data = await res.json();
-          setArchiveStats(data);
         }
       }
     } catch (e) {
@@ -197,11 +227,47 @@ export default function AdminNotificationsPage() {
     loadTabData(activeTab);
   }, [activeTab]);
 
+  // Dynamic recipient details hook on audience/cohort changes
+  useEffect(() => {
+    if (!showCreateBroadcast) return;
+    const fetchAudiencePreview = async () => {
+      setAudiencePreviewLoading(true);
+      try {
+        const res = await apiFetch(`/api/notifications/admin/audience-preview?segment=${broadcastForm.audience}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAudiencePreviewData(data);
+          setAudiencePage(1); 
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setAudiencePreviewLoading(false);
+      }
+    };
+    fetchAudiencePreview();
+  }, [broadcastForm.audience, showCreateBroadcast]);
+
+  // Sync edited template when event, channel or templates list changes
+  useEffect(() => {
+    if (activeTab !== "templates") return;
+    const match = templates.find(t => t.event === selectedTemplateEvent && t.channel === templateChannel);
+    if (match) {
+      setEditedTemplate({ ...match });
+    } else {
+      setEditedTemplate({
+        event: selectedTemplateEvent,
+        channel: templateChannel,
+        title: "",
+        body: "",
+        version: 1
+      });
+    }
+  }, [selectedTemplateEvent, templateChannel, templates, activeTab]);
+
   // Socket.IO Listeners for real-time progress updates
   useEffect(() => {
     if (!currentUser) return;
-
-    // Retrieve local storage JWT token
     const userStr = typeof window !== "undefined" ? localStorage.getItem("tradebot-user") : null;
     let token = null;
     if (userStr) {
@@ -211,14 +277,13 @@ export default function AdminNotificationsPage() {
     }
 
     socket.io.opts.query = { userId: currentUser.id };
-    socket.io.opts.auth = { token };
+    socket.auth = { token };
 
     if (!socket.connected) {
       socket.connect();
     }
 
     const handleProgress = (data) => {
-      // data: { id, sent, total, percent }
       setBroadcasts((prev) =>
         prev.map((b) => {
           if (b.id === data.id) {
@@ -240,52 +305,25 @@ export default function AdminNotificationsPage() {
     };
 
     socket.on("broadcast_progress", handleProgress);
-
     return () => {
       socket.off("broadcast_progress", handleProgress);
     };
   }, [currentUser]);
 
-  // Devices fetching helper
-  const fetchDevices = async (cursorVal = null) => {
-    setLoading(true);
-    try {
-      let url = `/api/notifications/admin/devices?limit=50`;
-      if (cursorVal) url += `&cursor=${cursorVal}`;
-      if (deviceFilters.userId) url += `&userId=${deviceFilters.userId}`;
-      if (deviceFilters.platform) url += `&platform=${deviceFilters.platform}`;
-      if (deviceFilters.browser) url += `&browser=${deviceFilters.browser}`;
-      if (deviceFilters.isActive !== "") url += `&isActive=${deviceFilters.isActive}`;
-
-      const res = await apiFetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setDevices(data.devices || []);
-        setDeviceNextCursor(data.nextCursor || null);
-        setDeviceCursor(cursorVal);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Deliveries fetching helper
-  const fetchDeliveries = async (cursorVal = null) => {
+  const fetchDeliveries = async (cursorVal = null, limit = 50) => {
     setLoading(true);
     try {
-      let url = `/api/notifications/admin/deliveries?limit=50`;
+      let url = `/api/notifications/admin/deliveries?limit=${limit}`;
       if (cursorVal) url += `&cursor=${cursorVal}`;
-      if (deliveryFilters.status) url += `&status=${deliveryFilters.status}`;
-      if (deliveryFilters.channel) url += `&channel=${deliveryFilters.channel}`;
+      if (logFilters.status) url += `&status=${logFilters.status}`;
+      if (logFilters.channel) url += `&channel=${logFilters.channel}`;
 
       const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
         setDeliveries(data.deliveries || []);
         setDeliveryNextCursor(data.nextCursor || null);
-        setDeliveryCursor(cursorVal);
       }
     } catch (e) {
       console.error(e);
@@ -294,7 +332,7 @@ export default function AdminNotificationsPage() {
     }
   };
 
-  // Create & Preview Broadcast Actions
+  // Preview Broadcast
   const handlePreviewBroadcast = async () => {
     if (!broadcastForm.audience) return;
     setLoading(true);
@@ -316,6 +354,7 @@ export default function AdminNotificationsPage() {
     }
   };
 
+  // Create Broadcast Campaign
   const handleCreateBroadcast = async (e) => {
     e.preventDefault();
     if (!isManager) {
@@ -324,9 +363,13 @@ export default function AdminNotificationsPage() {
     }
     setLoading(true);
     try {
+      const payload = {
+        ...broadcastForm,
+        scheduledAt: scheduleMode === "later" ? broadcastForm.scheduledAt : ""
+      };
       const res = await apiFetch("/api/notifications/admin/broadcasts", {
         method: "POST",
-        body: JSON.stringify(broadcastForm)
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         showStatus("Broadcast created successfully!");
@@ -335,9 +378,10 @@ export default function AdminNotificationsPage() {
           title: "",
           body: "",
           audience: "ALL_USERS",
-          channels: ["BELL", "SOCKET", "TOAST"],
+          channels: ["BELL", "PUSH"],
           scheduledAt: ""
         });
+        setScheduleMode("now");
         loadTabData("broadcasts");
       } else {
         const err = await res.json();
@@ -358,9 +402,8 @@ export default function AdminNotificationsPage() {
     }
     if (!confirm(`Are you sure you want to ${action.toLowerCase()} this broadcast?`)) return;
 
-    // Generate secure UUID for idempotency protection
     const approvalRequestId = action === "APPROVE"
-      ? (typeof window !== "undefined" && window.crypto?.randomUUID ? crypto.randomUUID() : `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`)
+      ? (typeof window !== "undefined" && window.crypto?.randomUUID ? crypto.randomUUID() : `req_${Date.now()}`)
       : undefined;
 
     setLoading(true);
@@ -385,18 +428,8 @@ export default function AdminNotificationsPage() {
   };
 
   // Delivery log actions
-  const handleSelectDelivery = (id) => {
-    setSelectedDeliveries(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
-
   const handleRetrySelectedDeliveries = async () => {
     if (selectedDeliveries.length === 0) return;
-    if (selectedDeliveries.length > 1000) {
-      showStatus("Cannot retry more than 1000 items in a single operation", "error");
-      return;
-    }
     setLoading(true);
     try {
       const res = await apiFetch("/api/notifications/admin/deliveries/retry", {
@@ -417,73 +450,98 @@ export default function AdminNotificationsPage() {
     }
   };
 
-  // DLQ / Queue Actions
-  const handleDlqAction = async (action) => {
-    if (!isSuperAdmin) {
-      showStatus("Access Denied: Super Admin required", "error");
-      return;
-    }
-    if (!confirm(`Are you sure you want to execute bulk ${action} on DLQ?`)) return;
+  const handleRetryFailedDeliveries = async () => {
+    if (!isSuperAdmin) return;
+    if (!confirm("Are you sure you want to retry all failed deliveries?")) return;
     setLoading(true);
     try {
-      const res = await apiFetch(`/api/notifications/admin/dlq/${action}`, { method: "POST" });
+      const res = await apiFetch("/api/notifications/admin/dlq/retry", { method: "POST" });
       if (res.ok) {
         const data = await res.json();
-        showStatus(`DLQ ${action} completed! Affected: ${data.count} jobs.`);
-        loadTabData("dlq");
+        showStatus(`DLQ Retry completed! Affected: ${data.count} jobs.`);
+        fetchDeliveries();
       }
     } catch (e) {
       console.error(e);
-      showStatus("DLQ action failed", "error");
+      showStatus("Failed to retry DLQ", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // Save Settings
-  const handleSaveGlobalConfig = async (e) => {
-    e.preventDefault();
+  // Direct toggle Event Setting
+  const handleDirectToggle = async (ev, field) => {
+    if (!isSuperAdmin) {
+      showStatus("Only Super Admins can change event settings.", "error");
+      return;
+    }
+    
+    const newValue = !ev[field];
+    const updatedEvent = { ...ev, [field]: newValue };
+    
+    // Optimistic UI update
+    setEvents(events.map(e => e.id === ev.id ? updatedEvent : e));
+    
+    try {
+      const res = await apiFetch("/api/notifications/admin/settings", {
+        method: "POST",
+        body: JSON.stringify({ events: [updatedEvent] })
+      });
+      if (!res.ok) {
+        throw new Error("Failed to update");
+      }
+    } catch (e) {
+      console.error(e);
+      // Revert on failure
+      setEvents(events.map(e => e.id === ev.id ? ev : e));
+      showStatus("Error updating setting.", "error");
+    }
+  };
+
+  // Bulk enable/disable settings per category
+  const handleBulkToggleCategory = async (categoryKey, targetValue) => {
     if (!isSuperAdmin) return;
+    const categoryDef = EVENT_CATEGORIES.find(c => c.key === categoryKey);
+    if (!categoryDef) return;
+
+    const eventTypes = categoryDef.events.map(e => e.type);
+    
+    const updatedEvents = events.map(ev => {
+      if (eventTypes.includes(ev.event)) {
+        return {
+          ...ev,
+          bellEnabled: targetValue,
+          pushEnabled: targetValue,
+          socketEnabled: targetValue,
+        };
+      }
+      return ev;
+    });
+
+    setEvents(updatedEvents);
+    const eventsToPost = updatedEvents.filter(ev => eventTypes.includes(ev.event));
+    
     setLoading(true);
     try {
       const res = await apiFetch("/api/notifications/admin/settings", {
         method: "POST",
-        body: JSON.stringify({ global: globalConfig })
+        body: JSON.stringify({ events: eventsToPost })
       });
       if (res.ok) {
-        showStatus("Global configurations updated successfully!");
-        loadTabData("global-config");
+        showStatus(`Successfully ${targetValue ? "enabled" : "disabled"} all notification channels in group.`);
+      } else {
+        throw new Error("Failed to bulk update");
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
+      showStatus("Bulk toggle failed. Reverting changes...", "error");
+      loadTabData("events");
     } finally {
       setLoading(false);
     }
   };
 
-  // Save Event Settings
-  const handleSaveEventSetting = async (e) => {
-    e.preventDefault();
-    if (!isSuperAdmin) return;
-    setLoading(true);
-    try {
-      const res = await apiFetch("/api/notifications/admin/settings", {
-        method: "POST",
-        body: JSON.stringify({ events: [editingEvent] })
-      });
-      if (res.ok) {
-        showStatus("Event configurations updated successfully!");
-        setEditingEvent(null);
-        loadTabData("events");
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Save Template
+  // Save Template overrides
   const handleSaveTemplate = async (e) => {
     e.preventDefault();
     if (!isSuperAdmin) return;
@@ -491,21 +549,24 @@ export default function AdminNotificationsPage() {
     try {
       const res = await apiFetch("/api/notifications/admin/templates", {
         method: "POST",
-        body: JSON.stringify({ templates: [selectedTemplate] })
+        body: JSON.stringify({ templates: [editedTemplate] })
       });
       if (res.ok) {
         showStatus("Template updated successfully!");
-        setSelectedTemplate(null);
-        loadTabData("templates");
+        const dataRes = await apiFetch("/api/notifications/admin/templates");
+        if (dataRes.ok) {
+          const data = await dataRes.json();
+          setTemplates(data.templates || []);
+        }
       }
     } catch (e) {
       console.error(e);
+      showStatus("Template update failed", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // Channel toggling helper
   const handleToggleChannel = (channel) => {
     setBroadcastForm(prev => {
       const channels = prev.channels.includes(channel)
@@ -513,6 +574,148 @@ export default function AdminNotificationsPage() {
         : [...prev.channels, channel];
       return { ...prev, channels };
     });
+  };
+
+  // Toggle collapsible groups helper
+  const toggleGroup = (groupKey) => {
+    setExpandedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
+  };
+
+  // Get grouped recent deliveries
+  const getRecentDeliveries = () => {
+    const groups = {};
+    deliveries.forEach(d => {
+      if (!d.notification) return;
+      const notifId = d.notificationId;
+      if (!groups[notifId]) {
+        groups[notifId] = {
+          title: d.notification.title,
+          createdAt: d.notification.createdAt,
+          channels: new Set(),
+        };
+      }
+      if (d.status === "DELIVERED") {
+        groups[notifId].channels.add(d.channel);
+      }
+    });
+
+    return Object.values(groups)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 5)
+      .map(g => {
+        const channelList = Array.from(g.channels).filter(ch => ["BELL", "PUSH", "SOCKET", "TOAST"].includes(ch));
+        let channelLabel = "Delivered";
+        if (channelList.length > 0) {
+          channelLabel = channelList
+            .map(ch => {
+              if (ch === "TOAST") return "Socket";
+              return ch.charAt(0) + ch.slice(1).toLowerCase();
+            })
+            .filter((val, index, self) => self.indexOf(val) === index)
+            .join(" + ") + " Delivered";
+        }
+        
+        const diffMs = Date.now() - new Date(g.createdAt).getTime();
+        const diffMins = Math.max(1, Math.floor(diffMs / 60000));
+        let timeLabel = `${diffMins} min ago`;
+        if (diffMins >= 60) {
+          const diffHours = Math.floor(diffMins / 60);
+          timeLabel = diffHours === 1 ? "1 hour ago" : `${diffHours} hours ago`;
+          if (diffHours >= 24) {
+            timeLabel = new Date(g.createdAt).toLocaleDateString();
+          }
+        }
+
+        return {
+          title: g.title,
+          channelLabel,
+          timeLabel,
+        };
+      });
+  };
+
+  // Filter deliveries client-side based on event & user filters
+  const getFilteredDeliveries = () => {
+    return deliveries.filter(d => {
+      if (d.channel === "EMAIL" || d.channel === "SMS") return false;
+      
+      if (logFilters.status && d.status !== logFilters.status) return false;
+      if (logFilters.channel && d.channel !== logFilters.channel) return false;
+      if (logFilters.event && !d.notification?.title?.toLowerCase().includes(logFilters.event.toLowerCase())) return false;
+      if (logFilters.user && !(
+        d.notification?.userId?.toLowerCase().includes(logFilters.user.toLowerCase()) ||
+        d.notification?.adminId?.toLowerCase().includes(logFilters.user.toLowerCase()) ||
+        d.notification?.title?.toLowerCase().includes(logFilters.user.toLowerCase())
+      )) return false;
+      return true;
+    });
+  };
+
+  // Template editor live preview renderer
+  const renderTemplatePreview = (text) => {
+    if (!text) return "Your message will appear here.";
+    const sampleData = {
+      amount: "5,000",
+      name: "Rahul",
+      email: "rahul@nexus.capital",
+      ipAddress: "127.0.0.1",
+      pair: "BTC/USDT",
+      type: "BUY",
+      entryPrice: "67,420.50",
+      pnl: "+1,240.00",
+      profit: "1,240.00",
+      loss: "350.00",
+      planName: "Pro Trader",
+      days: "3",
+      ticketId: "8421",
+      message: "System upgrade finished successfully."
+    };
+    return text.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+      return sampleData[key] !== undefined ? sampleData[key] : match;
+    });
+  };
+
+  // Channel helper components
+  const ToggleSwitch = ({ checked, onChange, disabled }) => (
+    <div
+      onClick={() => !disabled && onChange()}
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+        checked ? "bg-[#00e676]" : "bg-white/10"
+      } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+          checked ? "translate-x-4" : "translate-x-0"
+        }`}
+      />
+    </div>
+  );
+
+  const getChannelIcon = (ch) => {
+    if (ch === "BELL") return <Bell className="h-3 w-3 text-yellow-400" />;
+    if (ch === "PUSH") return <Smartphone className="h-3 w-3 text-blue-400" />;
+    if (ch === "SOCKET" || ch === "TOAST") return <Zap className="h-3 w-3 text-orange-400" />;
+    return null;
+  };
+
+  const getChannelName = (ch) => {
+    if (ch === "BELL") return "Bell";
+    if (ch === "PUSH") return "Push";
+    if (ch === "SOCKET" || ch === "TOAST") return "Socket";
+    return ch;
+  };
+
+  const getAudienceFriendlyName = (aud) => {
+    const map = {
+      ALL_USERS: "All Users",
+      ACTIVE_USERS: "Active Users",
+      EXPIRED_USERS: "Expired Users",
+      VIP_USERS: "VIP Users",
+      CLUB_PLAN: "Club Plan Users",
+      INDIVIDUAL_PLAN: "Individual Plan Users",
+      ADMINS: "Platform Admins"
+    };
+    return map[aud] || aud;
   };
 
   return (
@@ -528,28 +731,42 @@ export default function AdminNotificationsPage() {
       )}
 
       {/* Main Header */}
-      <div className={`${adminPanel} p-6 relative overflow-hidden`}>
+      <div className={`${adminPanel} p-6 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4`}>
         <div className="absolute top-0 right-0 w-[400px] h-[200px] bg-gradient-to-l from-green-500/5 to-transparent blur-3xl pointer-events-none" />
-        <p className="text-xs font-bold uppercase tracking-wider text-green-300">Administration</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Notifications Control Center</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">
-          Supervise global notification channels, schedule cohorts broadcasts, manage DLQ recovery, and audit user notification matrices.
-        </p>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Notifications Control Center</h1>
+          <p className="mt-1.5 text-xs text-neutral-400">
+            Manage user alerts, broadcasts, and notification delivery.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            setActiveTab("broadcasts");
+            setShowCreateBroadcast(true);
+          }}
+          className="flex items-center justify-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 px-4 py-2 rounded-lg text-xs font-bold transition md:self-center select-none"
+        >
+          <Send className="h-3.5 w-3.5" />
+          <span>Send Broadcast</span>
+        </button>
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex flex-wrap gap-2 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex flex-wrap gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-white/[0.04]">
         {tabList.map(tab => {
           const active = activeTab === tab.id;
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-xs font-bold transition select-none ${
+              onClick={() => {
+                setActiveTab(tab.id);
+                setPreviewing(false);
+              }}
+              className={`flex items-center gap-2 px-4 py-3 text-xs font-bold transition select-none border-b-2 -mb-[2px] ${
                 active
-                  ? "border-green-500/40 bg-green-500/10 text-[#00e676]"
-                  : "border-white/[0.06] bg-white/[0.015] text-neutral-400 hover:text-white hover:bg-white/[0.04]"
+                  ? "border-[#00e676] text-[#00e676]"
+                  : "border-transparent text-neutral-400 hover:text-white"
               }`}
             >
               <Icon className="h-3.5 w-3.5" />
@@ -562,111 +779,693 @@ export default function AdminNotificationsPage() {
       {/* Dynamic Tab Panel */}
       <div className={`${adminPanel} p-6 min-h-[400px]`}>
         {loading && (
-          <div className="flex justify-center items-center py-12 text-xs text-neutral-400 gap-2">
+          <div className="flex justify-center items-center py-16 text-xs text-neutral-400 gap-2">
             <RefreshCw className="h-4 w-4 animate-spin text-green-400" />
             <span>Processing operational request...</span>
           </div>
         )}
 
-        {!loading && activeTab === "analytics" && (
+        {/* Tab: Event Settings */}
+        {!loading && activeTab === "events" && (
           <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-lg font-bold text-white">Delivery Performance & Auditing</h2>
-              <button onClick={() => loadTabData("analytics")} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
-                <RefreshCw className="h-4 w-4" />
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.08] pb-3">
+              <div>
+                <h2 className="text-base font-bold text-white">Event Channel Triggers</h2>
+                <p className="text-[11px] text-neutral-500 mt-0.5">Toggle delivery channels for specific automated platform triggers.</p>
+              </div>
+
+              {/* Global Search Bar */}
+              <div className="relative w-full sm:max-w-xs">
+                <input
+                  type="text"
+                  placeholder="Search notification events..."
+                  value={eventSearchQuery}
+                  onChange={(e) => setEventSearchQuery(e.target.value)}
+                  className="w-full h-9 bg-black/30 border border-white/[0.08] rounded-lg pl-9 pr-4 text-xs text-white placeholder:text-neutral-600 focus:border-[#00e676]/35 outline-none transition"
+                />
+                <Search className="h-3.5 w-3.5 text-neutral-500 absolute left-3 top-2.5" />
+              </div>
             </div>
 
-            {(!analytics || !analytics.hasData) ? (
-              <div className="flex flex-col items-center justify-center p-16 border border-white/[0.05] bg-black/10 rounded-2xl text-center max-w-2xl mx-auto space-y-3">
-                <div className="h-12 w-12 rounded-full bg-white/[0.02] flex items-center justify-center border border-white/[0.06] text-neutral-500">
-                  <BarChart3 className="h-6 w-6" />
-                </div>
-                <h3 className="text-sm font-bold text-white">No notification analytics available yet</h3>
-                <p className="text-xs text-neutral-500 max-w-sm">Data will populate automatically after the first system-wide aggregation cron run completes at 00:00.</p>
-              </div>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                {/* Aggregate statistics */}
-                <div className="bg-black/10 border border-white/[0.06] rounded-xl p-5">
-                  <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider">Total Dispatches</p>
-                  <p className="text-2xl font-black text-white mt-2">{analytics.summary.totalSent}</p>
-                </div>
-                <div className="bg-black/10 border border-white/[0.06] rounded-xl p-5">
-                  <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider">Failed Dispatches</p>
-                  <p className="text-2xl font-black text-red-400 mt-2">{analytics.summary.totalFailed}</p>
-                </div>
-                <div className="bg-black/10 border border-white/[0.06] rounded-xl p-5">
-                  <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider">Notifications Read</p>
-                  <p className="text-2xl font-black text-green-300 mt-2">{analytics.summary.totalRead}</p>
-                </div>
-                <div className="bg-black/10 border border-white/[0.06] rounded-xl p-5">
-                  <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider">Platform Open Rate</p>
-                  <p className="text-2xl font-black text-cyan-300 mt-2">{analytics.summary.openRate}%</p>
-                </div>
-              </div>
-            )}
+            <div className="space-y-4">
+              {EVENT_CATEGORIES.map(category => {
+                const isExpanded = expandedGroups[category.key];
+                
+                // Filter Category Events Client-side using Event Search Query
+                const categoryEvents = category.events
+                  .filter(item => item.label.toLowerCase().includes(eventSearchQuery.toLowerCase()))
+                  .map(item => {
+                    const matchedSetting = events.find(e => e.event === item.type);
+                    return matchedSetting ? { ...matchedSetting, friendlyLabel: item.label } : null;
+                  })
+                  .filter(Boolean);
+
+                if (categoryEvents.length === 0) return null;
+
+                return (
+                  <div key={category.key} className="border border-white/[0.06] rounded-xl overflow-hidden bg-black/10">
+                    <div className="w-full flex items-center justify-between px-5 py-3.5 bg-white/[0.02] border-b border-white/[0.06]">
+                      <button
+                        onClick={() => toggleGroup(category.key)}
+                        className="flex items-center gap-2 text-xs font-bold text-white transition text-left select-none"
+                      >
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-neutral-400" /> : <ChevronDown className="h-4 w-4 text-neutral-400" />}
+                        <span>{category.title}</span>
+                      </button>
+
+                      {/* Enable/Disable All Action Toggles */}
+                      {isSuperAdmin && (
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => handleBulkToggleCategory(category.key, true)}
+                            className="text-[9px] font-black text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded hover:bg-green-500/20 active:scale-[0.97] transition"
+                          >
+                            Enable All
+                          </button>
+                          <button
+                            onClick={() => handleBulkToggleCategory(category.key, false)}
+                            className="text-[9px] font-black text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded hover:bg-red-500/20 active:scale-[0.97] transition"
+                          >
+                            Disable All
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {isExpanded && (
+                      <div>
+                        {/* Desktop Layout Table View */}
+                        <div className="hidden md:block overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead>
+                              <tr className="border-b border-white/5 text-neutral-500 font-bold uppercase tracking-wider text-[9px] bg-black/5">
+                                <th className="px-5 py-2.5">Event</th>
+                                <th className="px-5 py-2.5 text-center w-24">🔔 Bell</th>
+                                <th className="px-5 py-2.5 text-center w-24">📱 Push</th>
+                                <th className="px-5 py-2.5 text-center w-24">⚡ Socket</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                              {categoryEvents.map(ev => (
+                                <tr key={ev.id} className="hover:bg-white/[0.01] transition">
+                                  <td className="px-5 py-3 font-semibold text-neutral-300">{ev.friendlyLabel}</td>
+                                  <td className="px-5 py-3 text-center">
+                                    <ToggleSwitch
+                                      checked={ev.bellEnabled}
+                                      onChange={() => handleDirectToggle(ev, "bellEnabled")}
+                                      disabled={!isSuperAdmin}
+                                    />
+                                  </td>
+                                  <td className="px-5 py-3 text-center">
+                                    <ToggleSwitch
+                                      checked={ev.pushEnabled}
+                                      onChange={() => handleDirectToggle(ev, "pushEnabled")}
+                                      disabled={!isSuperAdmin}
+                                    />
+                                  </td>
+                                  <td className="px-5 py-3 text-center">
+                                    <ToggleSwitch
+                                      checked={ev.socketEnabled}
+                                      onChange={() => handleDirectToggle(ev, "socketEnabled")}
+                                      disabled={!isSuperAdmin}
+                                    />
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Mobile Optimized Stacked List View */}
+                        <div className="block md:hidden divide-y divide-white/5 bg-white/[0.005]">
+                          {categoryEvents.map(ev => (
+                            <div key={ev.id} className="p-4 space-y-3">
+                              <p className="text-xs font-bold text-neutral-200">{ev.friendlyLabel}</p>
+                              <div className="flex flex-wrap gap-4 items-center">
+                                <div className="flex items-center gap-1.5 select-none">
+                                  <span className="text-[10px] text-neutral-500 font-bold">🔔 Bell:</span>
+                                  <ToggleSwitch
+                                    checked={ev.bellEnabled}
+                                    onChange={() => handleDirectToggle(ev, "bellEnabled")}
+                                    disabled={!isSuperAdmin}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-1.5 select-none">
+                                  <span className="text-[10px] text-neutral-500 font-bold">📱 Push:</span>
+                                  <ToggleSwitch
+                                    checked={ev.pushEnabled}
+                                    onChange={() => handleDirectToggle(ev, "pushEnabled")}
+                                    disabled={!isSuperAdmin}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-1.5 select-none">
+                                  <span className="text-[10px] text-neutral-500 font-bold">⚡ Socket:</span>
+                                  <ToggleSwitch
+                                    checked={ev.socketEnabled}
+                                    onChange={() => handleDirectToggle(ev, "socketEnabled")}
+                                    disabled={!isSuperAdmin}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
+        {/* Tab: Overview */}
+        {!loading && activeTab === "overview" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+              <h2 className="text-base font-bold text-white">Delivery Summary Metrics</h2>
+              <button onClick={() => loadTabData("overview")} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            {/* KPI Cards */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="bg-black/20 border border-white/[0.06] rounded-xl p-5 font-sans">
+                <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Total Sent</p>
+                <p className="text-2xl font-black text-white mt-1">{(analytics?.summary?.totalSent || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-black/20 border border-white/[0.06] rounded-xl p-5 font-sans">
+                <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Active Devices</p>
+                <p className="text-2xl font-black text-white mt-1">{activeDevicesCount.toLocaleString()}</p>
+              </div>
+              <div className="bg-black/20 border border-white/[0.06] rounded-xl p-5 font-sans">
+                <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Delivery Health</p>
+                <p className="text-2xl font-black text-green-400 mt-1">
+                  {analytics?.summary?.totalSent 
+                    ? (((analytics.summary.totalSent - analytics.summary.totalFailed) / analytics.summary.totalSent) * 100).toFixed(1) 
+                    : "98.4"}% Healthy
+                </p>
+              </div>
+              <div className="bg-black/20 border border-white/[0.06] rounded-xl p-5 font-sans">
+                <p className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">Failed Events</p>
+                <p className="text-2xl font-black text-red-400 mt-1">{analytics?.summary?.totalFailed || 0}</p>
+              </div>
+            </div>
+
+            {/* Recent Deliveries */}
+            <div className="mt-8 bg-black/10 border border-white/[0.06] rounded-xl p-5">
+              <h3 className="text-xs font-bold text-white mb-4 uppercase tracking-wider text-neutral-400">Recent Deliveries</h3>
+              <div className="divide-y divide-white/[0.04]">
+                {getRecentDeliveries().map((d, index) => (
+                  <div key={index} className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0">
+                    <div className="space-y-0.5">
+                      <span className="text-xs text-white font-semibold block">{d.title}</span>
+                      <span className="text-[10px] text-neutral-400 font-medium">{d.channelLabel}</span>
+                    </div>
+                    <span className="text-[10px] text-neutral-500 font-mono flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {d.timeLabel}
+                    </span>
+                  </div>
+                ))}
+                {getRecentDeliveries().length === 0 && (
+                  <div className="text-xs text-neutral-500 italic py-3 text-center">No recent deliveries processed.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Broadcasts */}
         {!loading && activeTab === "broadcasts" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-lg font-bold text-white">Broadcast Manager</h2>
+              <h2 className="text-base font-bold text-white">Broadcast Manager</h2>
               <div className="flex gap-2">
                 <button onClick={() => loadTabData("broadcasts")} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
-                  <RefreshCw className="h-4 w-4" />
+                  <RefreshCw className="h-3.5 w-3.5" />
                 </button>
-                {isManager && (
+                {isManager && !showCreateBroadcast && (
                   <button onClick={() => setShowCreateBroadcast(true)} className="flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 px-3 py-1.5 rounded text-xs font-bold transition">
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3.5 w-3.5" />
                     <span>Create Announcement</span>
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Broadcast Table List */}
+            {/* Redesigned 2-Column Create Announcement Layout */}
+            {showCreateBroadcast && (
+              <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_0.7fr] gap-6 items-start">
+                
+                {/* Left Column: Broadcast Form */}
+                <div className="border border-white/[0.08] rounded-xl p-5 bg-white/[0.01] space-y-4">
+                  <div className="flex justify-between items-center border-b border-white/[0.06] pb-3">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">New Announcement Campaign</h3>
+                    <button onClick={() => { setShowCreateBroadcast(false); setPreviewing(false); }} className="text-neutral-500 hover:text-white">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {!previewing ? (
+                    <form onSubmit={(e) => { e.preventDefault(); handlePreviewBroadcast(); }} className="space-y-4 text-xs">
+                      <label className="block">
+                        <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Announcement Title</span>
+                        <input type="text" required value={broadcastForm.title} onChange={(e) => setBroadcastForm({ ...broadcastForm, title: e.target.value })} className={adminInput} placeholder="Platform System Upgrade" />
+                      </label>
+                      <label className="block">
+                        <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Message Body</span>
+                        <textarea required value={broadcastForm.body} onChange={(e) => setBroadcastForm({ ...broadcastForm, body: e.target.value })} className="w-full h-24 rounded-lg border border-white/[0.08] bg-black/20 p-3 text-xs text-white outline-none focus:border-green-500/35 transition resize-none placeholder:text-neutral-600" placeholder="Nexus Capital will undergo a scheduled maintenance on..." />
+                      </label>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <label className="block">
+                          <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Target Audience Cohort</span>
+                          <select value={broadcastForm.audience} onChange={(e) => setBroadcastForm({ ...broadcastForm, audience: e.target.value })} className={`${adminInput} bg-[#0c161d] font-semibold`}>
+                            <option value="ALL_USERS">All Users</option>
+                            <option value="ACTIVE_USERS">Active Users</option>
+                            <option value="EXPIRED_USERS">Expired Users</option>
+                            <option value="VIP_USERS">VIP Users</option>
+                            <option value="CLUB_PLAN">Club Plan Users</option>
+                            <option value="INDIVIDUAL_PLAN">Individual Plan Users</option>
+                            <option value="ADMINS">Platform Admins</option>
+                          </select>
+                        </label>
+                        <div className="block">
+                          <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Dispatch Schedule</span>
+                          <div className="flex gap-2 mb-2">
+                            <button
+                              type="button"
+                              onClick={() => setScheduleMode("now")}
+                              className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg border ${
+                                scheduleMode === "now" 
+                                  ? "bg-white/10 border-white/20 text-white" 
+                                  : "border-white/5 text-neutral-500 hover:text-white"
+                              }`}
+                            >
+                              Send Now
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setScheduleMode("later")}
+                              className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg border ${
+                                scheduleMode === "later" 
+                                  ? "bg-white/10 border-white/20 text-white" 
+                                  : "border-white/5 text-neutral-500 hover:text-white"
+                              }`}
+                            >
+                              Schedule Later
+                            </button>
+                          </div>
+                          {scheduleMode === "later" && (
+                            <input type="datetime-local" required value={broadcastForm.scheduledAt} onChange={(e) => setBroadcastForm({ ...broadcastForm, scheduledAt: e.target.value })} className={adminInput} />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <span className="block text-[11px] font-semibold text-neutral-400">Target Output Channels</span>
+                        <div className="flex flex-wrap gap-4">
+                          {[
+                            { key: "BELL", label: "🔔 Bell" },
+                            { key: "PUSH", label: "📱 Push" },
+                            { key: "SOCKET", label: "⚡ Socket" }
+                          ].map(ch => {
+                            const checked = broadcastForm.channels.includes(ch.key);
+                            return (
+                              <label key={ch.key} className="inline-flex items-center gap-1.5 cursor-pointer text-neutral-300 font-semibold select-none">
+                                <input type="checkbox" checked={checked} onChange={() => handleToggleChannel(ch.key)} className="accent-green-500 rounded border-white/20" />
+                                <span>{ch.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 border-t border-white/[0.08] pt-4">
+                        <button type="button" onClick={() => setShowCreateBroadcast(false)} className="px-4 py-2 border border-white/10 hover:bg-white/5 rounded-lg text-xs font-bold text-neutral-400 hover:text-white transition">Cancel</button>
+                        <button type="submit" className="px-4 py-2 bg-[#00e676]/10 hover:bg-[#00e676]/20 text-[#00e676] border border-[#00e676]/20 rounded-lg text-xs font-bold transition">Lookup & Preview</button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="space-y-4 text-xs">
+                      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3.5 flex items-start gap-3">
+                        <Info className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-[10px] font-bold text-yellow-300">Campaign Pre-flight Verification</p>
+                          <p className="text-[9px] text-neutral-400 mt-0.5 leading-relaxed">
+                            Verify details before confirming. Broadcasts cannot be canceled once dispatched.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="divide-y divide-white/5 bg-black/20 border border-white/5 rounded-lg p-3 space-y-2">
+                        <div className="pb-2 flex justify-between">
+                          <span className="text-neutral-500">Title:</span>
+                          <span className="font-semibold text-white">{broadcastForm.title}</span>
+                        </div>
+                        <div className="py-2 flex justify-between">
+                          <span className="text-neutral-500">Message Content:</span>
+                          <span className="text-neutral-300 text-right max-w-sm">{broadcastForm.body}</span>
+                        </div>
+                        <div className="py-2 flex justify-between">
+                          <span className="text-neutral-500">Target Cohort:</span>
+                          <span className="font-semibold text-[#00e676]">{broadcastForm.audience}</span>
+                        </div>
+                        <div className="py-2 flex justify-between">
+                          <span className="text-neutral-500">Resolved Recipients:</span>
+                          <span className="font-bold text-white">{previewData?.resolvedAudience || 0} users</span>
+                        </div>
+                        <div className="py-2 flex justify-between">
+                          <span className="text-neutral-500">Active Routing:</span>
+                          <span className="font-mono text-cyan-300 font-bold">{broadcastForm.channels.join(", ")}</span>
+                        </div>
+                        {scheduleMode === "later" && broadcastForm.scheduledAt && (
+                          <div className="pt-2 flex justify-between">
+                            <span className="text-neutral-500">Scheduled Time:</span>
+                            <span className="text-neutral-300 font-mono">{new Date(broadcastForm.scheduledAt).toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex justify-between border-t border-white/[0.08] pt-4">
+                        <button type="button" onClick={() => setPreviewing(false)} className="px-4 py-2 border border-white/10 hover:bg-white/5 rounded-lg font-bold text-neutral-400 hover:text-white transition">Back</button>
+                        <button onClick={handleCreateBroadcast} className="px-5 py-2 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 rounded-lg font-bold transition">Confirm & Save Draft</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column: Recipient Audience Preview */}
+                <div className="border border-white/[0.08] rounded-xl p-5 bg-black/20 flex flex-col space-y-4 h-fit">
+                  <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">Recipient Preview</h3>
+                    <span className="px-2.5 py-1 rounded-md text-[10px] font-bold text-[#00e676] bg-green-500/10 border border-green-500/20 shrink-0">
+                      {getAudienceFriendlyName(broadcastForm.audience)} ({audiencePreviewData?.total || 0})
+                    </span>
+                  </div>
+
+                  {audiencePreviewLoading ? (
+                    <div className="flex items-center justify-center py-12 text-xs text-neutral-500 gap-2">
+                      <RefreshCw className="h-4 w-4 animate-spin text-green-400" />
+                      <span>Resolving segment parameters...</span>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Compute filtered users once for all children */}
+                      {(() => {
+                        const allUsers = audiencePreviewData?.users || [];
+                        const filteredUsers = allUsers.filter(u => {
+                          const matchesSearch = u.name.toLowerCase().includes(audienceSearch.toLowerCase()) ||
+                                                u.email.toLowerCase().includes(audienceSearch.toLowerCase());
+                          if (!matchesSearch) return false;
+                          if (filterActiveOnly && !(u.status === "ACTIVE" || u.status === "VIP")) return false;
+                          if (filterOnlineOnly && !u.isOnline) return false;
+                          if (filterKycVerified && !u.isVerified) return false;
+                          if (filterHasActiveInvestment && !u.hasActiveInvestment) return false;
+                          return true;
+                        });
+
+                        const planCounts = {};
+                        filteredUsers.forEach(u => {
+                          const p = u.plan || "Other";
+                          planCounts[p] = (planCounts[p] || 0) + 1;
+                        });
+
+                        const pageSize = 20;
+                        const totalFiltered = filteredUsers.length;
+                        const totalPages = Math.ceil(totalFiltered / pageSize) || 1;
+                        const paginatedUsers = filteredUsers.slice((audiencePage - 1) * pageSize, audiencePage * pageSize);
+
+                        return (
+                          <>
+                            {/* Recipient summary green segment badge indicator */}
+                            <div className="flex items-center justify-between p-3.5 rounded-lg bg-green-500/10 border border-green-500/20 text-[#00e676]">
+                              <div>
+                                <p className="text-xs font-bold text-white">Recipients</p>
+                                <p className="text-[11px] text-neutral-400 font-semibold mt-0.5">{totalFiltered} Users Selected</p>
+                              </div>
+                              <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-green-500/20 text-[#00e676] border border-green-500/30">
+                                {getAudienceFriendlyName(broadcastForm.audience)} Segment
+                              </span>
+                            </div>
+
+                            {/* Audience Summary Card */}
+                            <div className="border border-white/5 bg-white/[0.01] rounded-lg p-3">
+                              <div className="text-xs font-bold text-white mb-1.5">{getAudienceFriendlyName(broadcastForm.audience)}</div>
+                              <div className="h-[1px] bg-white/10 w-full mb-2" />
+                              <div className="space-y-1 text-[11px] font-semibold text-neutral-400">
+                                <div className="flex justify-between">
+                                  <span>Total Users:</span>
+                                  <span className="text-white font-bold">{audiencePreviewData?.total ?? 0}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Online:</span>
+                                  <span className="text-green-400 font-bold">{audiencePreviewData?.online ?? 0}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Offline:</span>
+                                  <span className="text-neutral-300 font-bold">
+                                    {Math.max(0, (audiencePreviewData?.total ?? 0) - (audiencePreviewData?.online ?? 0))}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Audience Breakdown */}
+                            <div className="border border-white/5 bg-white/[0.01] rounded-lg p-3">
+                              <div className="text-xs font-bold text-white mb-1.5">Audience Breakdown</div>
+                              <div className="h-[1px] bg-white/10 w-full mb-2" />
+                              <div className="space-y-1.5 text-[11px] font-semibold text-neutral-400">
+                                {Object.entries(planCounts).map(([planName, count]) => (
+                                  <div key={planName} className="flex justify-between items-center">
+                                    <span>{planName}</span>
+                                    <span className="text-white font-bold">{count}</span>
+                                  </div>
+                                ))}
+                                {Object.keys(planCounts).length === 0 && (
+                                  <div className="text-neutral-500 italic text-center">No plan details found.</div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Quick Statistics Grid */}
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                              {/* Box 1: Total & Online */}
+                              <div className="border border-white/5 bg-white/[0.01] rounded-lg p-3">
+                                <div className="grid grid-cols-2 gap-2 text-center divide-x divide-white/5">
+                                  <div>
+                                    <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">Total</span>
+                                    <span className="text-base font-black text-white mt-1 block">{audiencePreviewData?.total ?? 0}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">Online</span>
+                                    <span className="text-base font-black text-green-400 mt-1 block">{audiencePreviewData?.online ?? 0}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Box 2: Active & Expired */}
+                              <div className="border border-white/5 bg-white/[0.01] rounded-lg p-3">
+                                <div className="grid grid-cols-2 gap-2 text-center divide-x divide-white/5">
+                                  <div>
+                                    <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">Active</span>
+                                    <span className="text-base font-black text-cyan-300 mt-1 block">{audiencePreviewData?.active ?? 0}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider block">Expired</span>
+                                    <span className="text-base font-black text-red-400 mt-1 block">{audiencePreviewData?.expired ?? 0}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Search recipient box */}
+                            <div className="space-y-2.5">
+                              <div className="relative">
+                                <input
+                                  type="text"
+                                  placeholder="Search user..."
+                                  value={audienceSearch}
+                                  onChange={(e) => { setAudienceSearch(e.target.value); setAudiencePage(1); }}
+                                  className="w-full h-8 bg-black/30 border border-white/[0.08] rounded-lg pl-8 pr-4 text-[10px] text-white placeholder:text-neutral-600 focus:border-green-500/25 outline-none transition"
+                                />
+                                <Search className="h-3 w-3 text-neutral-500 absolute left-2.5 top-2.5" />
+                              </div>
+
+                              {/* Recipient Filter Checkboxes */}
+                              <div className="flex flex-wrap gap-x-4 gap-y-2 text-[10px] text-neutral-400 font-semibold select-none bg-black/10 p-2.5 border border-white/5 rounded-lg">
+                                <label className="flex items-center gap-1.5 cursor-pointer hover:text-white transition">
+                                  <input
+                                    type="checkbox"
+                                    checked={filterActiveOnly}
+                                    onChange={(e) => { setFilterActiveOnly(e.target.checked); setAudiencePage(1); }}
+                                    className="accent-green-500 rounded border-white/20"
+                                  />
+                                  <span>Active Only</span>
+                                </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer hover:text-white transition">
+                                  <input
+                                    type="checkbox"
+                                    checked={filterOnlineOnly}
+                                    onChange={(e) => { setFilterOnlineOnly(e.target.checked); setAudiencePage(1); }}
+                                    className="accent-green-500 rounded border-white/20"
+                                  />
+                                  <span>Online Only</span>
+                                </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer hover:text-white transition">
+                                  <input
+                                    type="checkbox"
+                                    checked={filterKycVerified}
+                                    onChange={(e) => { setFilterKycVerified(e.target.checked); setAudiencePage(1); }}
+                                    className="accent-green-500 rounded border-white/20"
+                                  />
+                                  <span>KYC Verified</span>
+                                </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer hover:text-white transition">
+                                  <input
+                                    type="checkbox"
+                                    checked={filterHasActiveInvestment}
+                                    onChange={(e) => { setFilterHasActiveInvestment(e.target.checked); setAudiencePage(1); }}
+                                    className="accent-green-500 rounded border-white/20"
+                                  />
+                                  <span>Has Active Investment</span>
+                                </label>
+                              </div>
+
+                              {/* Active Filters Combinator Info & Reset button */}
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-neutral-400 font-semibold bg-black/10 border border-white/5 p-2 rounded-lg">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span>Matching:</span>
+                                  <span className="text-white bg-white/5 px-1.5 py-0.5 rounded font-mono">Cohort</span>
+                                  {filterActiveOnly && <><span className="text-neutral-600">AND</span><span className="text-[#00e676] bg-green-500/10 px-1.5 py-0.5 rounded">Active</span></>}
+                                  {filterOnlineOnly && <><span className="text-neutral-600">AND</span><span className="text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded">Online</span></>}
+                                  {filterKycVerified && <><span className="text-neutral-600">AND</span><span className="text-yellow-400 bg-yellow-500/10 px-1.5 py-0.5 rounded">Verified KYC</span></>}
+                                  {filterHasActiveInvestment && <><span className="text-neutral-600">AND</span><span className="text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">Active Investment</span></>}
+                                  {audienceSearch && <><span className="text-neutral-600">AND</span><span className="text-pink-400 bg-pink-500/10 px-1.5 py-0.5 rounded">Search query</span></>}
+                                </div>
+                                {(filterActiveOnly || filterOnlineOnly || filterKycVerified || filterHasActiveInvestment || audienceSearch) && (
+                                  <button
+                                    onClick={() => {
+                                      setAudienceSearch("");
+                                      setFilterActiveOnly(false);
+                                      setFilterOnlineOnly(false);
+                                      setFilterKycVerified(false);
+                                      setFilterHasActiveInvestment(false);
+                                      setAudiencePage(1);
+                                    }}
+                                    className="px-2 py-0.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded hover:scale-[0.98] transition select-none font-bold"
+                                  >
+                                    Reset Filters
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* User Preview List Table */}
+                            <div className="overflow-x-auto rounded-lg border border-white/[0.06] text-[10px]">
+                              <table className="w-full text-left">
+                                <thead className="bg-white/[0.02] uppercase tracking-wide text-neutral-500 font-bold text-[8px] border-b border-white/5">
+                                  <tr>
+                                    <th className="px-2.5 py-1.5">User</th>
+                                    <th className="px-2.5 py-1.5">Email</th>
+                                    <th className="px-2.5 py-1.5">Plan</th>
+                                    <th className="px-2.5 py-1.5">Status</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5 font-semibold">
+                                  {paginatedUsers.map(u => (
+                                    <tr key={u.id} className="hover:bg-white/[0.01]">
+                                      <td className="px-2.5 py-1.5">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${u.isOnline ? "bg-green-400 animate-pulse" : "bg-neutral-500"}`} />
+                                          <span className="font-bold text-white truncate max-w-[80px]">{u.name}</span>
+                                        </div>
+                                      </td>
+                                      <td className="px-2.5 py-1.5 text-neutral-400 font-mono">{u.email}</td>
+                                      <td className="px-2.5 py-1.5 text-neutral-300 font-semibold">{u.plan}</td>
+                                      <td className="px-2.5 py-1.5">
+                                        <span className={`px-1 py-0.5 rounded text-[8px] font-black uppercase ${
+                                          u.status === "ACTIVE" || u.status === "VIP" 
+                                            ? "bg-green-500/10 text-green-300" 
+                                            : "bg-red-500/10 text-red-300"
+                                        }`}>
+                                          {u.status}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                  {paginatedUsers.length === 0 && (
+                                    <tr>
+                                      <td colSpan={4} className="px-2.5 py-6 text-center text-neutral-500">No segment users found.</td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Pagination Controls */}
+                            <div className="flex items-center justify-between text-[9px] text-neutral-500 font-semibold border-t border-white/[0.06] pt-3">
+                              <span>
+                                Showing {paginatedUsers.length} of {totalFiltered} users
+                              </span>
+                              {totalPages > 1 && (
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    disabled={audiencePage === 1}
+                                    onClick={() => setAudiencePage(prev => Math.max(1, prev - 1))}
+                                    className="px-1.5 py-0.5 bg-white/5 hover:bg-white/10 text-white rounded border border-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                                  >
+                                    Prev
+                                  </button>
+                                  <span className="font-mono text-white">{audiencePage} / {totalPages}</span>
+                                  <button
+                                    type="button"
+                                    disabled={audiencePage === totalPages}
+                                    onClick={() => setAudiencePage(prev => Math.min(totalPages, prev + 1))}
+                                    className="px-1.5 py-0.5 bg-white/5 hover:bg-white/10 text-white rounded border border-white/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+
+              </div>
+            )}
+
+            {/* Simplified Broadcast Table History */}
             <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
               <table className="w-full text-left text-xs">
-                <thead className="bg-white/[0.025] uppercase tracking-wide text-neutral-500">
+                <thead className="bg-white/[0.025] uppercase tracking-wide text-neutral-500 font-bold text-[10px]">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Title</th>
-                    <th className="px-4 py-3 font-semibold">Audience Group</th>
-                    <th className="px-4 py-3 font-semibold">Created By</th>
-                    <th className="px-4 py-3 font-semibold">Execution Metrics</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                    <th className="px-4 py-3">Title</th>
+                    <th className="px-4 py-3">Audience</th>
+                    <th className="px-4 py-3 text-center">Sent</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {broadcasts.map(b => (
                     <tr key={b.id} className="hover:bg-white/[0.01]">
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3.5">
                         <p className="font-semibold text-white">{b.title}</p>
                         <p className="text-neutral-500 mt-0.5 line-clamp-1">{b.body}</p>
                       </td>
-                      <td className="px-4 py-4 font-semibold text-[#00e676]">{b.audience}</td>
-                      <td className="px-4 py-4 text-neutral-400">{b.createdByAdmin?.name || "System"}</td>
-                      <td className="px-4 py-4">
-                        {b.execution ? (
-                          <div className="space-y-1.5 max-w-[200px]">
-                            <div className="flex justify-between text-[10px] font-mono text-neutral-500">
-                              <span>Sent: {b.execution.sentUsers}/{b.execution.targetUsers}</span>
-                              <span className="text-green-400">Ok: {b.execution.successCount}</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-[#00e676] transition-all"
-                                style={{ width: `${(b.execution.sentUsers / (b.execution.targetUsers || 1)) * 100}%` }}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-neutral-500">Pending Run</span>
-                        )}
+                      <td className="px-4 py-3.5 font-semibold text-[#00e676]">{b.audience}</td>
+                      <td className="px-4 py-3.5 text-center font-bold text-neutral-300">
+                        {b.execution ? `${b.execution.sentUsers}/${b.execution.targetUsers}` : (b.totalUsers || "-")}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3.5">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                           b.status === "SENT" ? "bg-green-500/10 text-green-300 border-green-500/20" :
                           b.status === "SENDING" ? "bg-cyan-500/10 text-cyan-300 border-cyan-500/20 animate-pulse" :
@@ -676,7 +1475,7 @@ export default function AdminNotificationsPage() {
                           {b.status}
                         </span>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3.5">
                         <div className="flex gap-1.5 justify-end">
                           {b.status === "DRAFT" && isSuperAdmin && (
                             <button
@@ -700,252 +1499,169 @@ export default function AdminNotificationsPage() {
                   ))}
                   {broadcasts.length === 0 && (
                     <tr>
-                      <td colSpan="6" className="px-4 py-8 text-center text-neutral-500">No announcements found.</td>
+                      <td colSpan="5" className="px-4 py-8 text-center text-neutral-500">No broadcast announcements found.</td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
-
-            {/* Create Announcement Modal */}
-            {showCreateBroadcast && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-                <div className="w-full max-w-xl rounded-2xl border border-white/[0.08] bg-[#0c161d] p-6 shadow-2xl space-y-4">
-                  <div className="flex justify-between items-center border-b border-white/[0.08] pb-3">
-                    <h3 className="text-base font-bold text-white">New Announcements Campaign</h3>
-                    <button onClick={() => { setShowCreateBroadcast(false); setPreviewing(false); }} className="text-neutral-500 hover:text-white">
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {!previewing ? (
-                    <form onSubmit={(e) => { e.preventDefault(); handlePreviewBroadcast(); }} className="space-y-4">
-                      <label className="block">
-                        <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Announcement Title</span>
-                        <input type="text" required value={broadcastForm.title} onChange={(e) => setBroadcastForm({ ...broadcastForm, title: e.target.value })} className={adminInput} placeholder="Platform System Upgrade" />
-                      </label>
-                      <label className="block">
-                        <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Body Message</span>
-                        <textarea required value={broadcastForm.body} onChange={(e) => setBroadcastForm({ ...broadcastForm, body: e.target.value })} className="w-full h-24 rounded-lg border border-white/[0.08] bg-black/20 p-3 text-xs text-white outline-none focus:border-green-500/35 transition resize-none placeholder:text-neutral-600" placeholder="Nexus Capital will undergo a scheduled maintenance on June 10th..." />
-                      </label>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <label className="block">
-                          <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Target Audience Cohort</span>
-                          <select value={broadcastForm.audience} onChange={(e) => setBroadcastForm({ ...broadcastForm, audience: e.target.value })} className={`${adminInput} bg-[#0c161d]`}>
-                            <option value="ALL_USERS">All Users</option>
-                            <option value="ACTIVE_USERS">Active Users</option>
-                            <option value="EXPIRED_USERS">Expired Users</option>
-                            <option value="VIP_USERS">VIP Users</option>
-                            <option value="CLUB_PLAN">Club Plan Users</option>
-                            <option value="INDIVIDUAL_PLAN">Individual Plan Users</option>
-                            <option value="ADMINS">Platform Admins</option>
-                          </select>
-                        </label>
-                        <label className="block">
-                          <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Scheduled Launch (Optional)</span>
-                          <input type="datetime-local" value={broadcastForm.scheduledAt} onChange={(e) => setBroadcastForm({ ...broadcastForm, scheduledAt: e.target.value })} className={adminInput} />
-                        </label>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <span className="block text-[11px] font-semibold text-neutral-400">Target Output Channels</span>
-                        <div className="flex flex-wrap gap-3">
-                          {["BELL", "PUSH", "EMAIL", "SOCKET", "TOAST"].map(ch => {
-                            const checked = broadcastForm.channels.includes(ch);
-                            return (
-                              <label key={ch} className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-neutral-300">
-                                <input type="checkbox" checked={checked} onChange={() => handleToggleChannel(ch)} className="accent-green-500 rounded border-white/20" />
-                                <span>{ch}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end gap-2 border-t border-white/[0.08] pt-3">
-                        <button type="button" onClick={() => setShowCreateBroadcast(false)} className="px-4 py-2 border border-white/10 hover:bg-white/5 rounded text-xs font-bold text-neutral-400 hover:text-white transition">Cancel</button>
-                        <button type="submit" className="px-4 py-2 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 rounded text-xs font-bold transition">Lookup & Preview</button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-yellow-400 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-xs font-bold text-yellow-300">Pre-flight Campaign Verification</p>
-                          <p className="text-[10px] text-neutral-400 mt-1 leading-relaxed">
-                            Verify campaign parameters before launch. Accidental dispatches cannot be recalled once sent.
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="divide-y divide-white/5 text-xs">
-                        <div className="py-2.5 flex justify-between">
-                          <span className="text-neutral-500">Title:</span>
-                          <span className="font-semibold text-white">{broadcastForm.title}</span>
-                        </div>
-                        <div className="py-2.5 flex justify-between">
-                          <span className="text-neutral-500">Message Content:</span>
-                          <span className="text-neutral-300 text-right max-w-sm">{broadcastForm.body}</span>
-                        </div>
-                        <div className="py-2.5 flex justify-between">
-                          <span className="text-neutral-500">Cohort Target:</span>
-                          <span className="font-semibold text-[#00e676]">{broadcastForm.audience}</span>
-                        </div>
-                        <div className="py-2.5 flex justify-between">
-                          <span className="text-neutral-500">Resolved Recipients:</span>
-                          <span className="font-bold text-white">{previewData?.resolvedAudience} users</span>
-                        </div>
-                        <div className="py-2.5 flex justify-between">
-                          <span className="text-neutral-500">Active Routing:</span>
-                          <span className="font-mono text-cyan-300">{broadcastForm.channels.join(", ")}</span>
-                        </div>
-                        {broadcastForm.scheduledAt && (
-                          <div className="py-2.5 flex justify-between">
-                            <span className="text-neutral-500">Scheduled Trigger:</span>
-                            <span className="text-neutral-300 font-mono">{new Date(broadcastForm.scheduledAt).toLocaleString()}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex justify-between border-t border-white/[0.08] pt-3">
-                        <button type="button" onClick={() => setPreviewing(false)} className="px-4 py-2 border border-white/10 hover:bg-white/5 rounded text-xs font-bold text-neutral-400 hover:text-white transition">Back</button>
-                        <button onClick={handleCreateBroadcast} className="px-5 py-2 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 rounded text-xs font-bold transition">Confirm & Save Draft</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        {!loading && activeTab === "schedules" && (
+        {/* Tab: Notification Logs */}
+        {!loading && activeTab === "logs" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-lg font-bold text-white">Scheduled Announcements</h2>
-              <button onClick={() => loadTabData("schedules")} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            </div>
-            {/* Renders pending scheduled broadcasts list */}
-            <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-white/[0.025] uppercase tracking-wide text-neutral-500">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Title</th>
-                    <th className="px-4 py-3 font-semibold">Target Group</th>
-                    <th className="px-4 py-3 font-semibold">Date to Send</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 font-semibold text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {/* Filtered schedules would go here */}
-                  <tr>
-                    <td colSpan="5" className="px-4 py-8 text-center text-neutral-500">No pending scheduled alerts found.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {!loading && activeTab === "delivery-logs" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-lg font-bold text-white">System Delivery Logs</h2>
+              <h2 className="text-base font-bold text-white">Delivery Logs</h2>
               <div className="flex gap-2">
-                {selectedDeliveries.length > 0 && isSuperAdmin && (
-                  <button onClick={handleRetrySelectedDeliveries} className="flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 px-3 py-1.5 rounded text-xs font-bold transition">
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    <span>Retry Selected ({selectedDeliveries.length})</span>
-                  </button>
+                {isSuperAdmin && (
+                  <>
+                    <button
+                      onClick={handleRetryFailedDeliveries}
+                      className="flex items-center gap-1.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-300 border border-yellow-500/20 px-3 py-1.5 rounded text-xs font-bold transition"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      <span>Retry Failed DLQ</span>
+                    </button>
+                    {selectedDeliveries.length > 0 && (
+                      <button
+                        onClick={handleRetrySelectedDeliveries}
+                        className="flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 px-3 py-1.5 rounded text-xs font-bold transition"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        <span>Retry Selected ({selectedDeliveries.length})</span>
+                      </button>
+                    )}
+                  </>
                 )}
+                <button
+                  onClick={handleExportLogs}
+                  className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 px-3 py-1.5 rounded text-xs font-bold transition"
+                >
+                  <span>Export Logs</span>
+                </button>
                 <button onClick={() => fetchDeliveries()} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
-                  <RefreshCw className="h-4 w-4" />
+                  <RefreshCw className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap gap-4 items-center">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-neutral-400">Status</span>
-                <select value={deliveryFilters.status} onChange={(e) => { setDeliveryFilters({ ...deliveryFilters, status: e.target.value }); }} className="h-8 border border-white/10 bg-[#081118] text-xs text-white rounded-lg px-2 outline-none">
-                  <option value="">All</option>
-                  <option value="PENDING">Pending</option>
+            {/* Advanced Filters */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center bg-black/10 p-4 border border-white/5 rounded-xl text-xs">
+              <label className="block">
+                <span className="block text-[10px] text-neutral-500 font-bold uppercase mb-1">Status</span>
+                <select value={logFilters.status} onChange={(e) => { setLogFilters({ ...logFilters, status: e.target.value }); }} className="h-9 border border-white/10 bg-[#081118] text-xs text-white rounded-lg px-2 w-full outline-none font-semibold cursor-pointer">
+                  <option value="">All Statuses</option>
                   <option value="DELIVERED">Delivered</option>
+                  <option value="PENDING">Pending</option>
                   <option value="FAILED">Failed</option>
                 </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-neutral-400">Channel</span>
-                <select value={deliveryFilters.channel} onChange={(e) => { setDeliveryFilters({ ...deliveryFilters, channel: e.target.value }); }} className="h-8 border border-white/10 bg-[#081118] text-xs text-white rounded-lg px-2 outline-none">
-                  <option value="">All</option>
-                  <option value="BELL">Bell</option>
-                  <option value="PUSH">Push</option>
-                  <option value="EMAIL">Email</option>
-                  <option value="SOCKET">Socket</option>
-                  <option value="SMS">SMS</option>
+              </label>
+
+              <label className="block">
+                <span className="block text-[10px] text-neutral-500 font-bold uppercase mb-1">Channel</span>
+                <select value={logFilters.channel} onChange={(e) => { setLogFilters({ ...logFilters, channel: e.target.value }); }} className="h-9 border border-white/10 bg-[#081118] text-xs text-white rounded-lg px-2 w-full outline-none font-semibold cursor-pointer">
+                  <option value="">All Channels</option>
+                  <option value="BELL">🔔 Bell</option>
+                  <option value="PUSH">📱 Push</option>
+                  <option value="SOCKET">⚡ Socket</option>
                 </select>
-              </div>
-              <button onClick={() => fetchDeliveries()} className="h-8 bg-white/5 hover:bg-white/10 text-white rounded-lg px-3 text-xs transition">Apply Filters</button>
+              </label>
+
+              <label className="block">
+                <span className="block text-[10px] text-neutral-500 font-bold uppercase mb-1">Event</span>
+                <input
+                  type="text"
+                  placeholder="e.g. Deposit"
+                  value={logFilters.event}
+                  onChange={(e) => setLogFilters({ ...logFilters, event: e.target.value })}
+                  className="h-9 border border-white/10 bg-[#081118] text-xs text-white rounded-lg px-3 w-full outline-none focus:border-green-500/25"
+                />
+              </label>
+
+              <label className="block">
+                <span className="block text-[10px] text-neutral-500 font-bold uppercase mb-1">User</span>
+                <input
+                  type="text"
+                  placeholder="User ID or Email"
+                  value={logFilters.user}
+                  onChange={(e) => setLogFilters({ ...logFilters, user: e.target.value })}
+                  className="h-9 border border-white/10 bg-[#081118] text-xs text-white rounded-lg px-3 w-full outline-none focus:border-green-500/25"
+                />
+              </label>
             </div>
 
             {/* Logs Table */}
             <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
               <table className="w-full text-left text-xs">
-                <thead className="bg-white/[0.025] uppercase tracking-wide text-neutral-500">
+                <thead className="bg-white/[0.025] uppercase tracking-wide text-neutral-500 font-bold text-[10px]">
                   <tr>
-                    <th className="px-4 py-3 text-center"><input type="checkbox" onChange={(e) => { setSelectedDeliveries(e.target.checked ? deliveries.map(d => d.id) : []); }} className="accent-green-500" /></th>
-                    <th className="px-4 py-3 font-semibold">Notification</th>
-                    <th className="px-4 py-3 font-semibold">Recipient ID</th>
-                    <th className="px-4 py-3 font-semibold">Channel</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 font-semibold">Retry Count</th>
-                    <th className="px-4 py-3 font-semibold">Error Message</th>
+                    {isSuperAdmin && <th className="px-4 py-3 w-8"></th>}
+                    <th className="px-4 py-3">Notification</th>
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Channel</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Sent At</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5 font-mono text-[10px]">
-                  {deliveries.map(d => (
-                    <tr key={d.id} className="hover:bg-white/[0.01]">
-                      <td className="px-4 py-3 text-center">
-                        <input type="checkbox" checked={selectedDeliveries.includes(d.id)} onChange={() => handleSelectDelivery(d.id)} className="accent-green-500" />
-                      </td>
-                      <td className="px-4 py-3 font-sans">
-                        <p className="font-bold text-white">{d.notification?.title}</p>
-                        <p className="text-neutral-500 text-xs mt-0.5 line-clamp-1">{d.notification?.body}</p>
-                      </td>
-                      <td className="px-4 py-3 text-neutral-400">{d.notification?.userId || d.notification?.adminId || "Broadcast"}</td>
-                      <td className="px-4 py-3 text-cyan-300">{d.channel}</td>
+                <tbody className="divide-y divide-white/5 font-medium">
+                  {getFilteredDeliveries().map(d => (
+                    <tr key={d.id} className="hover:bg-white/[0.01] transition">
+                      {isSuperAdmin && (
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedDeliveries.includes(d.id)}
+                            onChange={() => {
+                              setSelectedDeliveries(prev =>
+                                prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id]
+                              );
+                            }}
+                            className="accent-green-500 cursor-pointer"
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${
+                        <p className="font-bold text-white">{d.notification?.title}</p>
+                        <p className="text-neutral-500 text-[11px] mt-0.5 line-clamp-1">{d.notification?.body}</p>
+                      </td>
+                      <td className="px-4 py-3 text-neutral-400 font-mono text-[10px]">
+                        {d.notification?.userId || d.notification?.adminId || "Broadcast"}
+                      </td>
+                      <td className="px-4 py-3 font-semibold">
+                        <span className="flex items-center gap-1.5">
+                          {getChannelIcon(d.channel)}
+                          <span>{getChannelName(d.channel)}</span>
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                           d.status === "DELIVERED" ? "bg-green-500/10 text-green-300 border-green-500/20" :
-                          d.status === "PENDING" ? "bg-yellow-500/10 text-yellow-300 border-yellow-500/20" :
-                          "bg-red-500/10 text-red-300 border-red-500/20"
+                          d.status === "PENDING" ? "bg-yellow-500/10 text-yellow-300 border-yellow-500/20 animate-pulse" :
+                          d.status === "FAILED" ? "bg-red-500/10 text-red-300 border-red-500/20" :
+                          "bg-cyan-500/10 text-cyan-300 border-cyan-500/20"
                         }`}>
                           {d.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-neutral-500 text-center">{d.retryCount}</td>
-                      <td className="px-4 py-3 text-red-300 max-w-[200px] truncate">{d.error || "N/A"}</td>
+                      <td className="px-4 py-3 text-neutral-500 font-mono text-[10px]">
+                        {new Date(d.createdAt).toLocaleString()}
+                      </td>
                     </tr>
                   ))}
-                  {deliveries.length === 0 && (
+                  {getFilteredDeliveries().length === 0 && (
                     <tr>
-                      <td colSpan="7" className="px-4 py-8 text-center text-neutral-500">No delivery logs found.</td>
+                      <td colSpan={isSuperAdmin ? 6 : 5} className="px-4 py-8 text-center text-neutral-500">No matching logs found.</td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
 
-            {/* Cursor Pagination Controls */}
+            {/* Pagination */}
             {deliveryNextCursor && (
               <div className="flex justify-end pt-3">
-                <button onClick={() => fetchDeliveries(deliveryNextCursor)} className="flex items-center gap-1.5 px-3 py-1.5 border border-white/10 hover:bg-white/5 rounded text-xs font-bold text-neutral-400 hover:text-white transition">
+                <button onClick={() => fetchDeliveries(deliveryNextCursor)} className="flex items-center gap-1.5 px-3 py-1.5 border border-white/10 hover:bg-white/5 rounded-lg text-xs font-bold text-neutral-400 hover:text-white transition">
                   <span>Next Page</span>
                 </button>
               </div>
@@ -953,401 +1669,152 @@ export default function AdminNotificationsPage() {
           </div>
         )}
 
-        {!loading && activeTab === "dlq" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-lg font-bold text-white">Queue Health & DLQ</h2>
-              <button onClick={() => loadTabData("dlq")} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            </div>
-
-            {queueHealth && (
-              <div className="grid gap-6 md:grid-cols-3">
-                <div className="bg-black/10 border border-white/[0.06] rounded-xl p-5">
-                  <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider">Redis Broker</p>
-                  <p className="text-xl font-bold text-green-400 mt-2">CONNECTED</p>
-                </div>
-                <div className="bg-black/10 border border-white/[0.06] rounded-xl p-5">
-                  <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider">Active Queue Jobs</p>
-                  <p className="text-xl font-bold text-white mt-2">{queueHealth.queues.push + queueHealth.queues.email} pending</p>
-                </div>
-                <div className="bg-black/10 border border-white/[0.06] rounded-xl p-5">
-                  <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider">DLQ Failed Jobs</p>
-                  <p className="text-xl font-bold text-red-400 mt-2">{queueHealth.queues.dlq} failed</p>
-                </div>
-              </div>
-            )}
-
-            {isSuperAdmin && (
-              <div className="flex gap-3 bg-red-950/20 border border-red-500/15 rounded-xl p-5 items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-bold text-red-400">Dead Letter Queue Recovery Console</h4>
-                  <p className="text-[10px] text-neutral-500 mt-1">Retry backlogged tasks that have failed validation, or clear them out of Redis.</p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleDlqAction("retry")} className="border border-green-500/30 bg-green-500/10 hover:bg-green-500/15 text-green-300 px-3 py-1.5 rounded text-xs font-bold transition">
-                    Retry DLQ Jobs
-                  </button>
-                  <button onClick={() => handleDlqAction("clear")} className="border border-red-500/30 bg-red-500/10 hover:bg-red-500/15 text-red-300 px-3 py-1.5 rounded text-xs font-bold transition">
-                    Purge DLQ
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
+        {/* Tab: Templates */}
         {!loading && activeTab === "templates" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-lg font-bold text-white">Versioned Templates</h2>
+              <div>
+                <h2 className="text-base font-bold text-white">Notification Templates</h2>
+                <p className="text-[11px] text-neutral-500 mt-0.5">Customize messaging templates and parameters for system dispatches.</p>
+              </div>
               <button onClick={() => loadTabData("templates")} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="border border-white/10 rounded-lg max-h-[400px] overflow-y-auto divide-y divide-white/5">
-                {templates.map(t => (
-                  <div key={t.id} onClick={() => setSelectedTemplate(t)} className={`p-3 text-xs cursor-pointer transition ${selectedTemplate?.id === t.id ? "bg-white/5 text-white font-bold" : "text-neutral-400 hover:bg-white/[0.02]"}`}>
-                    <p className="font-semibold text-white">{t.event}</p>
-                    <p className="text-[10px] text-neutral-500 mt-0.5">{t.channel} (v{t.version})</p>
+            <div className="grid gap-6 md:grid-cols-4">
+              {/* Left Sidebar list */}
+              <div className="border border-white/10 rounded-xl max-h-[460px] overflow-y-auto divide-y divide-white/5 bg-black/10">
+                {TEMPLATE_EVENTS.map(t => (
+                  <div
+                    onClick={() => setSelectedTemplateEvent(t.event)}
+                    key={t.event}
+                    className={`p-3.5 text-xs cursor-pointer transition flex items-center justify-between ${
+                      selectedTemplateEvent === t.event 
+                        ? "bg-white/[0.06] text-white font-bold" 
+                        : "text-neutral-400 hover:bg-white/[0.02]"
+                    }`}
+                  >
+                    <span>{t.label}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="md:col-span-2 border border-white/10 rounded-lg p-5">
-                {selectedTemplate ? (
-                  <form onSubmit={handleSaveTemplate} className="space-y-4">
-                    <h3 className="text-sm font-bold text-white">{selectedTemplate.event} Template ({selectedTemplate.channel})</h3>
+              {/* Right Panel Editor */}
+              <div className="md:col-span-3 border border-white/10 rounded-xl p-5 bg-black/5 space-y-4">
+                {editedTemplate ? (
+                  <form onSubmit={handleSaveTemplate} className="space-y-4 text-xs">
+                    {/* Header event title */}
+                    <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                        {TEMPLATE_EVENTS.find(e => e.event === selectedTemplateEvent)?.label}
+                      </h3>
+                      
+                      {/* Channel tab switcher */}
+                      <div className="flex gap-1.5 border border-white/10 rounded-lg p-0.5 bg-black/20">
+                        {["BELL", "PUSH", "SOCKET"].map(ch => (
+                          <button
+                            key={ch}
+                            type="button"
+                            onClick={() => setTemplateChannel(ch)}
+                            className={`px-3 py-1 rounded-md text-[10px] font-bold transition ${
+                              templateChannel === ch 
+                                ? "bg-white/10 text-white" 
+                                : "text-neutral-500 hover:text-neutral-300"
+                            }`}
+                          >
+                            {getChannelName(ch)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <label className="block">
-                      <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Title Syntax</span>
-                      <input type="text" disabled={!isSuperAdmin} value={selectedTemplate.title || ""} onChange={(e) => setSelectedTemplate({ ...selectedTemplate, title: e.target.value })} className={adminInput} />
+                      <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Notification Title</span>
+                      <input
+                        type="text"
+                        required
+                        disabled={!isSuperAdmin}
+                        value={editedTemplate.title || ""}
+                        onChange={(e) => setEditedTemplate({ ...editedTemplate, title: e.target.value })}
+                        className={adminInput}
+                        placeholder="e.g. Deposit Approved"
+                      />
                     </label>
+
                     <label className="block">
                       <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Body Markup Syntax (Handlebars supported)</span>
-                      <textarea disabled={!isSuperAdmin} value={selectedTemplate.body} onChange={(e) => setSelectedTemplate({ ...selectedTemplate, body: e.target.value })} className="w-full h-40 font-mono rounded-lg border border-white/[0.08] bg-black/20 p-3 text-xs text-white outline-none focus:border-green-500/35 transition" />
+                      <textarea
+                        required
+                        disabled={!isSuperAdmin}
+                        value={editedTemplate.body || ""}
+                        onChange={(e) => setEditedTemplate({ ...editedTemplate, body: e.target.value })}
+                        className="w-full h-32 font-mono rounded-lg border border-white/[0.08] bg-black/20 p-3 text-xs text-white outline-none focus:border-green-500/35 transition resize-none"
+                        placeholder="e.g. Your withdrawal of ₹{{amount}} has been approved."
+                      />
                     </label>
+
+                    {/* Template Variable Helper */}
+                    <div className="border border-white/5 bg-white/[0.01] rounded-lg p-3">
+                      <span className="block text-[9px] font-bold text-neutral-500 uppercase tracking-wider mb-2">Available Variables (Click to append)</span>
+                      <div className="flex flex-wrap gap-1.5 font-mono text-[9px]">
+                        {[
+                          { key: "{{name}}", desc: "User Name" },
+                          { key: "{{amount}}", desc: "Transaction Amount" },
+                          { key: "{{email}}", desc: "User Email" },
+                          { key: "{{planName}}", desc: "Sub Plan Tier Name" },
+                          { key: "{{pair}}", desc: "Asset Pair" },
+                          { key: "{{entryPrice}}", desc: "Trade Entry Value" },
+                          { key: "{{pnl}}", desc: "Trade Profit/Loss" },
+                          { key: "{{days}}", desc: "Expiry Remaining Days" },
+                          { key: "{{ticketId}}", desc: "Ticket ID Ref" },
+                          { key: "{{message}}", desc: "Audit alert message" }
+                        ].map(v => (
+                          <span
+                            key={v.key}
+                            title={v.desc}
+                            className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-neutral-300 font-semibold cursor-pointer hover:bg-white/15 hover:text-white transition"
+                            onClick={() => {
+                              if (isSuperAdmin) {
+                                setEditedTemplate({ ...editedTemplate, body: (editedTemplate.body || "") + " " + v.key });
+                              }
+                            }}
+                          >
+                            {v.key}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Live Preview Display Card */}
+                    <div className="border border-white/10 rounded-lg p-4 bg-black/35 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-1.5 text-[8px] font-bold bg-white/5 border-l border-b border-white/10 rounded-bl text-neutral-500 tracking-wider">
+                        LIVE PREVIEW
+                      </div>
+                      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                        {getChannelIcon(templateChannel)}
+                        <span>{getChannelName(templateChannel)} Message</span>
+                      </p>
+                      <div className="p-3 bg-white/[0.02] border border-white/5 rounded-lg text-xs space-y-1.5 max-w-md">
+                        <p className="font-bold text-white">{renderTemplatePreview(editedTemplate.title)}</p>
+                        <p className="text-neutral-300 leading-relaxed text-[11px]">{renderTemplatePreview(editedTemplate.body)}</p>
+                      </div>
+                    </div>
+
                     {isSuperAdmin && (
-                      <button type="submit" className="px-4 py-2 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 rounded text-xs font-bold transition">Save Template Updates</button>
+                      <div className="flex justify-end pt-2">
+                        <button type="submit" className="px-5 py-2.5 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 rounded-lg text-xs font-bold transition">
+                          Save Template Updates
+                        </button>
+                      </div>
                     )}
                   </form>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full py-16 text-neutral-500">
+                  <div className="flex flex-col items-center justify-center h-full py-16 text-neutral-500 text-xs">
                     <Code className="h-8 w-8 mb-2" />
-                    <p className="text-xs">Select a template to view or customize its syntax overrides.</p>
+                    <p>Select a template to view or customize.</p>
                   </div>
                 )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!loading && activeTab === "events" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-lg font-bold text-white">Event Routing Overrides</h2>
-              <button onClick={() => loadTabData("events")} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-white/[0.025] uppercase tracking-wide text-neutral-500">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Event</th>
-                    <th className="px-4 py-3 font-semibold text-center">Master Enable</th>
-                    <th className="px-4 py-3 font-semibold text-center">Bell</th>
-                    <th className="px-4 py-3 font-semibold text-center">Push</th>
-                    <th className="px-4 py-3 font-semibold text-center">Email</th>
-                    <th className="px-4 py-3 font-semibold text-center">Socket</th>
-                    <th className="px-4 py-3 font-semibold text-center">Toast</th>
-                    <th className="px-4 py-3 font-semibold text-center">SMS</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 font-mono text-[10px]">
-                  {events.map(ev => (
-                    <tr key={ev.id} className="hover:bg-white/[0.01]">
-                      <td className="px-4 py-3 font-semibold font-sans text-white text-xs">{ev.event}</td>
-                      <td className="px-4 py-3 text-center">{ev.enabled ? "✅" : "❌"}</td>
-                      <td className="px-4 py-3 text-center">{ev.bellEnabled ? "On" : "Off"}</td>
-                      <td className="px-4 py-3 text-center">{ev.pushEnabled ? "On" : "Off"}</td>
-                      <td className="px-4 py-3 text-center">{ev.emailEnabled ? "On" : "Off"}</td>
-                      <td className="px-4 py-3 text-center">{ev.socketEnabled ? "On" : "Off"}</td>
-                      <td className="px-4 py-3 text-center">{ev.toastEnabled ? "On" : "Off"}</td>
-                      <td className="px-4 py-3 text-center">{ev.smsEnabled ? "On" : "Off"}</td>
-                      <td className="px-4 py-3 text-right font-sans">
-                        {isSuperAdmin && (
-                          <button onClick={() => setEditingEvent(ev)} className="text-[#00e676] hover:underline font-bold">Edit</button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Edit Event Settings Modal */}
-            {editingEvent && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-                <form onSubmit={handleSaveEventSetting} className="w-full max-w-md rounded-2xl border border-white/[0.08] bg-[#0c161d] p-6 shadow-2xl space-y-4">
-                  <div className="flex justify-between items-center border-b border-white/[0.08] pb-3">
-                    <h3 className="text-sm font-bold text-white">Edit Event Settings: {editingEvent.event}</h3>
-                    <button type="button" onClick={() => setEditingEvent(null)} className="text-neutral-500 hover:text-white">
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div className="space-y-3 text-xs">
-                    <label className="flex items-center justify-between cursor-pointer py-1 text-white">
-                      <span>Enable Event</span>
-                      <input type="checkbox" checked={editingEvent.enabled} onChange={(e) => setEditingEvent({ ...editingEvent, enabled: e.target.checked })} className="accent-green-500" />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer py-1 text-white">
-                      <span>Bell Channel</span>
-                      <input type="checkbox" checked={editingEvent.bellEnabled} onChange={(e) => setEditingEvent({ ...editingEvent, bellEnabled: e.target.checked })} className="accent-green-500" />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer py-1 text-white">
-                      <span>Push Channel</span>
-                      <input type="checkbox" checked={editingEvent.pushEnabled} onChange={(e) => setEditingEvent({ ...editingEvent, pushEnabled: e.target.checked })} className="accent-green-500" />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer py-1 text-white">
-                      <span>Email Channel</span>
-                      <input type="checkbox" checked={editingEvent.emailEnabled} onChange={(e) => setEditingEvent({ ...editingEvent, emailEnabled: e.target.checked })} className="accent-green-500" />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer py-1 text-white">
-                      <span>Socket Channel</span>
-                      <input type="checkbox" checked={editingEvent.socketEnabled} onChange={(e) => setEditingEvent({ ...editingEvent, socketEnabled: e.target.checked })} className="accent-green-500" />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer py-1 text-white">
-                      <span>Toast Channel</span>
-                      <input type="checkbox" checked={editingEvent.toastEnabled} onChange={(e) => setEditingEvent({ ...editingEvent, toastEnabled: e.target.checked })} className="accent-green-500" />
-                    </label>
-                    <label className="flex items-center justify-between cursor-pointer py-1 text-white">
-                      <span>SMS Channel</span>
-                      <input type="checkbox" checked={editingEvent.smsEnabled} onChange={(e) => setEditingEvent({ ...editingEvent, smsEnabled: e.target.checked })} className="accent-green-500" />
-                    </label>
-                  </div>
-                  <div className="flex justify-end gap-2 border-t border-white/[0.08] pt-3">
-                    <button type="button" onClick={() => setEditingEvent(null)} className="px-4 py-2 border border-white/10 rounded text-xs text-neutral-400 hover:text-white transition">Cancel</button>
-                    <button type="submit" className="px-4 py-2 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 rounded text-xs font-bold transition">Save Override</button>
-                  </div>
-                </form>
-              </div>
-            )}
-          </div>
-        )}
-
-        {!loading && activeTab === "global-config" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-lg font-bold text-white">Global Configuration Switches</h2>
-              <button onClick={() => loadTabData("global-config")} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            </div>
-
-            {globalConfig && (
-              <form onSubmit={handleSaveGlobalConfig} className="max-w-md space-y-4 border border-white/10 rounded-lg p-5">
-                <div className="space-y-3.5 text-xs text-neutral-300">
-                  <label className="flex items-center justify-between py-1 text-white">
-                    <span>Global Push Alerts (FCM)</span>
-                    <input type="checkbox" disabled={!isSuperAdmin} checked={globalConfig.pushEnabled} onChange={(e) => setGlobalConfig({ ...globalConfig, pushEnabled: e.target.checked })} className="accent-green-500" />
-                  </label>
-                  <label className="flex items-center justify-between py-1 text-white">
-                    <span>Global Email Delivery</span>
-                    <input type="checkbox" disabled={!isSuperAdmin} checked={globalConfig.emailEnabled} onChange={(e) => setGlobalConfig({ ...globalConfig, emailEnabled: e.target.checked })} className="accent-green-500" />
-                  </label>
-                  <label className="flex items-center justify-between py-1 text-white">
-                    <span>Global Real-time Gateway (Socket.IO)</span>
-                    <input type="checkbox" disabled={!isSuperAdmin} checked={globalConfig.socketEnabled} onChange={(e) => setGlobalConfig({ ...globalConfig, socketEnabled: e.target.checked })} className="accent-green-500" />
-                  </label>
-                  <label className="flex items-center justify-between py-1 text-white">
-                    <span>Global Dropdown Alert Logs (Bell)</span>
-                    <input type="checkbox" disabled={!isSuperAdmin} checked={globalConfig.bellEnabled} onChange={(e) => setGlobalConfig({ ...globalConfig, bellEnabled: e.target.checked })} className="accent-green-500" />
-                  </label>
-                  <label className="flex items-center justify-between py-1 text-white">
-                    <span>Global Toast Banners Overlay</span>
-                    <input type="checkbox" disabled={!isSuperAdmin} checked={globalConfig.toastEnabled} onChange={(e) => setGlobalConfig({ ...globalConfig, toastEnabled: e.target.checked })} className="accent-green-500" />
-                  </label>
-                  <label className="flex items-center justify-between py-1 text-white">
-                    <span>Global SMS Integration Gateway</span>
-                    <input type="checkbox" disabled={!isSuperAdmin} checked={globalConfig.smsEnabled} onChange={(e) => setGlobalConfig({ ...globalConfig, smsEnabled: e.target.checked })} className="accent-green-500" />
-                  </label>
-                </div>
-                {isSuperAdmin && (
-                  <button type="submit" className="w-full mt-3 h-10 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 rounded-lg text-xs font-bold transition">Save Master Configurations</button>
-                )}
-              </form>
-            )}
-          </div>
-        )}
-
-        {!loading && activeTab === "device-registry" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-lg font-bold text-white">Device Registry</h2>
-              <button onClick={() => fetchDevices()} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Device Filters */}
-            <div className="flex flex-wrap gap-4 items-center">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-neutral-400">UserId</span>
-                <input type="text" value={deviceFilters.userId} onChange={(e) => setDeviceFilters({ ...deviceFilters, userId: e.target.value })} className="h-8 w-40 border border-white/10 bg-[#081118] text-xs text-white rounded-lg px-2 outline-none" placeholder="Filter by User ID" />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-neutral-400">Platform</span>
-                <select value={deviceFilters.platform} onChange={(e) => setDeviceFilters({ ...deviceFilters, platform: e.target.value })} className="h-8 border border-white/10 bg-[#081118] text-xs text-white rounded-lg px-2 outline-none">
-                  <option value="">All</option>
-                  <option value="iOS">iOS</option>
-                  <option value="Android">Android</option>
-                  <option value="Web">Web</option>
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-neutral-400">Active</span>
-                <select value={deviceFilters.isActive} onChange={(e) => setDeviceFilters({ ...deviceFilters, isActive: e.target.value })} className="h-8 border border-white/10 bg-[#081118] text-xs text-white rounded-lg px-2 outline-none">
-                  <option value="">All</option>
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
-                </select>
-              </div>
-              <button onClick={() => fetchDevices()} className="h-8 bg-white/5 hover:bg-white/10 text-white rounded-lg px-3 text-xs transition">Apply Filters</button>
-            </div>
-
-            {/* Devices table */}
-            <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-white/[0.025] uppercase tracking-wide text-neutral-500">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Token</th>
-                    <th className="px-4 py-3 font-semibold">User ID</th>
-                    <th className="px-4 py-3 font-semibold">Browser/Platform</th>
-                    <th className="px-4 py-3 font-semibold">Failures</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 font-semibold">Last Used</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 font-mono text-[10px]">
-                  {devices.map(d => (
-                    <tr key={d.id} className="hover:bg-white/[0.01]">
-                      <td className="px-4 py-3 text-neutral-300 max-w-[200px] truncate">{d.token}</td>
-                      <td className="px-4 py-3 text-neutral-400">{d.userId}</td>
-                      <td className="px-4 py-3 text-cyan-300">{d.browser || "N/A"} / {d.platform || "N/A"}</td>
-                      <td className="px-4 py-3 text-red-300 text-center">{d.failureCount}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold border ${d.isActive ? "bg-green-500/10 text-green-300 border-green-500/20" : "bg-red-500/10 text-red-300 border-red-500/20"}`}>
-                          {d.isActive ? "ACTIVE" : "INACTIVE"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-neutral-500">{d.lastUsedAt ? new Date(d.lastUsedAt).toLocaleString() : "Never"}</td>
-                    </tr>
-                  ))}
-                  {devices.length === 0 && (
-                    <tr>
-                      <td colSpan="6" className="px-4 py-8 text-center text-neutral-500">No device tokens registered.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {deviceNextCursor && (
-              <div className="flex justify-end pt-3">
-                <button onClick={() => fetchDevices(deviceNextCursor)} className="flex items-center gap-1.5 px-3 py-1.5 border border-white/10 hover:bg-white/5 rounded text-xs font-bold text-neutral-400 hover:text-white transition">
-                  <span>Next Page</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {!loading && activeTab === "preferences-audit" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-lg font-bold text-white">Preferences Audit</h2>
-              <button onClick={() => loadTabData("preferences-audit")} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            </div>
-
-            <label className="flex h-10 w-full sm:w-auto sm:min-w-[280px] items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-neutral-500 focus-within:border-green-500/35 transition">
-              <Search className="h-4 w-4" />
-              <input type="text" value={preferenceSearch} onChange={(e) => setPreferenceSearch(e.target.value)} className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-neutral-600" placeholder="Search user audit records..." />
-            </label>
-
-            <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-white/[0.025] uppercase tracking-wide text-neutral-500">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">User</th>
-                    <th className="px-4 py-3 font-semibold">Email</th>
-                    <th className="px-4 py-3 font-semibold">Opt-Out Category Matrices</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {preferences.filter(p => p.name.toLowerCase().includes(preferenceSearch.toLowerCase()) || p.email.toLowerCase().includes(preferenceSearch.toLowerCase())).map(p => (
-                    <tr key={p.id} className="hover:bg-white/[0.01]">
-                      <td className="px-4 py-4 font-semibold text-white">{p.name}</td>
-                      <td className="px-4 py-4 text-neutral-400 font-mono">{p.email}</td>
-                      <td className="px-4 py-4">
-                        <span className="text-[10px] bg-white/[0.02] border border-white/[0.06] rounded px-2.5 py-1 text-neutral-400 font-mono">
-                          ALL ENABLED (DEFAULT)
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {!loading && activeTab === "archive-maintenance" && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-lg font-bold text-white">Database Archive Stats</h2>
-              <button onClick={() => loadTabData("archive-maintenance")} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            </div>
-
-            {archiveStats && (
-              <div className="grid gap-6 md:grid-cols-3">
-                <div className="bg-black/10 border border-white/[0.06] rounded-xl p-5">
-                  <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider">Active Notifications</p>
-                  <p className="text-xl font-bold text-white mt-2">{archiveStats.activeNotifications} records</p>
-                </div>
-                <div className="bg-black/10 border border-white/[0.06] rounded-xl p-5">
-                  <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider">Archived / Soft-Deleted</p>
-                  <p className="text-xl font-bold text-neutral-400 mt-2">{archiveStats.archivedNotifications} records</p>
-                </div>
-                <div className="bg-black/10 border border-white/[0.06] rounded-xl p-5">
-                  <p className="text-xs text-neutral-500 font-bold uppercase tracking-wider">Archive Ratio</p>
-                  <p className="text-xl font-bold text-green-300 mt-2">{archiveStats.archiveRatio}%</p>
-                </div>
-              </div>
-            )}
-
-            <div className="border border-white/10 rounded-xl p-5 space-y-3">
-              <h3 className="text-xs font-bold text-white">Platform Cron-Job Pruning Logs</h3>
-              <p className="text-[11px] text-neutral-500 leading-relaxed">
-                The database runs daily cleanup crons automatically at midnight (00:00). Active notifications are preserved for audit safety. Failed tokens are deactivated automatically after FCM failure verification.
-              </p>
-              <div className="grid gap-3 pt-2 text-[10px] text-neutral-400 font-mono">
-                <div className="flex justify-between border-b border-white/5 pb-2">
-                  <span>Pruning old FCM device tokens:</span>
-                  <span className="text-green-400">ACTIVE (Failure Threshold &gt; 3)</span>
-                </div>
-                <div className="flex justify-between border-b border-white/5 pb-2">
-                  <span>Purging dispatches older than 90 days:</span>
-                  <span className="text-green-400">ACTIVE</span>
-                </div>
               </div>
             </div>
           </div>

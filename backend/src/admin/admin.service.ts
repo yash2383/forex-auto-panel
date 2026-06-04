@@ -263,8 +263,19 @@ export class AdminService {
       stats: platformStats, users, payments, trades, logs, partners, campaigns,
       referrals, admins, transactions, settings, profitDistributions, withdrawals,
       plans: dbPlans.map((p: any) => ({
-        id: p.id, name: p.name, subtitle: p.subtitle, capitalLabel: p.capitalLabel,
-        desc: p.desc, features: p.features, btnText: p.btnText, status: p.status, isPopular: p.isPopular,
+        id: p.id,
+        name: p.name,
+        subtitle: p.subtitle,
+        capitalLabel: p.capitalLabel,
+        desc: p.desc,
+        features: p.features,
+        btnText: p.btnText,
+        status: p.status,
+        isPopular: p.isPopular,
+        amount: p.amount !== null && p.amount !== undefined ? Number(p.amount) : null,
+        weeklyProfit: Number(p.weeklyProfit ?? 0),
+        durationDays: Number(p.durationDays ?? 0),
+        pricingType: p.pricingType || 'FIXED',
       })),
       referralSettings: dbReferralSettings,
       generatedReports,
@@ -410,14 +421,25 @@ export class AdminService {
   }
 
   async createPlan(adminId: string, body: any, clientIp: string) {
-    const { name, subtitle, capitalLabel, desc, features, btnText, status, isPopular } = body;
+    const { name, subtitle, capitalLabel, desc, features, btnText, status, isPopular, amount, weeklyProfit, durationDays, pricingType } = body;
     if (!name || !subtitle || !capitalLabel || !desc) return { error: 'Name, subtitle, capital label, and description are required', status: 400 };
+
+    const typeOfPricing = pricingType || 'FIXED';
+    const amountVal = amount !== undefined && amount !== null && amount !== '' ? Number(amount) : null;
+
+    if (amountVal === null && typeOfPricing === 'FIXED') {
+      return { error: 'Plan must have a fixed amount if pricingType is FIXED.', status: 400 };
+    }
 
     const plan = await this.prisma.plan.create({
       data: {
         name, subtitle, capitalLabel, desc,
         features: Array.isArray(features) ? features : [],
         btnText: btnText || 'Get Started', status: status || 'Active', isPopular: !!isPopular,
+        amount: typeOfPricing === 'FLEXIBLE' ? null : amountVal,
+        pricingType: typeOfPricing,
+        weeklyProfit: Number(weeklyProfit) || 5,
+        durationDays: Number(durationDays) || 30,
       },
     });
 
@@ -432,6 +454,15 @@ export class AdminService {
     const plan = await this.prisma.plan.findUnique({ where: { id: planId } });
     if (!plan) return { error: 'Plan not found', status: 404 };
 
+    const typeOfPricing = body.pricingType || plan.pricingType;
+    let amountVal = body.amount !== undefined ? (body.amount !== null && body.amount !== '' ? Number(body.amount) : null) : (plan.amount ? Number(plan.amount) : null);
+
+    if (typeOfPricing === 'FLEXIBLE') {
+      amountVal = null;
+    } else if (typeOfPricing === 'FIXED' && amountVal === null) {
+      return { error: 'Plan must have a fixed amount if pricingType is FIXED.', status: 400 };
+    }
+
     const updatedPlan = await this.prisma.plan.update({
       where: { id: planId },
       data: {
@@ -443,6 +474,10 @@ export class AdminService {
         btnText: body.btnText ?? plan.btnText,
         status: body.status ?? plan.status,
         isPopular: body.isPopular !== undefined ? body.isPopular : plan.isPopular,
+        amount: amountVal,
+        pricingType: typeOfPricing,
+        weeklyProfit: body.weeklyProfit !== undefined ? Number(body.weeklyProfit) : Number(plan.weeklyProfit),
+        durationDays: body.durationDays !== undefined ? Number(body.durationDays) : Number(plan.durationDays),
       },
     });
 

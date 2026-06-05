@@ -16,7 +16,7 @@ let ObservabilityModule = class ObservabilityModule {
 exports.ObservabilityModule = ObservabilityModule;
 exports.ObservabilityModule = ObservabilityModule = __decorate([
     (0, common_1.Module)({
-        imports: [notifications_module_1.NotificationsModule],
+        imports: [(0, common_1.forwardRef)(() => notifications_module_1.NotificationsModule)],
         controllers: [observability_controller_1.ObservabilityController],
         providers: [observability_service_1.ObservabilityService],
         exports: [observability_service_1.ObservabilityService],

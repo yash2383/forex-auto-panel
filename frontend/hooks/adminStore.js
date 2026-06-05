@@ -118,8 +118,19 @@ export const useAdminStore = create((set, get) => ({
   isInitialized: false,
   fetchData: async () => {
     try {
+      const userStr = typeof window !== 'undefined' ? localStorage.getItem('tradebot-user') : null;
+      if (!userStr) {
+        set({ currentUser: null });
+        return;
+      }
+
       const meRes = await apiFetch("/api/auth/me");
       if (!meRes.ok) {
+        if (meRes.status === 401) {
+          localStorage.removeItem("tradebot-user");
+          localStorage.removeItem("tradebot-authenticated");
+          document.cookie = 'tradebot-token=; path=/; max-age=0; SameSite=Lax';
+        }
         set({ currentUser: null });
         return;
       }
@@ -176,7 +187,7 @@ export const useAdminStore = create((set, get) => ({
       const res = await apiFetch("/api/admin/initiated-payments");
       if (res.ok) {
         const data = await res.json();
-        set({ 
+        set({
           initiatedPayments: data.initiatedPayments || [],
           initiatedPaymentMetrics: data.metrics || null
         });
@@ -821,7 +832,7 @@ export const useAdminStore = create((set, get) => ({
     }
   },
 
-  distributeProfit: () => {},
+  distributeProfit: () => { },
 
   saveSettings: async (settings) => {
     try {

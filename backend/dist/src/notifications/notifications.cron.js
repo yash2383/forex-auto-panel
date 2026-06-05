@@ -284,6 +284,10 @@ let NotificationsCron = NotificationsCron_1 = class NotificationsCron {
         }
     }
     async reconcilePendingDeliveries() {
+        if (!this.notificationsService.isRedisReady()) {
+            this.logger.warn('Redis client is not ready. Skipping pending deliveries reconciliation.');
+            return;
+        }
         const startTime = Date.now();
         this.observabilityService.increment('notification_reconciliation_runs_total');
         try {

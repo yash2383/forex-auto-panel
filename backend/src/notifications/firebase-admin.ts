@@ -38,14 +38,37 @@ export function initializeFirebaseAdmin() {
     }
 
     // 3. Fallback: FCM will run in SIMULATION/DEV mode
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'Firebase credentials are missing in production! Place firebase-service-account.json in the backend root or set GOOGLE_APPLICATION_CREDENTIALS.',
+      );
+    }
+
     console.warn(
       'Firebase Service Account credentials not found. FCM will run in SIMULATION/DEV mode.',
     );
   } catch (err: any) {
     console.error('Failed to initialize Firebase Admin SDK:', err.message);
+    if (process.env.NODE_ENV === 'production') {
+      throw err;
+    }
   }
 
   return null;
+}
+
+export async function verifyFirebaseCredentials(app: admin.app.App) {
+  // Dry-run send to a validation topic to test credentials with Firebase API
+  await admin.messaging(app).send(
+    {
+      topic: 'dry-run-validation',
+      notification: {
+        title: 'Dry-run validation',
+        body: 'Validating credentials on boot',
+      },
+    },
+    true, // dryRun = true
+  );
 }
 
 export async function sendFcmMessage(

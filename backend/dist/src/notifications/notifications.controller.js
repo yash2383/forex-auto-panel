@@ -266,36 +266,26 @@ let NotificationsController = class NotificationsController {
                     .status(common_1.HttpStatus.BAD_REQUEST)
                     .json({ message: 'Token is required' });
             }
-            const existing = await this.prisma.deviceToken.findFirst({
+            const device = await this.prisma.deviceToken.upsert({
                 where: { token },
+                update: {
+                    userId: user.id,
+                    platform: platform || 'Web',
+                    browser: browser || 'Unknown',
+                    isActive: true,
+                    failureCount: 0,
+                    lastUsedAt: new Date(),
+                },
+                create: {
+                    token,
+                    userId: user.id,
+                    platform: platform || 'Web',
+                    browser: browser || 'Unknown',
+                    isActive: true,
+                    failureCount: 0,
+                    lastUsedAt: new Date(),
+                },
             });
-            let device;
-            if (existing) {
-                device = await this.prisma.deviceToken.update({
-                    where: { id: existing.id },
-                    data: {
-                        userId: user.id,
-                        platform: platform || existing.platform,
-                        browser: browser || existing.browser,
-                        isActive: true,
-                        failureCount: 0,
-                        lastUsedAt: new Date(),
-                    },
-                });
-            }
-            else {
-                device = await this.prisma.deviceToken.create({
-                    data: {
-                        token,
-                        userId: user.id,
-                        platform: platform || 'Web',
-                        browser: browser || 'Unknown',
-                        isActive: true,
-                        failureCount: 0,
-                        lastUsedAt: new Date(),
-                    },
-                });
-            }
             return res.json({ success: true, device });
         }
         catch (error) {

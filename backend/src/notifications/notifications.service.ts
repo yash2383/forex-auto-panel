@@ -5,6 +5,7 @@ import {
   forwardRef,
   ConflictException,
   BadRequestException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { Queue } from 'bull';
@@ -26,9 +27,10 @@ import { EVENT_REGISTRY } from './events';
 import { EVENT_ROUTES } from './routes';
 import { NotificationsGateway } from './notifications.gateway';
 import { ObservabilityService } from '../observability/observability.service';
+import { initializeFirebaseAdmin, verifyFirebaseCredentials } from './firebase-admin';
 
 @Injectable()
-export class NotificationsService {
+export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name);
   private readonly MAX_RETRY_ENQUEUE_FAILURES = 5;
 
@@ -43,6 +45,25 @@ export class NotificationsService {
     private readonly gateway: NotificationsGateway,
     private readonly observabilityService: ObservabilityService,
   ) {}
+
+  async onModuleInit() {
+    this.logger.log('Initializing Firebase Admin SDK...');
+    try {
+      const app = initializeFirebaseAdmin();
+      if (app && process.env.NODE_ENV === 'production') {
+        this.logger.log('Verifying Firebase credentials via dry-run send...');
+        await verifyFirebaseCredentials(app);
+        this.logger.log('Firebase Admin SDK credentials verified successfully.');
+      }
+    } catch (err: any) {
+      this.logger.error(`Failed to verify Firebase Admin credentials: ${err.message}`);
+      throw err;
+    }
+  }
+
+  isRedisReady(): boolean {
+    return (this.pushQueue?.client as any)?.status === 'ready';
+  }
 
   /**
    * Helper to compile simple Handlebars-like templates
@@ -295,6 +316,10 @@ export class NotificationsService {
         delivery.channel === NotificationChannel.SMS
       ) {
         try {
+          if (!this.isRedisReady()) {
+            throw new Error('Redis offline (pre-check)');
+          }
+
           let targetQueue: Queue;
           if (delivery.channel === NotificationChannel.PUSH)
             targetQueue = this.pushQueue;
@@ -1169,6 +1194,12 @@ export class NotificationsService {
       );
     }
 
+    if (!this.isRedisReady()) {
+      throw new BadRequestException(
+        'Redis queue client is offline. Cannot retry deliveries at this time.',
+      );
+    }
+
     let count = 0;
     for (const id of deliveryIds) {
       try {
@@ -1266,6 +1297,12 @@ export class NotificationsService {
    * Bulk retry failed Bull DLQ jobs
    */
   async bulkRetryDlq() {
+    if (!this.isRedisReady()) {
+      throw new BadRequestException(
+        'Redis queue client is offline. Cannot retry DLQ jobs at this time.',
+      ); 
+    }
+
     const jobs = await this.dlqQueue.getJobs([
       'waiting',
       'active',
@@ -1301,6 +1338,12 @@ export class NotificationsService {
    * Bulk clear failed Bull DLQ jobs
    */
   async bulkClearDlq() {
+    if (!this.isRedisReady()) {
+      throw new BadRequestException(
+        'Redis queue client is offline. Cannot clear DLQ jobs at this time.',
+      );
+    }
+
     const jobs = await this.dlqQueue.getJobs([
       'waiting',
       'active',

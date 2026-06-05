@@ -15,6 +15,7 @@ const notifications_processor_1 = require("./notifications.processor");
 const notifications_cron_1 = require("./notifications.cron");
 const prisma_module_1 = require("../prisma/prisma.module");
 const notifications_controller_1 = require("./notifications.controller");
+const observability_module_1 = require("../observability/observability.module");
 let NotificationsModule = class NotificationsModule {
 };
 exports.NotificationsModule = NotificationsModule;
@@ -22,6 +23,7 @@ exports.NotificationsModule = NotificationsModule = __decorate([
     (0, common_1.Module)({
         imports: [
             prisma_module_1.PrismaModule,
+            (0, common_1.forwardRef)(() => observability_module_1.ObservabilityModule),
             bull_1.BullModule.registerQueue({ name: 'notifications-push' }, { name: 'notifications-email' }, { name: 'notifications-socket' }, { name: 'notifications-sms' }, { name: 'notifications-dlq' }),
         ],
         controllers: [notifications_controller_1.NotificationsController],

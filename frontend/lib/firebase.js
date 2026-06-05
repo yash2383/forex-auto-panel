@@ -1,6 +1,4 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAnalytics, isSupported as isAnalyticsSupported } from "firebase/analytics";
-import { getMessaging, isSupported as isMessagingSupported } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,25 +10,7 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase safely for SSR/HMR
+// Initialize Firebase safely for SSR/HMR — never double-initialize
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-let analytics = null;
-let messaging = null;
-
-// Initialize client-only analytics and messaging
-if (typeof window !== "undefined") {
-  isAnalyticsSupported().then((supported) => {
-    if (supported) {
-      analytics = getAnalytics(app);
-    }
-  }).catch((err) => console.warn("Firebase Analytics not supported in this environment:", err));
-
-  isMessagingSupported().then((supported) => {
-    if (supported) {
-      messaging = getMessaging(app);
-    }
-  }).catch((err) => console.warn("Firebase Messaging not supported in this environment:", err));
-}
-
-export { app, analytics, messaging };
+export { app };

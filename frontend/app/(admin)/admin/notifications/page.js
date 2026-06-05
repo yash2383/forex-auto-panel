@@ -469,6 +469,35 @@ export default function AdminNotificationsPage() {
     }
   };
 
+  // Export delivery logs as CSV
+  const handleExportLogs = () => {
+    if (!deliveries || deliveries.length === 0) {
+      showStatus("No logs to export", "error");
+      return;
+    }
+    const headers = ["ID", "Channel", "Status", "Title", "User ID", "Delivered At", "Error"];
+    const rows = deliveries.map((d) => [
+      d.id,
+      d.channel,
+      d.status,
+      d.notification?.title || "",
+      d.notification?.userId || d.notification?.adminId || "",
+      d.deliveredAt ? new Date(d.deliveredAt).toISOString() : "",
+      d.error || "",
+    ]);
+    const csvContent = [headers, ...rows]
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `notification-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showStatus(`Exported ${deliveries.length} log entries as CSV`);
+  };
+
   // Direct toggle Event Setting
   const handleDirectToggle = async (ev, field) => {
     if (!isSuperAdmin) {
@@ -575,6 +604,8 @@ export default function AdminNotificationsPage() {
       return { ...prev, channels };
     });
   };
+
+
 
   // Toggle collapsible groups helper
   const toggleGroup = (groupKey) => {

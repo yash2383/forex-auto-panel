@@ -1,9 +1,10 @@
+import { OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { Queue } from 'bull';
 import { NotificationEvent, NotificationChannel, NotificationAudience, Prisma } from '@prisma/client';
 import { NotificationsGateway } from './notifications.gateway';
 import { ObservabilityService } from '../observability/observability.service';
-export declare class NotificationsService {
+export declare class NotificationsService implements OnModuleInit {
     private readonly prisma;
     private readonly pushQueue;
     private readonly emailQueue;
@@ -15,6 +16,8 @@ export declare class NotificationsService {
     private readonly logger;
     private readonly MAX_RETRY_ENQUEUE_FAILURES;
     constructor(prisma: PrismaService, pushQueue: Queue, emailQueue: Queue, socketQueue: Queue, smsQueue: Queue, dlqQueue: Queue, gateway: NotificationsGateway, observabilityService: ObservabilityService);
+    onModuleInit(): Promise<void>;
+    isRedisReady(): boolean;
     private compileTemplate;
     private enqueueWithTimeout;
     send(event: NotificationEvent, payload: Record<string, any>, userId?: string, partnerId?: string, idempotencyKey?: string, adminId?: string, customTitle?: string, customBody?: string, customChannels?: NotificationChannel[]): Promise<{

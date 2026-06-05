@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.initializeFirebaseAdmin = initializeFirebaseAdmin;
+exports.verifyFirebaseCredentials = verifyFirebaseCredentials;
 exports.sendFcmMessage = sendFcmMessage;
 const admin = __importStar(require("firebase-admin"));
 const fs = __importStar(require("fs"));
@@ -61,12 +62,27 @@ function initializeFirebaseAdmin() {
             console.log(`Firebase Admin SDK initialized successfully via cert at: ${defaultServiceAccountPath}`);
             return firebaseAdminApp;
         }
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('Firebase credentials are missing in production! Place firebase-service-account.json in the backend root or set GOOGLE_APPLICATION_CREDENTIALS.');
+        }
         console.warn('Firebase Service Account credentials not found. FCM will run in SIMULATION/DEV mode.');
     }
     catch (err) {
         console.error('Failed to initialize Firebase Admin SDK:', err.message);
+        if (process.env.NODE_ENV === 'production') {
+            throw err;
+        }
     }
     return null;
+}
+async function verifyFirebaseCredentials(app) {
+    await admin.messaging(app).send({
+        topic: 'dry-run-validation',
+        notification: {
+            title: 'Dry-run validation',
+            body: 'Validating credentials on boot',
+        },
+    }, true);
 }
 async function sendFcmMessage(token, title, body, data = {}) {
     const app = initializeFirebaseAdmin();

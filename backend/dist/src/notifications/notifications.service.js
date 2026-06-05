@@ -22,6 +22,7 @@ const events_1 = require("./events");
 const routes_1 = require("./routes");
 const notifications_gateway_1 = require("./notifications.gateway");
 const observability_service_1 = require("../observability/observability.service");
+const firebase_admin_1 = require("./firebase-admin");
 let NotificationsService = NotificationsService_1 = class NotificationsService {
     prisma;
     pushQueue;
@@ -42,6 +43,24 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
         this.dlqQueue = dlqQueue;
         this.gateway = gateway;
         this.observabilityService = observabilityService;
+    }
+    async onModuleInit() {
+        this.logger.log('Initializing Firebase Admin SDK...');
+        try {
+            const app = (0, firebase_admin_1.initializeFirebaseAdmin)();
+            if (app && process.env.NODE_ENV === 'production') {
+                this.logger.log('Verifying Firebase credentials via dry-run send...');
+                await (0, firebase_admin_1.verifyFirebaseCredentials)(app);
+                this.logger.log('Firebase Admin SDK credentials verified successfully.');
+            }
+        }
+        catch (err) {
+            this.logger.error(`Failed to verify Firebase Admin credentials: ${err.message}`);
+            throw err;
+        }
+    }
+    isRedisReady() {
+        return this.pushQueue?.client?.status === 'ready';
     }
     compileTemplate(template, data) {
         return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
@@ -221,6 +240,9 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
                 delivery.channel === client_1.NotificationChannel.EMAIL ||
                 delivery.channel === client_1.NotificationChannel.SMS) {
                 try {
+                    if (!this.isRedisReady()) {
+                        throw new Error('Redis offline (pre-check)');
+                    }
                     let targetQueue;
                     if (delivery.channel === client_1.NotificationChannel.PUSH)
                         targetQueue = this.pushQueue;
@@ -832,6 +854,9 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
         if (deliveryIds.length > MAX_BULK_RETRY) {
             throw new common_1.BadRequestException(`Cannot retry more than ${MAX_BULK_RETRY} deliveries at once.`);
         }
+        if (!this.isRedisReady()) {
+            throw new common_1.BadRequestException('Redis queue client is offline. Cannot retry deliveries at this time.');
+        }
         let count = 0;
         for (const id of deliveryIds) {
             try {
@@ -912,6 +937,9 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
         return { success: true, count };
     }
     async bulkRetryDlq() {
+        if (!this.isRedisReady()) {
+            throw new common_1.BadRequestException('Redis queue client is offline. Cannot retry DLQ jobs at this time.');
+        }
         const jobs = await this.dlqQueue.getJobs([
             'waiting',
             'active',
@@ -943,6 +971,9 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
         return { success: true, count };
     }
     async bulkClearDlq() {
+        if (!this.isRedisReady()) {
+            throw new common_1.BadRequestException('Redis queue client is offline. Cannot clear DLQ jobs at this time.');
+        }
         const jobs = await this.dlqQueue.getJobs([
             'waiting',
             'active',

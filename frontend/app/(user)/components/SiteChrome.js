@@ -3,10 +3,14 @@
 import { usePathname } from "next/navigation";
 import SiteFooter from "./SiteFooter";
 import SiteNavbar from "./SiteNavbar";
+import { useFcmToken } from "../../../hooks/useFcmToken";
 
 export default function SiteChrome({ children }) {
   const pathname = usePathname();
   const isAppShell = pathname?.startsWith("/dashboard") || pathname?.startsWith("/admin");
+
+  // Register FCM token when user is on the authenticated app shell
+  useFcmToken();
 
   return (
     <>

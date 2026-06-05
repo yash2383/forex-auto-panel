@@ -12,10 +12,12 @@ import {
 import { NotificationsCron } from './notifications.cron';
 import { PrismaModule } from '../prisma/prisma.module';
 import { NotificationsController } from './notifications.controller';
+import { ObservabilityModule } from '../observability/observability.module';
 
 @Module({
   imports: [
     PrismaModule,
+    forwardRef(() => ObservabilityModule),
     BullModule.registerQueue(
       { name: 'notifications-push' },
       { name: 'notifications-email' },

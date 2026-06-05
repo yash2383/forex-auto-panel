@@ -1,57 +1,210 @@
-import { useEffect } from "react";
-import { getToken } from "firebase/messaging";
-import { messaging } from "../lib/firebase";
+import { useEffect, useRef } from "react";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { app } from "../lib/firebase";
 import { apiFetch } from "../lib/apiFetch";
 
-export function useFcmToken(currentUser) {
-  useEffect(() => {
-    if (!currentUser) return;
-    if (typeof window === "undefined" || !("Notification" in window)) return;
+/**
+ * Waits for a service worker registration to reach "activated" state.
+ * getToken() silently returns null if called before SW is fully active.
+ */
+function waitForServiceWorkerActive(registration) {
+  return new Promise((resolve) => {
+    if (registration.active) {
+      resolve(registration);
+      return;
+    }
+    const sw = registration.installing || registration.waiting;
+    if (!sw) {
+      resolve(registration);
+      return;
+    }
+    sw.addEventListener("statechange", function handler() {
+      if (sw.state === "activated") {
+        sw.removeEventListener("statechange", handler);
+        resolve(registration);
+      }
+    });
+  });
+}
 
-    const requestPermissionAndRegister = async () => {
+/**
+ * Sends the current FCM token to the backend for storage.
+ */
+async function registerTokenWithBackend(token) {
+  const browser = (() => {
+    const ua = navigator.userAgent;
+    if (ua.includes("Edg")) return "Edge";
+    if (ua.includes("Chrome")) return "Chrome";
+    if (ua.includes("Firefox")) return "Firefox";
+    if (ua.includes("Safari")) return "Safari";
+    return "Unknown";
+  })();
+
+  const res = await apiFetch("/api/notifications/devices", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, platform: "Web", browser }),
+  });
+
+  if (res.ok) {
+    console.log("[FCM] ✅ Device token registered with backend.");
+    return true;
+  } else {
+    const err = await res.json().catch(() => ({}));
+    console.error("[FCM] Backend token registration failed:", err.message);
+    return false;
+  }
+}
+
+/**
+ * useFcmToken
+ *
+ * Complete, production-grade Firebase Cloud Messaging setup:
+ *  1. Checks browser support (Notifications + ServiceWorker)
+ *  2. Requests notification permission
+ *  3. Registers /public/firebase-messaging-sw.js — waits for SW activation
+ *  4. Gets FCM token with VAPID key
+ *  5. Registers token with backend (POST /api/notifications/devices)
+ *  6. Handles token refresh — re-registers when FCM rotates the token
+ *  7. Handles foreground messages via SW showNotification
+ */
+export function useFcmToken() {
+  const tokenRegistered = useRef(false);
+
+  useEffect(() => {
+    // SSR guard
+    if (typeof window === "undefined") return;
+    if (tokenRegistered.current) return;
+
+    let unsubscribeTokenRefresh = null;
+
+    async function initFcm() {
       try {
-        if (!messaging) {
-          console.warn("Firebase messaging is not initialized or not supported on this platform/browser.");
+        // ── 1. Browser support ────────────────────────────────────────────
+        if (!("Notification" in window)) {
+          console.warn("[FCM] Browser does not support Notifications.");
+          return;
+        }
+        if (!("serviceWorker" in navigator)) {
+          console.warn("[FCM] Browser does not support Service Workers.");
           return;
         }
 
-        // Request permission
+        // ── 2. Validate VAPID key (Early Guard) ───────────────────────────
+        const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+        if (!vapidKey || vapidKey === "REPLACE_WITH_YOUR_VAPID_KEY") {
+          console.warn("[FCM] FCM disabled: NEXT_PUBLIC_FIREBASE_VAPID_KEY is not configured or still set to the placeholder in .env.local.");
+          return;
+        }
+
+        // ── 3. Permission ─────────────────────────────────────────────────
         const permission = await Notification.requestPermission();
         if (permission !== "granted") {
-          console.log("Notification permission not granted by user.");
+          console.warn("[FCM] Notification permission:", permission);
           return;
         }
 
-        // Retrieve token
-        let token;
-        try {
-          token = await getToken(messaging);
-        } catch (tokenErr) {
-          console.warn("Could not get FCM token automatically. Web push VAPID key may be required.", tokenErr);
+        // ── 4. Register SW and wait until active ──────────────────────────
+        // Critical: getToken() returns null if SW is still in "installing" state
+        const rawRegistration = await navigator.serviceWorker.register(
+          "/firebase-messaging-sw.js",
+          { scope: "/" }
+        );
+        const registration = await waitForServiceWorkerActive(rawRegistration);
+        console.log("[FCM] Service worker active:", registration.active?.state);
+
+        // ── 5. Get FCM token ──────────────────────────────────────────────
+        const messaging = getMessaging(app);
+        const token = await getToken(messaging, {
+          vapidKey,
+          serviceWorkerRegistration: registration,
+        });
+
+        if (!token) {
+          console.warn(
+            "[FCM] getToken() returned null. Check: VAPID key correct? SW active? Notifications allowed?"
+          );
           return;
         }
+        console.log("[FCM] Token obtained:", token.substring(0, 20) + "...");
 
-        if (token) {
-          // Detect client properties
-          const platform = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? "iOS" : 
-                           /Android/i.test(navigator.userAgent) ? "Android" : "Web";
-                           
-          const browser = /Chrome/i.test(navigator.userAgent) ? "Chrome" :
-                          /Safari/i.test(navigator.userAgent) ? "Safari" :
-                          /Firefox/i.test(navigator.userAgent) ? "Firefox" : "Unknown";
-
-          console.log("Acquired FCM Token successfully.");
-          
-          await apiFetch("/api/notifications/devices", {
-            method: "POST",
-            body: JSON.stringify({ token, platform, browser }),
-          });
+        // ── 6. Register token with backend ────────────────────────────────
+        const registered = await registerTokenWithBackend(token);
+        if (registered) {
+          tokenRegistered.current = true;
         }
+
+        // ── 7. Token refresh listener ─────────────────────────────────────
+        // FCM silently rotates tokens periodically. Without this, users stop
+        // receiving push notifications after the old token expires.
+        // We use explicit re-fetch + diff check, triggered by visibilitychange
+        // and window focus events to avoid missing silent token rotation.
+        let currentToken = token;
+
+        const refreshToken = async () => {
+          try {
+            const refreshedToken = await getToken(messaging, {
+              vapidKey,
+              serviceWorkerRegistration: registration,
+            });
+            if (refreshedToken && refreshedToken !== currentToken) {
+              console.log("[FCM] Token rotated/refreshed — re-registering with backend.");
+              const ok = await registerTokenWithBackend(refreshedToken);
+              if (ok) {
+                currentToken = refreshedToken;
+              }
+            }
+          } catch (err) {
+            console.warn("[FCM] Token refresh check failed:", err.message);
+          }
+        };
+
+        const handleVisibilityChange = () => {
+          if (document.visibilityState === "visible") {
+            refreshToken();
+          }
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener("focus", refreshToken);
+
+        unsubscribeTokenRefresh = () => {
+          document.removeEventListener("visibilitychange", handleVisibilityChange);
+          window.removeEventListener("focus", refreshToken);
+        };
+
+        // ── 8. Foreground message handler ─────────────────────────────────
+        // Background messages handled by the SW automatically.
+        // This fires when the app tab is open and a push arrives.
+        onMessage(messaging, (payload) => {
+          console.log("[FCM] Foreground message:", payload);
+          const title =
+            payload.notification?.title || payload.data?.title || "Notification";
+          const body =
+            payload.notification?.body || payload.data?.body || "";
+
+          // Delegate to SW so foreground + background behave identically
+          if (registration.active) {
+            registration.showNotification(title, {
+              body,
+              icon: "/forex.png",
+              badge: "/forex.png",
+              data: { link: payload.data?.link || "/dashboard", ...payload.data },
+            });
+          }
+        });
       } catch (err) {
-        console.error("FCM Token registration failed:", err);
+        console.error("[FCM] Initialization error:", err);
+      }
+    }
+
+    initFcm();
+
+    // Cleanup on unmount — remove SW event listener
+    return () => {
+      if (unsubscribeTokenRefresh) {
+        unsubscribeTokenRefresh();
       }
     };
-
-    requestPermissionAndRegister();
-  }, [currentUser]);
+  }, []);
 }

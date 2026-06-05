@@ -49,7 +49,7 @@ export default function AdminLogin() {
       const { token, user } = data;
 
       // Restrict access to Admins only
-      if (!["SUPER_ADMIN", "MANAGER", "VIEWER"].includes(user.role)) {
+      if (!user || !["SUPER_ADMIN", "MANAGER", "VIEWER"].includes(user.role)) {
         // Log out immediately to clear cookie if user is not authorized
         await apiFetch("/api/auth/logout", { method: "POST" });
         document.cookie = "tradebot-token=; path=/; max-age=0; SameSite=Lax";

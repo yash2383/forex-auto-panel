@@ -787,13 +787,19 @@ export class DashboardService {
       return { found: false, status: null };
     }
 
+    const planSlug = payment.planName
+      ? payment.planName.split(' ')[0].toLowerCase()
+      : 'individual';
+
     return {
       found: true,
       status: payment.status,
+      plan: planSlug,
       planName: payment.planName,
       amount: Number(payment.amount),
       remark: payment.remark || null,
       adminNote: payment.remark || null,
+      subscriptionActive: payment.status === 'APPROVED',
       createdAt: payment.createdAt,
       updatedAt: payment.updatedAt,
     };

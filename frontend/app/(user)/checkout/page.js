@@ -65,7 +65,7 @@ function SummaryRow({ label, value, highlight }) {
 }
 
 // --- Payment Status Polling Component ---
-function PaymentStatusView({ moveToStep }) {
+function PaymentStatusView({ moveToStep, onStatusLoaded }) {
   const router = useRouter();
   const [paymentData, setPaymentData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,10 +78,13 @@ function PaymentStatusView({ moveToStep }) {
       if (res.ok) {
         const data = await res.json();
         setPaymentData(data);
+        if (onStatusLoaded && (data.found || data.status)) {
+          onStatusLoaded(data.status);
+        }
         setError(null);
 
         // Stop polling once in a terminal state
-        if (data.found && (data.status === "APPROVED" || data.status === "REJECTED")) {
+        if ((data.found || data.status) && (data.status === "APPROVED" || data.status === "REJECTED")) {
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
             intervalRef.current = null;
@@ -95,7 +98,7 @@ function PaymentStatusView({ moveToStep }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onStatusLoaded]);
 
   useEffect(() => {
     fetchStatus();
@@ -116,7 +119,33 @@ function PaymentStatusView({ moveToStep }) {
     );
   }
 
-  if (error || !paymentData || !paymentData.found) {
+  // Error fetching status (res.ok is false or exception thrown)
+  if (error) {
+    return (
+      <section className="mx-auto max-w-3xl rounded-2xl border border-red-500/20 bg-[#0A0A0A]/95 p-8 text-center shadow-[0_0_80px_-30px_rgba(239,68,68,0.2)] sm:p-12">
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10 text-red-400">
+          <Info className="h-8 w-8" />
+        </span>
+        <h2 className="mt-6 text-2xl font-semibold text-white">Unable to fetch payment status</h2>
+        <p className="mx-auto mt-3 max-w-md text-sm text-neutral-400">
+          {error}
+        </p>
+        <button
+          type="button"
+          onClick={fetchStatus}
+          className="mt-6 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-500 px-6 text-sm font-bold text-black transition hover:bg-green-400"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Retry Check
+        </button>
+      </section>
+    );
+  }
+
+  const hasPayment = paymentData && (paymentData.found || paymentData.status);
+
+  // Truly never submitted payment: paymentData is loaded but found is false and status is null
+  if (!paymentData || !hasPayment) {
     return (
       <section className="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-[#0A0A0A]/95 p-6 text-center sm:p-10">
         <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-neutral-800">
@@ -124,7 +153,7 @@ function PaymentStatusView({ moveToStep }) {
         </span>
         <h2 className="mt-6 text-2xl font-semibold text-white">No Payment Found</h2>
         <p className="mx-auto mt-3 max-w-md text-sm text-neutral-400">
-          {error || "We couldn't find any payment submissions for your account. Please complete the payment step first."}
+          We couldn't find any payment submissions for your account. Please complete the payment step first.
         </p>
         <button
           type="button"
@@ -137,7 +166,7 @@ function PaymentStatusView({ moveToStep }) {
     );
   }
 
-  const { status, planName, amount, remark, adminNote, txnHash, createdAt } = paymentData;
+  const { status, plan, planName, amount, remark, adminNote, txnHash, createdAt } = paymentData;
   const adminRemark = remark || adminNote;
   const formattedAmount = amount
     ? `INR ${Number(amount).toLocaleString("en-IN")}`
@@ -148,49 +177,54 @@ function PaymentStatusView({ moveToStep }) {
 
   // APPROVED STATE
   if (status === "APPROVED") {
+    const rawPlanName = plan || planName || "Individual";
+    const formattedPlan = rawPlanName.charAt(0).toUpperCase() + rawPlanName.slice(1);
+
     return (
-      <section className="mx-auto max-w-3xl rounded-2xl border border-green-500/30 bg-[#0A0A0A]/95 p-6 text-center shadow-[0_0_80px_-30px_rgba(34,197,94,0.5)] sm:p-10">
-        <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-500/15 text-green-400">
-          <CircleCheck className="h-10 w-10" />
+      <section className="mx-auto max-w-3xl rounded-2xl border border-green-500/30 bg-[#0A0A0A]/95 p-8 text-center shadow-[0_0_80px_-30px_rgba(34,197,94,0.5)] sm:p-12">
+        <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-green-500/10 text-green-400 shadow-[0_0_40px_rgba(34,197,94,0.2)]">
+          <CircleCheck className="h-12 w-12" />
         </span>
-        <p className="mt-6 text-sm font-bold uppercase tracking-widest text-green-300">Status: Approved</p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white">Subscription Activated!</h2>
-        <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-neutral-400">
-          Your payment of <strong className="text-green-300">{formattedAmount}</strong> for <strong className="text-white">{planName}</strong> has been verified and approved. Your premium features are now unlocked.
+        
+        <h1 className="mt-8 text-3xl font-extrabold tracking-tight text-green-400 sm:text-4xl animate-pulse">
+          🎉 Congratulations!
+        </h1>
+
+        <p className="mx-auto mt-4 max-w-lg text-lg text-neutral-300">
+          Your plan has been activated successfully.
         </p>
 
-        <div className="mt-7 rounded-xl border border-green-500/20 bg-green-500/5 p-4">
-          <div className="grid gap-3 text-left sm:grid-cols-3">
-            <div>
-              <p className="text-xs font-semibold text-neutral-500">Plan</p>
-              <p className="mt-1 text-sm font-bold text-white">{planName}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-neutral-500">Amount Paid</p>
-              <p className="mt-1 text-sm font-bold text-green-300">{formattedAmount}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-neutral-500">Submitted</p>
-              <p className="mt-1 text-sm font-bold text-white">{formattedDate}</p>
-            </div>
+        <div className="mx-auto mt-8 max-w-xs rounded-2xl border border-white/5 bg-white/[0.02] p-6 text-left space-y-4">
+          <div className="flex items-center justify-between text-neutral-400">
+            <span className="text-sm">Plan:</span>
+            <span className="text-sm font-bold text-white">{formattedPlan}</span>
+          </div>
+          <div className="flex items-center justify-between text-neutral-400">
+            <span className="text-sm">Status:</span>
+            <span className="text-sm font-bold text-green-400">Active</span>
           </div>
         </div>
 
-        <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+        <p className="mt-8 text-sm text-neutral-400 font-medium">
+          You now have full access to all premium features.
+        </p>
+
+        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-500 px-8 text-sm font-bold text-black transition hover:bg-green-400"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-500 px-8 text-sm font-bold text-black transition hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98]"
           >
-            Go To Dashboard
+            Go to Dashboard
             <ArrowRight className="h-4 w-4" />
           </button>
-          <a
-            href="/dashboard/subscription"
-            className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm font-bold text-white transition hover:bg-white/[0.08]"
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-8 text-sm font-bold text-white transition hover:bg-white/[0.08]"
           >
-            View Subscription
-          </a>
+            Go to Home
+          </button>
         </div>
       </section>
     );
@@ -199,147 +233,116 @@ function PaymentStatusView({ moveToStep }) {
   // REJECTED STATE
   if (status === "REJECTED") {
     return (
-      <section className="mx-auto max-w-3xl rounded-2xl border border-red-500/30 bg-[#0A0A0A]/95 p-6 text-center shadow-[0_0_80px_-30px_rgba(239,68,68,0.4)] sm:p-10">
-        <span className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-500/15 text-red-400">
-          <XCircle className="h-10 w-10" />
+      <section className="mx-auto max-w-3xl rounded-2xl border border-red-500/30 bg-[#0A0A0A]/95 p-8 text-center shadow-[0_0_80px_-30px_rgba(239,68,68,0.4)] sm:p-12">
+        <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-red-500/10 text-red-400 shadow-[0_0_40px_rgba(239,68,68,0.2)]">
+          <XCircle className="h-12 w-12" />
         </span>
-        <p className="mt-6 text-sm font-bold uppercase tracking-widest text-red-300">Status: Rejected</p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white">Payment Verification Failed</h2>
-        <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-neutral-400">
-          Your payment of <strong className="text-red-300">{formattedAmount}</strong> for <strong className="text-white">{planName}</strong> could not be verified.
+        
+        <h1 className="mt-8 text-3xl font-extrabold tracking-tight text-red-400 sm:text-4xl">
+          ❌ Payment Verification Failed
+        </h1>
+
+        <p className="mx-auto mt-4 max-w-lg text-lg text-neutral-300">
+          Please submit a new payment or contact support.
         </p>
 
         {adminRemark && (
-          <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-left">
+          <div className="mx-auto mt-6 max-w-md rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-left">
             <p className="text-xs font-bold uppercase tracking-widest text-red-300">Admin Note</p>
             <p className="mt-2 text-sm leading-relaxed text-neutral-300">{adminRemark}</p>
           </div>
         )}
 
-        <div className="mt-7 rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <div className="grid gap-3 text-left sm:grid-cols-3">
-            <div>
-              <p className="text-xs font-semibold text-neutral-500">Plan</p>
-              <p className="mt-1 text-sm font-bold text-white">{planName}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-neutral-500">Amount</p>
-              <p className="mt-1 text-sm font-bold text-red-300">{formattedAmount}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-neutral-500">Submitted</p>
-              <p className="mt-1 text-sm font-bold text-white">{formattedDate}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <button
             type="button"
             onClick={() => moveToStep("payment")}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-red-500 px-8 text-sm font-bold text-white transition hover:bg-red-400"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-red-500 px-6 text-sm font-bold text-white transition hover:bg-red-400 hover:scale-[1.02] active:scale-[0.98]"
           >
             Upload New Payment Proof
             <ArrowRight className="h-4 w-4" />
           </button>
-          <a
-            href="/pricing"
-            className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm font-bold text-white transition hover:bg-white/[0.08]"
-          >
-            Back to Pricing
-          </a>
-        </div>
-      </section>
-    );
-  }
-
-  // VERIFIED STATE
-  if (status === "VERIFIED") {
-    return (
-      <section className="mx-auto max-w-3xl rounded-2xl border border-blue-400/20 bg-[#0A0A0A]/95 p-6 text-center shadow-[0_0_70px_-30px_rgba(96,165,250,0.45)] sm:p-10">
-        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-400/10 text-blue-300">
-          <ShieldCheck className="h-8 w-8" />
-        </span>
-        <p className="mt-6 text-sm font-bold uppercase tracking-widest text-blue-300">Status: Verified</p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white">Payment Verified</h2>
-        <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-neutral-400">
-          Your payment details have been verified. Awaiting final approval from the administrator. This page updates automatically.
-        </p>
-
-        <div className="mt-7 grid gap-3 text-left sm:grid-cols-2">
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <ShieldCheck className="h-5 w-5 text-blue-300" />
-            <p className="mt-3 text-sm font-semibold text-white">Details Verified</p>
-            <p className="mt-1 text-xs leading-relaxed text-neutral-500">Transaction ID and payment amount have been confirmed.</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <Clock3 className="h-5 w-5 text-blue-300" />
-            <p className="mt-3 text-sm font-semibold text-white">Awaiting Approval</p>
-            <p className="mt-1 text-xs leading-relaxed text-neutral-500">Admin will finalize your subscription activation shortly.</p>
-          </div>
-        </div>
-
-        <div className="mt-7 flex justify-center">
           <button
             type="button"
-            onClick={fetchStatus}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm font-bold text-white transition hover:bg-white/[0.08]"
+            onClick={() => router.push("/dashboard")}
+            className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm font-bold text-white transition hover:bg-white/[0.08]"
           >
-            <RefreshCw className="h-4 w-4" />
-            Refresh Status
+            Go to Dashboard
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm font-bold text-white transition hover:bg-white/[0.08]"
+          >
+            Go to Home
           </button>
         </div>
-
-        <p className="mt-4 text-xs text-neutral-600">Auto-refreshing every 15 seconds</p>
       </section>
     );
   }
 
-  // PENDING STATE (default)
+  // PENDING / VERIFIED / default
   return (
-    <section className="mx-auto max-w-3xl rounded-2xl border border-yellow-400/20 bg-[#0A0A0A]/95 p-6 text-center shadow-[0_0_70px_-30px_rgba(250,204,21,0.45)] sm:p-10">
-      <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-yellow-400/10 text-yellow-300">
-        <Clock3 className="h-8 w-8 animate-pulse" />
+    <section className="mx-auto max-w-3xl rounded-2xl border border-yellow-400/20 bg-[#0A0A0A]/95 p-8 text-center shadow-[0_0_80px_-30px_rgba(250,204,21,0.3)] sm:p-12">
+      <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-yellow-400/10 text-yellow-300 shadow-[0_0_40px_rgba(250,204,21,0.1)]">
+        <Clock3 className="h-12 w-12 animate-pulse" />
       </span>
-      <p className="mt-6 text-sm font-bold uppercase tracking-widest text-yellow-300">Status: Pending Approval</p>
-      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white">Your payment is under review</h2>
-      <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-neutral-400">
-        We have received your payment of <strong className="text-yellow-200">{formattedAmount}</strong> for <strong className="text-white">{planName}</strong>. Premium features remain locked until the admin verifies your USDT transaction.
+      
+      <h1 className="mt-8 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+        ⏳ Payment Submitted Successfully
+      </h1>
+
+      <p className="mx-auto mt-4 max-w-lg text-lg text-neutral-300">
+        Your payment has been received and is under review.
       </p>
 
-      {txnHash && (
-        <div className="mx-auto mt-5 max-w-md rounded-xl border border-white/10 bg-white/[0.03] p-3">
-          <p className="text-xs font-semibold text-neutral-500">Transaction ID</p>
-          <p className="mt-1 break-all text-sm font-mono text-white">{txnHash}</p>
+      <div className="mx-auto mt-8 max-w-xs rounded-2xl border border-white/5 bg-white/[0.02] p-6 text-left space-y-4">
+        <div className="flex items-center justify-between text-neutral-400">
+          <span className="text-sm">Status:</span>
+          <span className="text-sm font-semibold text-yellow-300">
+            {status === "VERIFIED" ? "Verified (Pending Approval)" : "Pending Approval"}
+          </span>
         </div>
-      )}
-
-      <div className="mt-7 grid gap-3 text-left sm:grid-cols-2">
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <WalletCards className="h-5 w-5 text-green-300" />
-          <p className="mt-3 text-sm font-semibold text-white">Check payment status</p>
-          <p className="mt-1 text-xs leading-relaxed text-neutral-500">This page auto-refreshes every 15 seconds to show the latest status.</p>
+        <div className="flex items-center justify-between text-neutral-400">
+          <span className="text-sm">Plan:</span>
+          <span className="text-sm font-semibold text-white">{planName || "--"}</span>
         </div>
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <QrCode className="h-5 w-5 text-green-300" />
-          <p className="mt-3 text-sm font-semibold text-white">Access locked for now</p>
-          <p className="mt-1 text-xs leading-relaxed text-neutral-500">No premium trading access is enabled during review.</p>
-        </div>
+        {amount && (
+          <div className="flex items-center justify-between text-neutral-400">
+            <span className="text-sm">Amount:</span>
+            <span className="text-sm font-semibold text-white font-mono">{formattedAmount}</span>
+          </div>
+        )}
       </div>
-      <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+
+      <p className="mt-8 text-sm text-neutral-500 font-medium">
+        We will activate your plan after verification.
+      </p>
+
+      <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard")}
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-500 px-6 text-sm font-bold text-black transition hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98]"
+        >
+          Go to Dashboard
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push("/")}
+          className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm font-bold text-white transition hover:bg-white/[0.08]"
+        >
+          Go to Home
+        </button>
         <button
           type="button"
           onClick={fetchStatus}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-500 px-6 text-sm font-bold text-black transition hover:bg-green-400"
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm font-bold text-white transition hover:bg-white/[0.08]"
         >
           <RefreshCw className="h-4 w-4" />
           Refresh Status
         </button>
-        <a href="/pricing" className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm font-bold text-white transition hover:bg-white/[0.08]">
-          Back to Pricing
-        </a>
       </div>
-      <p className="mt-4 text-xs text-neutral-600">Auto-refreshing every 15 seconds</p>
     </section>
   );
 }
@@ -364,6 +367,7 @@ export default function CheckoutPage() {
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [mounted, setMounted] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null);
 
   useEffect(() => {
     setMounted(true);
@@ -623,7 +627,15 @@ export default function CheckoutPage() {
               Secure payment processing via {selectedMethod?.key || "USDT"}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-              {step === "payment" ? "Complete Your Payment" : "Payment Under Review"}
+              {step === "payment"
+                ? "Complete Your Payment"
+                : paymentStatus === "APPROVED"
+                ? "Subscription Activated"
+                : paymentStatus === "REJECTED"
+                ? "Payment Rejected"
+                : paymentStatus === "VERIFIED"
+                ? "Payment Verified"
+                : "Payment Under Review"}
             </h1>
           </div>
           <div className="flex rounded-full border border-white/10 bg-white/[0.03] p-1 text-xs font-bold text-neutral-400">
@@ -985,7 +997,7 @@ export default function CheckoutPage() {
         )}
 
         {step === "status" && (
-          <PaymentStatusView moveToStep={moveToStep} />
+          <PaymentStatusView moveToStep={moveToStep} onStatusLoaded={setPaymentStatus} />
         )}
 
         {step === "payment" && (

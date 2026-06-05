@@ -178,19 +178,23 @@ export declare class DashboardService {
     getMyPaymentStatus(userId: string): Promise<{
         found: boolean;
         status: null;
+        plan?: undefined;
         planName?: undefined;
         amount?: undefined;
         remark?: undefined;
         adminNote?: undefined;
+        subscriptionActive?: undefined;
         createdAt?: undefined;
         updatedAt?: undefined;
     } | {
         found: boolean;
         status: import("@prisma/client").$Enums.PaymentStatus;
+        plan: string;
         planName: string;
         amount: number;
         remark: string | null;
         adminNote: string | null;
+        subscriptionActive: boolean;
         createdAt: Date;
         updatedAt: Date;
     }>;

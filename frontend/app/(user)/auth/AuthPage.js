@@ -128,7 +128,7 @@ export default function AuthPage({ mode }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const target = params.get("redirect") || params.get("next") || params.get("callbackUrl");
-    let validatedTarget = "/dashboard";
+    let validatedTarget = "/";
     if (target) {
       const isSafe = target.startsWith("/") && !target.startsWith("//") && !target.startsWith("/\\");
       if (isSafe) {

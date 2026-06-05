@@ -1234,3 +1234,18 @@ model FinancialEvent {
   @@index([eventType])
   @@index([referenceId])
 }
+
+// ==========================================
+// REFERRAL REWARDS (DUPLICATE PROTECTION)
+// ==========================================
+
+model ReferralReward {
+  id             String   @id @default(cuid())
+  paymentId      String   @unique
+  referrerId     String
+  referredUserId String
+  amount         Decimal  @db.Decimal(18, 4)
+  status         String
+  createdAt      DateTime @default(now())
+}
+

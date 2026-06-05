@@ -62,41 +62,30 @@ export declare class UserService {
     }>;
     getSubscription(userId: string): Promise<{
         hasSubscription: boolean;
-        pendingCheckout: {
-            status: import("@prisma/client").$Enums.PaymentStatus;
-            planName: string;
-            amount: number;
-            submittedAt: Date;
-        };
-        subscription?: undefined;
-    } | {
-        hasSubscription: boolean;
-        pendingCheckout: null;
-        subscription?: undefined;
-    } | {
-        hasSubscription: boolean;
         subscription: {
             planName: string;
+            status: string;
+            startedAt: string;
+            approvedAt: string;
+            expiresAt: string | null;
+            daysRemaining: number | null;
             amount: number;
             currency: string;
-            status: string;
-            approvedAt: Date;
-            expiresAt: string;
-            daysRemaining: number;
             totalDays: number;
         };
-        pendingCheckout: null;
-    }>;
-    changePassword(userId: string, currentPassword: string, newPassword: string, confirmPassword: string): Promise<{
-        error: string;
-        status: number;
-        success?: undefined;
-        message?: undefined;
+        pendingCheckout: any;
     } | {
-        success: boolean;
-        message: string;
-        error?: undefined;
-        status?: undefined;
+        hasSubscription: boolean;
+        subscription: null;
+        pendingCheckout: {
+            planName: string;
+            amount: number;
+            status: import("@prisma/client").$Enums.PaymentStatus;
+        };
+    } | {
+        hasSubscription: boolean;
+        subscription: null;
+        pendingCheckout: null;
     }>;
     getReferralStats(userId: string): Promise<{
         error: string;
@@ -108,12 +97,22 @@ export declare class UserService {
         stats: {
             totalReferrals: number;
             activeReferrals: number;
-            totalDepositsGenerated: number;
             totalEarnings: number;
             pendingEarnings: number;
-            approvedEarnings: number;
-            paidEarnings: number;
+            rewardsEarned: number;
+            pendingRewards: number;
         };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    changePassword(userId: string, currentPassword: string, newPassword: string, confirmPassword: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        message?: undefined;
+    } | {
+        success: boolean;
+        message: string;
         error?: undefined;
         status?: undefined;
     }>;

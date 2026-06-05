@@ -30,25 +30,26 @@ let UserService = class UserService {
         if (!user) {
             return { error: 'User not found', status: 404 };
         }
-        const latestApprovedPayment = await this.prisma.payment.findFirst({
-            where: { userId, status: 'APPROVED' },
-            orderBy: { createdAt: 'desc' },
+        const latestUserPlan = await this.prisma.userPlan.findFirst({
+            where: { userId },
+            include: { plan: true },
+            orderBy: { startedAt: 'desc' },
         });
         let activePlan = null;
-        if (latestApprovedPayment) {
-            const approvedDate = new Date(latestApprovedPayment.createdAt);
-            const expiresAt = new Date(approvedDate);
-            expiresAt.setDate(expiresAt.getDate() + 365);
+        if (latestUserPlan) {
             const now = new Date();
-            const daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-            const isActive = daysRemaining > 0;
+            const expiresAt = latestUserPlan.expiresAt ? new Date(latestUserPlan.expiresAt) : null;
+            const daysRemaining = expiresAt
+                ? Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+                : 9999;
+            const isActive = latestUserPlan.active && (expiresAt ? expiresAt.getTime() > now.getTime() : true);
             activePlan = {
-                name: latestApprovedPayment.planName,
+                name: latestUserPlan.plan.name,
                 status: isActive ? 'ACTIVE' : 'EXPIRED',
-                amount: Number(latestApprovedPayment.amount),
-                currency: latestApprovedPayment.currency,
-                approvedAt: latestApprovedPayment.createdAt,
-                expiresAt: expiresAt.toISOString(),
+                amount: Number(latestUserPlan.plan.amount ?? 0),
+                currency: 'INR',
+                approvedAt: latestUserPlan.startedAt,
+                expiresAt: expiresAt ? expiresAt.toISOString() : null,
                 daysRemaining,
             };
         }
@@ -108,47 +109,112 @@ let UserService = class UserService {
         };
     }
     async getSubscription(userId) {
-        const latestApprovedPayment = await this.prisma.payment.findFirst({
-            where: { userId, status: 'APPROVED' },
+        const latestUserPlan = await this.prisma.userPlan.findFirst({
+            where: { userId },
+            include: { plan: true },
+            orderBy: { startedAt: 'desc' },
+        });
+        const latestPending = await this.prisma.payment.findFirst({
+            where: { userId, status: { in: ['PENDING', 'VERIFIED'] } },
             orderBy: { createdAt: 'desc' },
         });
-        if (!latestApprovedPayment) {
-            const latestPending = await this.prisma.payment.findFirst({
-                where: { userId, status: { in: ['PENDING', 'VERIFIED'] } },
-                orderBy: { createdAt: 'desc' },
-            });
+        if (latestUserPlan) {
+            const now = new Date();
+            const expiresAt = latestUserPlan.expiresAt ? new Date(latestUserPlan.expiresAt) : null;
+            const daysRemaining = expiresAt
+                ? Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+                : null;
+            const isActive = latestUserPlan.active && (expiresAt ? expiresAt.getTime() > now.getTime() : true);
+            let pendingCheckout = null;
             if (latestPending) {
-                return {
-                    hasSubscription: false,
-                    pendingCheckout: {
-                        status: latestPending.status,
-                        planName: latestPending.planName,
-                        amount: Number(latestPending.amount),
-                        submittedAt: latestPending.createdAt,
-                    },
+                pendingCheckout = {
+                    planName: latestPending.planName,
+                    amount: Number(latestPending.amount),
+                    status: latestPending.status,
                 };
             }
-            return { hasSubscription: false, pendingCheckout: null };
+            return {
+                hasSubscription: true,
+                subscription: {
+                    planName: latestUserPlan.plan.name,
+                    status: isActive ? 'ACTIVE' : 'EXPIRED',
+                    startedAt: latestUserPlan.startedAt.toISOString(),
+                    approvedAt: latestUserPlan.startedAt.toISOString(),
+                    expiresAt: expiresAt ? expiresAt.toISOString() : null,
+                    daysRemaining,
+                    amount: Number(latestUserPlan.plan.amount ?? 0),
+                    currency: 'INR',
+                    totalDays: latestUserPlan.plan.durationDays || 30,
+                },
+                pendingCheckout,
+            };
         }
-        const approvedDate = new Date(latestApprovedPayment.createdAt);
-        const expiresAt = new Date(approvedDate);
-        expiresAt.setDate(expiresAt.getDate() + 365);
-        const now = new Date();
-        const daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-        const isActive = daysRemaining > 0;
+        if (latestPending) {
+            return {
+                hasSubscription: false,
+                subscription: null,
+                pendingCheckout: {
+                    planName: latestPending.planName,
+                    amount: Number(latestPending.amount),
+                    status: latestPending.status,
+                },
+            };
+        }
         return {
-            hasSubscription: true,
-            subscription: {
-                planName: latestApprovedPayment.planName,
-                amount: Number(latestApprovedPayment.amount),
-                currency: latestApprovedPayment.currency,
-                status: isActive ? 'ACTIVE' : 'EXPIRED',
-                approvedAt: latestApprovedPayment.createdAt,
-                expiresAt: expiresAt.toISOString(),
-                daysRemaining,
-                totalDays: 365,
-            },
+            hasSubscription: false,
+            subscription: null,
             pendingCheckout: null,
+        };
+    }
+    async getReferralStats(userId) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user)
+            return { error: 'User not found', status: 404 };
+        const totalReferrals = await this.prisma.user.count({
+            where: { referredBy: userId },
+        });
+        const activeReferrals = await this.prisma.userPlan.count({
+            where: {
+                user: { referredBy: userId },
+                active: true,
+                OR: [
+                    { expiresAt: null },
+                    { expiresAt: { gt: new Date() } }
+                ]
+            }
+        });
+        const approvedRewards = await this.prisma.referralReward.findMany({
+            where: { referrerId: userId, status: 'APPROVED' },
+        });
+        const rewardsEarned = approvedRewards.reduce((sum, r) => sum + Number(r.amount), 0);
+        const pendingPayments = await this.prisma.payment.findMany({
+            where: {
+                user: { referredBy: userId },
+                status: { in: ['PENDING', 'VERIFIED'] }
+            },
+            select: { amount: true }
+        });
+        const refSettings = await this.prisma.referralSettings.findFirst();
+        const sysSettings = await this.prisma.systemSettings.findFirst();
+        const commissionRate = Number(refSettings?.commissionRate ?? 10);
+        const bonusMultiplier = Number(sysSettings?.referralBonusMultiplier ?? 100);
+        let pendingRewards = 0;
+        pendingPayments.forEach(p => {
+            const amt = Number(p.amount);
+            const platformFee = amt * 0.04;
+            const reward = (platformFee * commissionRate * (bonusMultiplier / 100)) / 100;
+            pendingRewards += reward;
+        });
+        return {
+            referralCode: user.referralCode,
+            stats: {
+                totalReferrals,
+                activeReferrals,
+                totalEarnings: rewardsEarned,
+                pendingEarnings: pendingRewards,
+                rewardsEarned,
+                pendingRewards,
+            },
         };
     }
     async changePassword(userId, currentPassword, newPassword, confirmPassword) {
@@ -184,52 +250,6 @@ let UserService = class UserService {
             .sendToUser(userId, client_1.NotificationEvent.PASSWORD_CHANGED, {})
             .catch((err) => console.error(`Failed to send PASSWORD_CHANGED notification for user ${userId}`, err));
         return { success: true, message: 'Password changed successfully' };
-    }
-    async getReferralStats(userId) {
-        const user = await this.prisma.user.findUnique({ where: { id: userId } });
-        if (!user)
-            return { error: 'User not found', status: 404 };
-        const referrals = await this.prisma.referral.findMany({
-            where: { referrerId: userId },
-        });
-        const totalReferrals = await this.prisma.user.count({
-            where: { referredBy: userId },
-        });
-        const activeReferrals = await this.prisma.user.count({
-            where: {
-                referredBy: userId,
-                payments: { some: { status: 'APPROVED' } },
-            },
-        });
-        let totalEarnings = 0;
-        let pendingEarnings = 0;
-        let paidEarnings = 0;
-        const approvedEarnings = 0;
-        let totalDepositsGenerated = 0;
-        referrals.forEach((r) => {
-            const amt = Number(r.commissionAmount || 0);
-            const depAmt = Number(r.depositAmount || 0);
-            if (['PENDING', 'PAID'].includes(r.status)) {
-                totalEarnings += amt;
-                totalDepositsGenerated += depAmt;
-            }
-            if (r.status === 'PENDING')
-                pendingEarnings += amt;
-            if (r.status === 'PAID')
-                paidEarnings += amt;
-        });
-        return {
-            referralCode: user.referralCode,
-            stats: {
-                totalReferrals,
-                activeReferrals,
-                totalDepositsGenerated,
-                totalEarnings,
-                pendingEarnings,
-                approvedEarnings,
-                paidEarnings,
-            },
-        };
     }
     async getReferrals(userId) {
         const users = await this.prisma.user.findMany({

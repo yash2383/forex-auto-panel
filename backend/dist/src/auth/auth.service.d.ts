@@ -12,7 +12,7 @@ export declare class AuthService {
             id: string;
             name: string;
             email: string;
-            role: string;
+            role: import("@prisma/client").$Enums.AdminRole;
             status: "ACTIVE";
             partnerId?: undefined;
         };

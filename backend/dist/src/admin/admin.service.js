@@ -1488,88 +1488,128 @@ let AdminService = AdminService_1 = class AdminService {
                 });
             }
             if (payment.user.referredBy) {
-                const refSettings = await tx.referralSettings.findFirst();
-                if (!refSettings) {
-                    this.logger.error({
-                        event: 'REFERRAL_SETTINGS_MISSING',
-                        message: 'ReferralSettings configuration is missing in the database. Skipping commission payment.',
+                const referrerActivePlan = await tx.userPlan.findFirst({
+                    where: {
+                        userId: payment.user.referredBy,
+                        active: true,
+                        OR: [
+                            { expiresAt: null },
+                            { expiresAt: { gt: new Date() } }
+                        ]
+                    },
+                });
+                if (!referrerActivePlan) {
+                    this.logger.log({
+                        event: 'REFERRAL_SKIPPED_INACTIVE_REFERRER',
+                        message: `Referrer ${payment.user.referredBy} does not have an active plan. Referral commission skipped.`,
                     });
-                    this.observabilityService.increment('referral_commission_validation_failures_total');
-                    return;
                 }
-                const commissionRate = Number(refSettings.commissionRate ?? 10);
-                if (commissionRate < 0 || commissionRate > 100) {
-                    this.observabilityService.increment('referral_commission_validation_failures_total');
-                    throw new Error(`[REFERRAL_ERROR] Invalid referral commission rate: ${commissionRate}%`);
-                }
-                const refEnabled = refSettings.enabled ?? false;
-                const minDeposit = Number(refSettings.minimumDeposit ?? 1000);
-                const autoApprove = refSettings.autoApprove ?? false;
-                const sysSettings = await tx.systemSettings.findFirst();
-                const bonusMultiplier = Number(sysSettings?.referralBonusMultiplier ?? 100);
-                if (refEnabled && amountVal >= minDeposit) {
-                    const baseCommission = (amountVal * commissionRate) / 100;
-                    const reward = (baseCommission * bonusMultiplier) / 100;
-                    const refStatus = autoApprove ? 'APPROVED' : 'PENDING';
-                    const referral = await tx.referral.create({
-                        data: {
-                            partnerId: payment.partnerId,
-                            referrerId: payment.user.referredBy,
-                            referredId: payment.userId,
-                            depositAmount: amountVal,
-                            commissionPct: commissionRate,
-                            commissionAmount: reward,
-                            paymentId: payment.id,
-                            status: refStatus,
-                        },
+                else {
+                    const existingReward = await tx.referralReward.findUnique({
+                        where: { paymentId: paymentId },
                     });
-                    this.observabilityService.increment('referral_commission_awarded_total');
-                    this.observabilityService.increment('referral_commission_amount_total', {}, reward);
-                    if (autoApprove) {
-                        await tx.walletLedger.create({
-                            data: {
-                                userId: payment.user.referredBy,
-                                type: 'REFERRAL_COMMISSION',
-                                entryType: 'CREDIT',
-                                amount: reward,
-                                referenceId: referral.id,
-                                note: `Referral commission from deposit by ${payment.user.email}`,
-                            },
+                    if (existingReward) {
+                        this.logger.log({
+                            event: 'REFERRAL_SKIPPED_DUPLICATE',
+                            message: `Referral reward for payment ${paymentId} has already been paid. Skipping duplicate reward.`,
                         });
-                        await (0, ledger_util_1.createTransactionGroup)(tx, {
-                            type: 'REFERRAL_PAYOUT',
-                            description: `Auto-approved referral commission | Referral: ${referral.id}`,
-                            idempotencyKey: `REF_COMMISSION_${referral.id}`,
-                            entries: [
-                                {
-                                    accountType: 'SYSTEM',
-                                    entryType: 'DEBIT',
-                                    amount: reward,
-                                    currency: payment.currency,
-                                },
-                                {
-                                    userId: payment.user.referredBy,
-                                    partnerId: payment.partnerId,
-                                    accountType: 'USER',
-                                    entryType: 'CREDIT',
-                                    amount: reward,
-                                    currency: payment.currency,
-                                },
-                            ],
-                        });
-                        await tx.financialEvent.create({
-                            data: {
-                                eventType: 'REFERRAL_APPROVED',
-                                userId: payment.user.referredBy,
-                                actorId: adminId,
-                                referenceId: referral.id,
-                                metadata: {
-                                    depositUserId: payment.userId,
-                                    amount: reward,
-                                    autoApproved: true,
-                                },
-                            },
-                        });
+                    }
+                    else {
+                        const refSettings = await tx.referralSettings.findFirst();
+                        if (!refSettings) {
+                            this.logger.error({
+                                event: 'REFERRAL_SETTINGS_MISSING',
+                                message: 'ReferralSettings configuration is missing in the database. Skipping commission payment.',
+                            });
+                            this.observabilityService.increment('referral_commission_validation_failures_total');
+                        }
+                        else {
+                            const commissionRate = Number(refSettings.commissionRate ?? 10);
+                            if (commissionRate < 0 || commissionRate > 100) {
+                                this.observabilityService.increment('referral_commission_validation_failures_total');
+                                throw new Error(`[REFERRAL_ERROR] Invalid referral commission rate: ${commissionRate}%`);
+                            }
+                            const refEnabled = refSettings.enabled ?? false;
+                            const minDeposit = Number(refSettings.minimumDeposit ?? 1000);
+                            const autoApprove = refSettings.autoApprove ?? false;
+                            const sysSettings = await tx.systemSettings.findFirst();
+                            const bonusMultiplier = Number(sysSettings?.referralBonusMultiplier ?? 100) / 100;
+                            if (refEnabled && amountVal >= minDeposit) {
+                                const platformFee = amountVal * 0.04;
+                                const baseCommission = platformFee * (commissionRate / 100);
+                                const reward = baseCommission * bonusMultiplier;
+                                const refStatus = autoApprove ? 'APPROVED' : 'PENDING';
+                                const referral = await tx.referral.create({
+                                    data: {
+                                        partnerId: payment.partnerId,
+                                        referrerId: payment.user.referredBy,
+                                        referredId: payment.userId,
+                                        depositAmount: amountVal,
+                                        commissionPct: commissionRate,
+                                        commissionAmount: reward,
+                                        paymentId: payment.id,
+                                        status: refStatus,
+                                    },
+                                });
+                                await tx.referralReward.create({
+                                    data: {
+                                        paymentId: payment.id,
+                                        referrerId: payment.user.referredBy,
+                                        referredUserId: payment.userId,
+                                        amount: reward,
+                                        status: refStatus,
+                                    },
+                                });
+                                this.observabilityService.increment('referral_commission_awarded_total');
+                                this.observabilityService.increment('referral_commission_amount_total', {}, reward);
+                                if (autoApprove) {
+                                    await tx.walletLedger.create({
+                                        data: {
+                                            userId: payment.user.referredBy,
+                                            type: 'REFERRAL_COMMISSION',
+                                            entryType: 'CREDIT',
+                                            amount: reward,
+                                            referenceId: referral.id,
+                                            note: `Referral commission from deposit by ${payment.user.email}`,
+                                        },
+                                    });
+                                    await (0, ledger_util_1.createTransactionGroup)(tx, {
+                                        type: 'REFERRAL_PAYOUT',
+                                        description: `Auto-approved referral commission | Referral: ${referral.id}`,
+                                        idempotencyKey: `REF_COMMISSION_${referral.id}`,
+                                        entries: [
+                                            {
+                                                accountType: 'SYSTEM',
+                                                entryType: 'DEBIT',
+                                                amount: reward,
+                                                currency: payment.currency,
+                                            },
+                                            {
+                                                userId: payment.user.referredBy,
+                                                partnerId: payment.partnerId,
+                                                accountType: 'USER',
+                                                entryType: 'CREDIT',
+                                                amount: reward,
+                                                currency: payment.currency,
+                                            },
+                                        ],
+                                    });
+                                    await tx.financialEvent.create({
+                                        data: {
+                                            eventType: 'REFERRAL_APPROVED',
+                                            userId: payment.user.referredBy,
+                                            actorId: adminId,
+                                            referenceId: referral.id,
+                                            metadata: {
+                                                depositUserId: payment.userId,
+                                                amount: reward,
+                                                autoApproved: true,
+                                            },
+                                        },
+                                    });
+                                }
+                            }
+                        }
                     }
                 }
             }

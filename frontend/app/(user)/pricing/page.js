@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -46,6 +46,7 @@ const toneClasses = {
 function PlanCard({ plan }) {
   const Icon = plan.icon;
   const tone = toneClasses[plan.tone];
+  const isCurrent = plan.isCurrentPlan;
 
   return (
     <article
@@ -84,7 +85,14 @@ function PlanCard({ plan }) {
         ))}
       </ul>
 
-      {plan.href.startsWith("/signup") ? (
+      {isCurrent ? (
+        <button
+          disabled
+          className="mt-8 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-green-500/25 text-green-400 border border-green-500/30 text-sm font-bold cursor-not-allowed">
+          Current Plan
+          <Check className="h-4 w-4" />
+        </button>
+      ) : plan.href.startsWith("/signup") ? (
         <Link
           href={plan.href}
           className={`mt-8 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold transition active:scale-[0.98] ${
@@ -117,6 +125,8 @@ export default function PricingPage() {
   const currentUser = useAdminStore((s) => s.currentUser);
   const fetchData = useAdminStore((s) => s.fetchData);
   const router = useRouter();
+
+  const [activePlan, setActivePlan] = useState(null);
 
   const handlePlanSelect = async (plan) => {
     const planId = plan.id;
@@ -151,7 +161,22 @@ export default function PricingPage() {
   useEffect(() => {
     fetchPlans();
     fetchData();
-  }, [fetchPlans, fetchData]);
+
+    if (currentUser) {
+      apiFetch("/api/user/subscription")
+        .then(async (res) => {
+          if (res.ok) {
+            const data = await res.json();
+            if (data.hasSubscription && data.subscription) {
+              setActivePlan(data.subscription.planName);
+            }
+          }
+        })
+        .catch((err) => console.error("Error fetching subscription:", err));
+    } else {
+      setActivePlan(null);
+    }
+  }, [fetchPlans, fetchData, currentUser]);
 
   const activePlans = storePlans.filter((p) => p.isActive !== false);
 
@@ -171,6 +196,8 @@ export default function PricingPage() {
       ? `/checkout?plan=${planSlug}`
       : `/signup?next=${encodeURIComponent(`/checkout?plan=${planSlug}`)}`;
 
+    const isCurrentPlan = activePlan && (activePlan === plan.name || activePlan.toLowerCase().includes(planSlug));
+
     return {
       name: plan.name,
       tag: plan.subtitle,
@@ -184,6 +211,7 @@ export default function PricingPage() {
       icon,
       tone,
       popular: Boolean(plan.isPopular),
+      isCurrentPlan: !!isCurrentPlan,
     };
   });
 

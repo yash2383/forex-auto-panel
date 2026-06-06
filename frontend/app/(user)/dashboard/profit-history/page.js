@@ -182,7 +182,7 @@ export default function ProfitHistoryPage() {
                     <td className="px-5 py-4 text-neutral-300">{dateStr}</td>
                     <td className="px-5 py-4 font-medium text-white">{item.type}</td>
                     <td className="px-5 py-4 font-mono font-bold text-green-300">
-                      +${item.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      +${(item.amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-5 py-4">
                       <span

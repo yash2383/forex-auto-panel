@@ -1071,16 +1071,16 @@ export const useAdminStore = create((set, get) => ({
     }
   },
 
-  bulkDistributeProfit: async (dryRun = false, requestId = null) => {
+  bulkDistributeProfit: async (payload) => {
     try {
       const res = await apiFetch("/api/admin/profit-distributions/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dryRun, requestId }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        if (!dryRun) {
+        if (!payload.dryRun) {
           await get().fetchData();
         }
         return { success: true, summary: data.summary, skipped: data.skipped };
@@ -1093,5 +1093,22 @@ export const useAdminStore = create((set, get) => ({
     }
   },
 
-
+  previewProfitDistribution: async (payload) => {
+    try {
+      const res = await apiFetch("/api/admin/profit-distributions/bulk/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        return data;
+      } else {
+        return { success: false, error: data.message || data.error || "Failed to preview distribution" };
+      }
+    } catch (e) {
+      console.error("preview error:", e);
+      return { success: false, error: "Network error occurred. Please try again." };
+    }
+  },
 }));

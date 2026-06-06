@@ -762,6 +762,7 @@ model ProfitDistribution {
   grossProfit      Decimal            @default(0) @db.Decimal(18, 4)
   platformCut      Decimal            @default(0) @db.Decimal(18, 4)
   netProfit        Decimal            @default(0) @db.Decimal(18, 4)
+  weight           Decimal?           @db.Decimal(18, 4)
 
   type             String             @default("Weekly Profit")
   status           DistributionStatus @default(COMPLETED)
@@ -793,6 +794,7 @@ model ProfitDistributionBatch {
   failedCount         Int
   skippedCount        Int
   dryRun              Boolean
+  method              String             @default("EQUAL") // EQUAL or WEIGHTED
   createdAt           DateTime           @default(now())
 
   // Financial aggregates (Decimal — no Float)
@@ -801,6 +803,7 @@ model ProfitDistributionBatch {
   totalGrossProfit Decimal            @default(0) @db.Decimal(18, 4)
   totalPlatformCut Decimal            @default(0) @db.Decimal(18, 4)
   totalNetProfit   Decimal            @default(0) @db.Decimal(18, 4)
+  totalShares      Decimal?           @db.Decimal(18, 4)
 
   status           DistributionStatus @default(COMPLETED)
 

@@ -3318,91 +3318,114 @@ export class AdminService implements OnModuleInit {
     return `${year}-W${String(week).padStart(2, '0')}`;
   }
 
+  private getPlanWeight(planName: string): number {
+    const name = planName.toUpperCase();
+    if (name.includes("CLUB")) return 2;
+    if (name.includes("INDIVIDUAL")) return 1;
+    return 1;
+  }
+
   /** Resolve eligible users + payout breakdown without DB writes. */
   async previewDistribution(body: any) {
+    const { totalProfitPool, eligiblePlans, method } = body;
     const now = new Date();
     const weekKey = body.weekKey ?? this.getWeekKey(now);
-    const settings = await this.prisma.systemSettings.findFirst();
-    const platformCutPct = Number(settings?.platformProfitCut ?? 30);
+    
+    if (!totalProfitPool || !eligiblePlans || !eligiblePlans.length || !method) {
+      return { success: false, error: "Missing required fields" };
+    }
 
-    const activePlans = await this.prisma.userPlan.findMany({
+    const activeUserPlans = await this.prisma.userPlan.findMany({
       where: { active: true },
       include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            isDeleted: true,
-            status: true,
-          },
-        },
+        user: { select: { id: true, email: true, name: true, isDeleted: true, status: true } },
         plan: true,
       },
     });
 
+    const eligibleUsers = activeUserPlans.filter(up => {
+      if (up.user.isDeleted) return false;
+      if (up.user.status !== 'ACTIVE' && up.user.status !== 'VIP') return false;
+      if (up.expiresAt && up.expiresAt < now) return false;
+      
+      if (eligiblePlans.includes("ALL")) return true;
+      
+      const pName = up.plan.name.toUpperCase();
+      return eligiblePlans.some((ep: string) => pName.includes(ep.toUpperCase()));
+    });
+
+    if (eligibleUsers.length === 0) {
+      return { success: true, eligibleUsers: 0, breakdown: [] };
+    }
+
     const breakdown: any[] = [];
-    let totalInvestment = 0,
-      totalGrossProfit = 0,
-      totalPlatformCut = 0,
-      totalNetProfit = 0;
+    const pool = Number(totalProfitPool);
 
-    for (const up of activePlans) {
-      if (up.user.isDeleted) continue;
-      if (up.user.status !== 'ACTIVE' && up.user.status !== 'VIP') continue;
-      if (up.expiresAt && up.expiresAt < now) continue;
+    if (method === 'EQUAL') {
+      let remainingPool = pool;
+      for (let i = 0; i < eligibleUsers.length; i++) {
+        const up = eligibleUsers[i];
+        const isLast = i === eligibleUsers.length - 1;
+        const amount = isLast ? remainingPool : Math.floor((pool / eligibleUsers.length) * 100) / 100;
+        remainingPool -= amount;
+        
+        breakdown.push({
+          userId: up.user.id,
+          email: up.user.email,
+          name: up.user.name,
+          planName: up.plan.name,
+          weight: 1,
+          amount: +amount.toFixed(2),
+        });
+      }
+    } else {
+      const totalWeight = eligibleUsers.reduce((sum, up) => sum + this.getPlanWeight(up.plan.name), 0);
+      let remainingPool = pool;
+      for (let i = 0; i < eligibleUsers.length; i++) {
+        const up = eligibleUsers[i];
+        const weight = this.getPlanWeight(up.plan.name);
+        const isLast = i === eligibleUsers.length - 1;
+        const amount = isLast ? remainingPool : Math.floor(((pool * weight) / totalWeight) * 100) / 100;
+        remainingPool -= amount;
 
-      // Resolve investment amount from latest approved payment
-      const payment = await this.prisma.payment.findFirst({
-        where: { userId: up.userId, status: 'APPROVED' },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (!payment) continue;
-
-      const investment = Number(payment.amount);
-      const grossProfit = (investment * Number(up.plan.weeklyProfit)) / 100;
-      const platformCut = (grossProfit * platformCutPct) / 100;
-      const netProfit = grossProfit - platformCut;
-
-      totalInvestment += investment;
-      totalGrossProfit += grossProfit;
-      totalPlatformCut += platformCut;
-      totalNetProfit += netProfit;
-
-      breakdown.push({
-        userId: up.userId,
-        email: up.user.email,
-        name: up.user.name,
-        planName: up.plan.name,
-        weeklyProfitPct: Number(up.plan.weeklyProfit),
-        investment: +investment.toFixed(4),
-        grossProfit: +grossProfit.toFixed(4),
-        platformCut: +platformCut.toFixed(4),
-        netProfit: +netProfit.toFixed(4),
-      });
+        breakdown.push({
+          userId: up.user.id,
+          email: up.user.email,
+          name: up.user.name,
+          planName: up.plan.name,
+          weight,
+          amount: +amount.toFixed(2),
+        });
+      }
     }
 
     return {
       success: true,
       weekKey,
-      platformCutPct,
-      eligibleUsers: breakdown.length,
-      totalInvestment: +totalInvestment.toFixed(4),
-      totalGrossProfit: +totalGrossProfit.toFixed(4),
-      totalPlatformCut: +totalPlatformCut.toFixed(4),
-      totalNetProfit: +totalNetProfit.toFixed(4),
+      method,
+      totalProfitPool: pool,
+      eligibleUsers: eligibleUsers.length,
+      estimatedAmount: pool,
+      totalAmount: pool,
+      totalNetProfit: pool,
       breakdown,
     };
   }
 
   async bulkDistributeProfit(adminId: string, clientIp: string, body: any) {
-    const dryRun = body.dryRun === true;
+    const { totalProfitPool, eligiblePlans, method, distributionType, note, dryRun } = body;
+    const isDryRun = dryRun === true;
     const now = new Date();
     const weekKey = body.weekKey ?? this.getWeekKey(now);
+    const pool = Number(totalProfitPool);
+
+    if (!pool || !eligiblePlans || !eligiblePlans.length || !method) {
+      return { success: false, error: "Missing required fields", status: 400 };
+    }
 
     let distributionLock: any = null;
 
-    if (!dryRun) {
+    if (!isDryRun) {
       try {
         distributionLock = await this.prisma.profitDistributionLock.create({
           data: {
@@ -3422,26 +3445,6 @@ export class AdminService implements OnModuleInit {
       }
     }
 
-    // 1. Fetch settings from SystemSettings
-    const settings = await this.prisma.systemSettings.findFirst();
-    const enableBulkDist =
-      settings?.enableBulkDistribution ?? settings?.enableBulkDist ?? true;
-    const allowDuplicateDist =
-      settings?.allowDuplicateWeeklyPayouts ??
-      settings?.allowDuplicateDist ??
-      false;
-    const platformCutPct = Number(
-      settings?.platformProfitCut ?? settings?.platformFeePct ?? 30,
-    );
-
-    if (!enableBulkDist) {
-      return {
-        error:
-          'Bulk profit distribution is currently disabled in system settings.',
-        status: 400,
-      };
-    }
-    // 2. Resolve eligible users via UserPlan → Plan
     const activeUserPlans = await this.prisma.userPlan.findMany({
       where: { active: true },
       include: {
@@ -3450,32 +3453,19 @@ export class AdminService implements OnModuleInit {
       },
     });
 
-    const eligiblePayouts: Array<{
-      userId: string;
-      partnerId: string;
-      email: string;
-      planName: string;
-      planId: string;
-      investment: number;
-      grossProfit: number;
-      platformCut: number;
-      netProfit: number;
-      expiresAt: Date | null;
-    }> = [];
+    const settings = await this.prisma.systemSettings.findFirst();
+    const allowDuplicateDist =
+      settings?.allowDuplicateWeeklyPayouts ??
+      settings?.allowDuplicateDist ??
+      false;
 
     const skipped: {
       alreadyPaid: string[];
       expiredPlan: string[];
       invalidPlan: string[];
       inactiveUser: string[];
-    } = {
-      alreadyPaid: [],
-      expiredPlan: [],
-      invalidPlan: [],
-      inactiveUser: [],
-    };
+    } = { alreadyPaid: [], expiredPlan: [], invalidPlan: [], inactiveUser: [] };
 
-    // Pre-fetch already-paid set for this week
     const alreadyPaidSet = new Set<string>();
     if (!allowDuplicateDist) {
       const existing = await this.prisma.profitDistribution.findMany({
@@ -3485,9 +3475,19 @@ export class AdminService implements OnModuleInit {
       existing.forEach((d) => alreadyPaidSet.add(d.userId));
     }
 
+    const eligibleUsers = [];
+
     for (const up of activeUserPlans) {
       const user = up.user;
       if (user.isDeleted) continue;
+      
+      const pName = up.plan.name.toUpperCase();
+      const isEligiblePlan = eligiblePlans.includes("ALL") || eligiblePlans.some((ep: string) => pName.includes(ep.toUpperCase()));
+      
+      if (!isEligiblePlan) {
+        skipped.invalidPlan.push(user.email);
+        continue;
+      }
       if (user.status !== 'ACTIVE' && user.status !== 'VIP') {
         skipped.inactiveUser.push(user.email);
         continue;
@@ -3501,79 +3501,26 @@ export class AdminService implements OnModuleInit {
         continue;
       }
 
-      // Resolve investment from latest approved payment
-      const payment = await this.prisma.payment.findFirst({
-        where: { userId: user.id, status: 'APPROVED' },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (!payment) {
-        skipped.invalidPlan.push(user.email);
-        continue;
-      }
-
-      const investment = Number(payment.amount);
-      const grossProfit = (investment * Number(up.plan.weeklyProfit)) / 100;
-      const platformCut = (grossProfit * platformCutPct) / 100;
-      const netProfit = grossProfit - platformCut;
-
-      eligiblePayouts.push({
-        userId: user.id,
-        partnerId: user.partnerId,
-        email: user.email,
-        planName: up.plan.name,
-        planId: up.planId,
-        investment,
-        grossProfit,
-        platformCut,
-        netProfit,
-        expiresAt: up.expiresAt,
-      });
+      eligibleUsers.push(up);
     }
 
     const totalProcessed = activeUserPlans.length;
-    const successCount = eligiblePayouts.length;
-    const skippedCount = Object.values(skipped).reduce(
-      (s, a) => s + a.length,
-      0,
-    );
+    const successCount = eligibleUsers.length;
+    const skippedCount = Object.values(skipped).reduce((s, a) => s + a.length, 0);
 
-    const totals = eligiblePayouts.reduce(
-      (acc, p) => ({
-        investment: acc.investment + p.investment,
-        gross: acc.gross + p.grossProfit,
-        cut: acc.cut + p.platformCut,
-        net: acc.net + p.netProfit,
-      }),
-      { investment: 0, gross: 0, cut: 0, net: 0 },
-    );
-
-    if (dryRun) {
+    if (isDryRun || successCount === 0) {
       return {
         success: true,
         weekKey,
         summary: {
           totalProcessed,
           eligible: successCount,
-          successCount,
+          successCount: isDryRun ? successCount : 0,
           failedCount: 0,
           skippedCount,
-          totalInvestment: +totals.investment.toFixed(4),
-          totalGrossProfit: +totals.gross.toFixed(4),
-          totalPlatformCut: +totals.cut.toFixed(4),
-          totalNetProfit: +totals.net.toFixed(4),
-        },
-        skipped,
-      };
-    }
-
-    if (successCount === 0) {
-      return {
-        success: true,
-        summary: {
-          totalProcessed,
-          success: 0,
-          failed: 0,
-          skipped: skippedCount,
+          totalAmount: isDryRun ? pool : 0,
+          estimatedAmount: isDryRun ? pool : 0,
+          totalNetProfit: isDryRun ? pool : 0,
         },
         skipped,
       };
@@ -3583,6 +3530,13 @@ export class AdminService implements OnModuleInit {
 
     try {
       const result = await this.prisma.$transaction(async (tx: any) => {
+        let totalShares = 0;
+        if (method === 'WEIGHTED') {
+            totalShares = eligibleUsers.reduce((sum, up) => sum + this.getPlanWeight(up.plan.name), 0);
+        } else {
+            totalShares = eligibleUsers.length;
+        }
+
         const batch = await tx.profitDistributionBatch.create({
           data: {
             createdBy: adminId,
@@ -3592,72 +3546,83 @@ export class AdminService implements OnModuleInit {
             skippedCount,
             dryRun: false,
             weekKey,
-            totalInvestment: totals.investment,
-            totalGrossProfit: totals.gross,
-            totalPlatformCut: totals.cut,
-            totalNetProfit: totals.net,
+            totalGrossProfit: pool,
+            totalNetProfit: pool,
+            method,
+            totalShares,
             status: 'COMPLETED',
           },
         });
 
         const datePrefix = `PD-${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}${String(now.getUTCDate()).padStart(2, '0')}`;
-        let idx = 1;
+        let remainingPool = pool;
+        let sumCredited = 0;
 
-        for (const payout of eligiblePayouts) {
-          const seqStr = String(idx++).padStart(3, '0');
+        for (let i = 0; i < eligibleUsers.length; i++) {
+          const up = eligibleUsers[i];
+          const isLast = i === eligibleUsers.length - 1;
+          const weight = method === 'WEIGHTED' ? this.getPlanWeight(up.plan.name) : 1;
+          
+          let amount = 0;
+          if (method === 'EQUAL') {
+              amount = isLast ? remainingPool : Math.floor((pool / eligibleUsers.length) * 100) / 100;
+          } else {
+              amount = isLast ? remainingPool : Math.floor(((pool * weight) / totalShares) * 100) / 100;
+          }
+          remainingPool -= amount;
+          
+          // Ensure rounding safely before db save
+          amount = Math.round(amount * 100) / 100;
+          sumCredited += amount;
+
+          const seqStr = String(i + 1).padStart(3, '0');
           const reference = `${datePrefix}-${batch.id.slice(-6).toUpperCase()}-${seqStr}`;
 
           await tx.profitDistribution.create({
             data: {
               reference,
-              userId: payout.userId,
-              planId: payout.planId,
+              userId: up.user.id,
+              planId: up.planId,
               batchId: batch.id,
-              investmentAmount: payout.investment,
-              grossProfit: payout.grossProfit,
-              platformCut: payout.platformCut,
-              netProfit: payout.netProfit,
-              type: 'Weekly Profit',
+              investmentAmount: 0,
+              grossProfit: amount,
+              platformCut: 0,
+              netProfit: amount,
+              weight,
+              type: distributionType || 'Weekly Profit',
               status: 'COMPLETED',
-              note: `Bulk weekly profit | Batch: ${batch.id}`,
+              note: note || `Bulk ${method} distribution | Batch: ${batch.id}`,
               distributionDate: now,
               weekKey,
             },
           });
 
-          // WalletLedger audit entry
           await tx.walletLedger.create({
             data: {
-              userId: payout.userId,
+              userId: up.user.id,
               type: 'PROFIT_DISTRIBUTION',
               entryType: 'CREDIT',
-              amount: payout.netProfit,
+              amount: amount,
               referenceId: reference,
-              note: `Weekly profit | ${weekKey} | Plan: ${payout.planName}`,
+              note: `${distributionType || 'Weekly Profit'} | ${weekKey} | Plan: ${up.plan.name}`,
             },
           });
 
           await createTransactionGroup(tx, {
             type: 'TRADE_PROFIT',
-            description: `Weekly Profit payout | Ref: ${reference}`,
+            description: `${distributionType || 'Weekly Profit'} | Ref: ${reference}`,
             idempotencyKey: `PROFIT_DIST_${reference}`,
             entries: [
-              {
-                accountType: 'SYSTEM',
-                entryType: 'DEBIT',
-                amount: payout.netProfit,
-                currency: 'USD',
-              },
-              {
-                userId: payout.userId,
-                partnerId: payout.partnerId,
-                accountType: 'USER',
-                entryType: 'CREDIT',
-                amount: payout.netProfit,
-                currency: 'USD',
-              },
+              { accountType: 'SYSTEM', entryType: 'DEBIT', amount: amount, currency: 'USD' },
+              { userId: up.user.id, partnerId: up.user.partnerId, accountType: 'USER', entryType: 'CREDIT', amount: amount, currency: 'USD' },
             ],
           });
+        }
+
+        // Verify mathematically
+        sumCredited = Math.round(sumCredited * 100) / 100;
+        if (sumCredited !== Math.round(pool * 100) / 100) {
+           throw new Error(`Distribution mismatch: pool=${pool}, distributed=${sumCredited}`);
         }
 
         await tx.financialEvent.create({
@@ -3665,7 +3630,7 @@ export class AdminService implements OnModuleInit {
             eventType: 'PROFIT_DISTRIBUTED',
             actorId: adminId,
             referenceId: batch.id,
-            metadata: { weekKey, successCount, totalNetProfit: totals.net },
+            metadata: { weekKey, successCount, totalNetProfit: pool, method },
           },
         });
 
@@ -3673,26 +3638,10 @@ export class AdminService implements OnModuleInit {
           data: {
             adminId,
             action: 'PROFIT_DIST_BULK',
-            reason: JSON.stringify({
-              batchId: batch.id,
-              weekKey,
-              successCount,
-              totalNetProfit: totals.net,
-            }),
+            reason: JSON.stringify({ batchId: batch.id, weekKey, successCount, totalNetProfit: pool }),
             ipAddress: clientIp,
           },
         });
-
-        const { Prisma } = require('@prisma/client');
-        let sumCredited = new Prisma.Decimal(0);
-        // We know we updated `totals.net` amount, let's verify
-        for (const payout of eligiblePayouts) {
-          sumCredited = sumCredited.plus(payout.netProfit);
-        }
-        const diff = new Prisma.Decimal(totals.net).minus(sumCredited);
-        if (!diff.isZero()) {
-          throw new Error('Distribution mismatch detected in bulk payout');
-        }
 
         return batch;
       });
@@ -3704,30 +3653,6 @@ export class AdminService implements OnModuleInit {
         }).catch(err => this.logger.error('Failed to mark lock COMPLETED', err));
       }
 
-      try {
-        await sendFcmTopicMessage(
-          'daily_profit',
-          'Daily Profit Credited 💰',
-          'Your trading profits have been successfully distributed.',
-          { type: 'daily_profit', click_action: '/wallet' }
-        );
-
-        await this.prisma.notificationLog.create({
-          data: {
-            type: "TOPIC_BROADCAST",
-            topic: "daily_profit",
-            batchId: result.id,
-            payload: {
-              totalProfit: totals.net,
-              userCount: successCount,
-            },
-            status: "SUCCESS",
-          }
-        });
-      } catch (err: any) {
-        this.logger.error('Failed to send daily profit topic notification', err);
-      }
-
       return {
         success: true,
         summary: {
@@ -3737,10 +3662,8 @@ export class AdminService implements OnModuleInit {
           skipped: skippedCount,
           weekKey,
           batchId: result.id,
-          totalInvestment: +totals.investment.toFixed(4),
-          totalGrossProfit: +totals.gross.toFixed(4),
-          totalPlatformCut: +totals.cut.toFixed(4),
-          totalNetProfit: +totals.net.toFixed(4),
+          totalAmount: pool,
+          totalNetProfit: pool,
         },
         skipped,
       };
@@ -3751,16 +3674,10 @@ export class AdminService implements OnModuleInit {
           data: { status: 'FAILED_RECONCILIATION', endedAt: new Date() }
         }).catch(err => this.logger.error('Failed to mark lock FAILED', err));
       }
-      console.error('Bulk profit distribution error:', error);
       return {
         success: false,
         error: error.message || 'Database transaction error',
-        summary: {
-          totalProcessed,
-          success: 0,
-          failed: successCount,
-          skipped: skippedCount,
-        },
+        summary: { totalProcessed, success: 0, failed: successCount, skipped: skippedCount },
         skipped,
       };
     }

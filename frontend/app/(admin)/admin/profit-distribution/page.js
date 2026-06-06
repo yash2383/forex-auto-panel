@@ -62,15 +62,13 @@ export default function ProfitDistributionPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedDistribution, setSelectedDistribution] = useState(null);
 
-  // Add form fields
-  const [newUserId, setNewUserId] = useState("");
-  const [newAmount, setNewAmount] = useState("");
-  const [newType, setNewType] = useState("Weekly Profit");
-  const [newStatus, setNewStatus] = useState("PAID");
-  const [newNote, setNewNote] = useState("");
-  const [newDistDate, setNewDistDate] = useState(
-    new Date().toISOString().substring(0, 10)
-  );
+  // Bulk Engine form fields
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkPool, setBulkPool] = useState("");
+  const [bulkPlans, setBulkPlans] = useState(["INDIVIDUAL", "CLUB"]);
+  const [bulkMethod, setBulkMethod] = useState("EQUAL");
+  const [bulkType, setBulkType] = useState("Weekly Profit");
+  const [bulkNote, setBulkNote] = useState("");
 
   // Edit form fields
   const [editAmount, setEditAmount] = useState("");
@@ -132,35 +130,65 @@ export default function ProfitDistributionPage() {
     );
   }
 
-  const handleOpenAddModal = () => {
-    if (users.length > 0) {
-      setNewUserId(users[0].id);
-    }
-    setNewAmount("");
-    setNewType("Weekly Profit");
-    setNewStatus("PAID");
-    setNewNote("");
-    setNewDistDate(new Date().toISOString().substring(0, 10));
-    setShowAddModal(true);
+  const handleOpenBulkModal = () => {
+    setBulkPool("");
+    setBulkPlans(["INDIVIDUAL", "CLUB"]);
+    setBulkMethod("EQUAL");
+    setBulkType("Weekly Profit");
+    setBulkNote("");
+    setShowBulkModal(true);
   };
 
-  const handleCreate = async (e) => {
+  const handleBulkSubmit = async (e, dryRun) => {
     e.preventDefault();
-    if (!newUserId || !newAmount || !newType || !newDistDate) {
-      alert("Please fill in all required fields.");
+    if (!bulkPool || !bulkPlans.length || !bulkMethod) {
+      alert("Please fill in all required fields (Pool, Plans, Method).");
       return;
     }
 
-    await addProfitDistribution({
-      userId: newUserId,
-      amount: parseFloat(newAmount),
-      type: newType,
-      status: newStatus,
-      note: newNote,
-      distributionDate: new Date(newDistDate).toISOString(),
-    });
+    if (!dryRun) {
+      if (!confirm("Are you sure you want to run the bulk profit distribution? This will write to the database and update user wallet balances.")) {
+        return;
+      }
+    }
 
-    setShowAddModal(false);
+    setIsBulkProcessing(true);
+    const payload = {
+      totalProfitPool: Number(bulkPool),
+      eligiblePlans: bulkPlans,
+      method: bulkMethod,
+      distributionType: bulkType,
+      note: bulkNote,
+      dryRun,
+    };
+    
+    const res = await bulkDistributeProfit(payload);
+    setIsBulkProcessing(false);
+    
+    if (res.success) {
+      setBulkSummary({
+        ...res.summary,
+        skippedCount: res.summary.skippedCount ?? res.summary.skipped ?? 0,
+        skipped: res.skipped,
+        dryRun
+      });
+      if (!dryRun) {
+        setShowBulkModal(false);
+      }
+    } else {
+      alert(`Error: ${res.error}`);
+    }
+  };
+
+  const toggleBulkPlan = (plan) => {
+    if (plan === "ALL") {
+      setBulkPlans(prev => prev.includes("ALL") ? [] : ["ALL"]);
+      return;
+    }
+    setBulkPlans(prev => {
+      const newPlans = prev.includes(plan) ? prev.filter(p => p !== plan) : [...prev, plan];
+      return newPlans.filter(p => p !== "ALL");
+    });
   };
 
   const handleOpenEditModal = (d) => {
@@ -221,25 +249,11 @@ export default function ProfitDistributionPage() {
           {canEdit && (
             <div className="flex flex-wrap gap-3">
               <button
-                type="button"
-                onClick={() => handleBulkDistribute(true)}
-                className="inline-flex h-11 items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 text-sm font-bold text-blue-300 hover:bg-blue-500/20 transition"
+                onClick={handleOpenBulkModal}
+                className="inline-flex h-11 items-center gap-2 rounded-lg bg-green-500 px-4 text-sm font-bold text-black hover:bg-green-400 transition shadow-[0_0_20px_rgba(0,208,156,0.3)]"
               >
-                Preview Distribution (Dry Run)
-              </button>
-              <button
-                type="button"
-                onClick={() => handleBulkDistribute(false)}
-                className="inline-flex h-11 items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-4 text-sm font-bold text-green-300 hover:bg-green-500/20 transition"
-              >
-                Run Distribution
-              </button>
-              <button
-                onClick={handleOpenAddModal}
-                className="inline-flex h-11 items-center gap-2 rounded-lg bg-green-500 px-4 text-sm font-bold text-black hover:bg-green-400 transition"
-              >
-                <Plus className="h-4 w-4" />
-                Add Distribution
+                <Layers className="h-4 w-4" />
+                Bulk Distribution Engine
               </button>
             </div>
           )}
@@ -391,42 +405,71 @@ export default function ProfitDistributionPage() {
         </div>
       </section>
 
-      {/* Add Modal */}
-      {showAddModal && (
+      {/* Bulk Engine Modal */}
+      {showBulkModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/[0.1] bg-[#0b141b] shadow-2xl">
+          <div className="w-full max-w-lg rounded-2xl border border-white/[0.1] bg-[#0b141b] shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex items-center justify-between border-b border-white/[0.05] p-5">
-              <h3 className="text-lg font-semibold text-white">Add Profit Distribution</h3>
-              <button onClick={() => setShowAddModal(false)} className="rounded-lg p-1.5 text-neutral-400 hover:bg-white/5 hover:text-white">✕</button>
+              <h3 className="text-lg font-semibold text-white">Bulk Distribution Engine</h3>
+              <button onClick={() => setShowBulkModal(false)} className="rounded-lg p-1.5 text-neutral-400 hover:bg-white/5 hover:text-white">✕</button>
             </div>
-            <form onSubmit={handleCreate} className="p-5 space-y-4">
+            <form className="p-5 space-y-5">
               <div>
-                <label className="block text-xs font-semibold text-neutral-500 uppercase mb-2">Recipient User</label>
-                <select
-                  value={newUserId}
-                  onChange={(e) => setNewUserId(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-white/[0.08] bg-black/20 px-3 text-sm text-white outline-none"
-                  required
-                >
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.email})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-500 uppercase mb-2">Amount ($)</label>
+                <label className="block text-xs font-semibold text-neutral-500 uppercase mb-2">Total Profit Pool ($)</label>
                 <input
                   type="number"
                   step="0.01"
-                  placeholder="0.00"
-                  value={newAmount}
-                  onChange={(e) => setNewAmount(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-white/[0.08] bg-black/20 px-3 text-sm text-white outline-none placeholder:text-neutral-600"
+                  placeholder="e.g. 5000"
+                  value={bulkPool}
+                  onChange={(e) => setBulkPool(e.target.value)}
+                  className="w-full h-10 rounded-lg border border-white/[0.08] bg-black/20 px-3 text-sm text-white outline-none placeholder:text-neutral-600 focus:border-green-500/50"
                   required
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-500 uppercase mb-2">Eligible Plans</label>
+                <div className="flex flex-wrap gap-3">
+                  {["ALL", "INDIVIDUAL", "CLUB"].map(plan => (
+                    <label key={plan} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={bulkPlans.includes(plan)}
+                        onChange={() => toggleBulkPlan(plan)}
+                        className="accent-green-500 w-4 h-4"
+                      />
+                      <span className="text-sm text-neutral-300">{plan === "ALL" ? "All Users" : `${plan} Plan`}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-500 uppercase mb-2">Distribution Method</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="method"
+                      value="WEIGHTED"
+                      checked={bulkMethod === "WEIGHTED"}
+                      onChange={() => setBulkMethod("WEIGHTED")}
+                      className="accent-green-500 w-4 h-4"
+                    />
+                    <span className="text-sm text-neutral-300">Weighted (Plan-based)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="method"
+                      value="EQUAL"
+                      checked={bulkMethod === "EQUAL"}
+                      onChange={() => setBulkMethod("EQUAL")}
+                      className="accent-green-500 w-4 h-4"
+                    />
+                    <span className="text-sm text-neutral-300">Equal Split</span>
+                  </label>
+                </div>
               </div>
 
               <div>
@@ -434,31 +477,8 @@ export default function ProfitDistributionPage() {
                 <input
                   type="text"
                   placeholder="Weekly Profit"
-                  value={newType}
-                  onChange={(e) => setNewType(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-white/[0.08] bg-black/20 px-3 text-sm text-white outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-500 uppercase mb-2">Payout Status</label>
-                <select
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value)}
-                  className="w-full h-10 rounded-lg border border-white/[0.08] bg-black/20 px-3 text-sm text-white outline-none"
-                >
-                  <option value="PAID">PAID</option>
-                  <option value="PENDING">PENDING</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-neutral-500 uppercase mb-2">Distribution Date (Effective)</label>
-                <input
-                  type="date"
-                  value={newDistDate}
-                  onChange={(e) => setNewDistDate(e.target.value)}
+                  value={bulkType}
+                  onChange={(e) => setBulkType(e.target.value)}
                   className="w-full h-10 rounded-lg border border-white/[0.08] bg-black/20 px-3 text-sm text-white outline-none"
                   required
                 />
@@ -467,30 +487,34 @@ export default function ProfitDistributionPage() {
               <div>
                 <label className="block text-xs font-semibold text-neutral-500 uppercase mb-2">Notes</label>
                 <textarea
-                  placeholder="Additional logs/payout audit notes..."
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  className="w-full h-20 rounded-lg border border-white/[0.08] bg-black/20 p-3 text-sm text-white outline-none resize-none placeholder:text-neutral-600"
+                  placeholder="Additional audit logs/notes..."
+                  value={bulkNote}
+                  onChange={(e) => setBulkNote(e.target.value)}
+                  className="w-full h-20 rounded-lg border border-white/[0.08] bg-black/20 p-3 text-sm text-white outline-none resize-none placeholder:text-neutral-600 focus:border-green-500/50"
                 />
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 h-10 rounded-lg border border-white/[0.08] bg-white/[0.03] text-sm font-semibold text-white hover:bg-white/[0.08]"
+                  onClick={(e) => handleBulkSubmit(e, true)}
+                  disabled={isBulkProcessing}
+                  className="flex-1 h-11 rounded-lg border border-blue-500/30 bg-blue-500/10 text-sm font-semibold text-blue-300 hover:bg-blue-500/20 disabled:opacity-50"
                 >
-                  Cancel
+                  Preview (Dry Run)
                 </button>
                 <button
-                  type="submit"
-                  className="flex-1 h-10 rounded-lg bg-green-500 text-sm font-bold text-black hover:bg-green-400"
+                  type="button"
+                  onClick={(e) => handleBulkSubmit(e, false)}
+                  disabled={isBulkProcessing}
+                  className="flex-1 h-11 rounded-lg bg-green-500 text-sm font-bold text-black hover:bg-green-400 disabled:opacity-50"
                 >
-                  Create Record
+                  {isBulkProcessing ? "Processing..." : "Execute"}
                 </button>
               </div>
             </form>
           </div>
+
         </div>
       )}
 

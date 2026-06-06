@@ -921,6 +921,29 @@ export class AdminController {
 
   // --- Profit Distributions ---
 
+  @Post('profit-distributions/bulk/preview')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async previewProfitDistribution(
+    @Req() req: Request,
+    @Body() body: any,
+    @Res() res: Response,
+  ) {
+    try {
+      const result = await this.adminService.previewDistribution(body);
+      if (!result.success) {
+        return res
+          .status((result as any).status || 400)
+          .json({ message: (result as any).error });
+      }
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Preview profit distribution error:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
   @Post('profit-distributions/bulk')
   @Roles('SUPER_ADMIN', 'MANAGER')
   async bulkDistributeProfit(

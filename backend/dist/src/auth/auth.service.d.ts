@@ -71,7 +71,7 @@ export declare class AuthService {
             role: string;
             partnerId: string;
             partnerSlug: string;
-            status: "NEW" | "ACTIVE" | "VIP" | "EXPIRED";
+            status: "ACTIVE" | "NEW" | "VIP" | "EXPIRED";
         };
         error?: undefined;
         status?: undefined;
@@ -80,22 +80,22 @@ export declare class AuthService {
         success: boolean;
         settings: {
             id: string;
+            updatedAt: Date;
             emailOtpEnabled: boolean;
             otpLength: number;
             otpExpiryMinutes: number;
             supportContact: string;
-            updatedAt: Date;
         };
     }>;
     updateOtpSettings(body: any): Promise<{
         success: boolean;
         settings: {
             id: string;
+            updatedAt: Date;
             emailOtpEnabled: boolean;
             otpLength: number;
             otpExpiryMinutes: number;
             supportContact: string;
-            updatedAt: Date;
         };
     }>;
     requestManualVerification(email: string): Promise<any>;

@@ -440,9 +440,20 @@ export class AuthService {
 
     // 1. Resolve Partner
     const slug = partnerSlug || 'alpha-traders';
-    const partner = await this.prisma.partner.findUnique({
+    let partner = await this.prisma.partner.findUnique({
       where: { slug },
     });
+
+    if (!partner) {
+      const campaign = await this.prisma.campaign.findFirst({
+        where: { slug, isActive: true },
+      });
+      if (campaign) {
+        partner = await this.prisma.partner.findUnique({
+          where: { id: campaign.partnerId },
+        });
+      }
+    }
 
     if (!partner) {
       return { error: 'White-label partner not found', status: 400 };

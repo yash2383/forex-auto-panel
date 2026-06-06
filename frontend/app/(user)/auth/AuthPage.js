@@ -141,6 +141,11 @@ export default function AuthPage({ mode }) {
     if (ref) {
       setRefCode(ref);
     }
+
+    const campaign = params.get("campaign");
+    if (campaign) {
+      localStorage.setItem("campaign", campaign);
+    }
     
     // Pre-populate fields from query parameters
     const queryFirstName = params.get("firstName");
@@ -190,6 +195,7 @@ export default function AuthPage({ mode }) {
 
         setIsSendingOtp(true);
         try {
+          const savedCampaign = typeof window !== "undefined" ? localStorage.getItem("campaign") : null;
           const res = await apiFetch("/api/auth/send-otp", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -199,7 +205,7 @@ export default function AuthPage({ mode }) {
               firstName,
               lastName,
               referralCode: refCode || null,
-              partnerSlug: "alpha-traders"
+              partnerSlug: savedCampaign || "alpha-traders"
             }),
           });
 
@@ -341,6 +347,7 @@ export default function AuthPage({ mode }) {
 
     try {
       if (isSignup) {
+        const savedCampaign = typeof window !== "undefined" ? localStorage.getItem("campaign") : null;
         const res = await apiFetch("/api/auth/send-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -350,7 +357,7 @@ export default function AuthPage({ mode }) {
             firstName,
             lastName,
             referralCode: refCode || null,
-            partnerSlug: "alpha-traders"
+            partnerSlug: savedCampaign || "alpha-traders"
           }),
         });
 

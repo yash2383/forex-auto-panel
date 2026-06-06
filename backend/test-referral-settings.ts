@@ -121,6 +121,8 @@ async function bootstrap() {
         commissionRate: 12.00,
         minimumDeposit: 1000.00,
         autoApprove: true,
+        requireActiveSubscription: false,
+        requireReferrerDeposit: false,
       },
     });
 
@@ -145,31 +147,25 @@ async function bootstrap() {
 
     // Verify Referral record
     const referral1 = await prisma.referral.findFirst({
-      where: { paymentId: payment1.id },
+      where: { referredId: pair1.referred.id },
+      include: { reward: true },
     });
     
     assert('Referral record is created', referral1 !== null);
     if (referral1) {
-      assert('Commission percentage matches ReferralSettings rate (12%)', Number(referral1.commissionPct) === 12);
-      assert('Commission reward amount is correct (₹180)', Number(referral1.commissionAmount) === 180);
+      assert('Commission percentage matches ReferralSettings rate (12%)', Number(referral1.reward?.referralRate) === 12);
+      assert('Commission reward amount is correct (₹7.20)', Number(referral1.reward?.commissionAmount) === 7.2);
       assert('Referral status is APPROVED', referral1.status === 'APPROVED');
       
       // Verify Referrer wallet balance
       const referrerWallet = await prisma.wallet.findUnique({
         where: { userId: pair1.referrer.id },
       });
-      // Note: Auto-approve credits wallet immediately via walletLedger, wait, let's check wallet ledger.
-      // Wait, in approvePayment:
-      // if (autoApprove) {
-      //   await tx.walletLedger.create({ ... })
-      //   // wait! Does it update the wallet realizedBalance directly in the transaction?
-      //   // let's check approvePayment: it adds transaction entries in a group.
-      // }
       const ledgerEntry = await prisma.walletLedger.findFirst({
         where: { userId: pair1.referrer.id, type: 'REFERRAL_COMMISSION' }
       });
       assert('Referrer wallet ledger credit entry exists', ledgerEntry !== null);
-      assert('Ledger credit amount matches commission', Number(ledgerEntry?.amount) === 180);
+      assert('Ledger credit amount matches commission', Number(ledgerEntry?.amount) === 7.2);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -196,12 +192,12 @@ async function bootstrap() {
     // Approve payment
     await adminService.approvePayment(admin.id, payment2.id, '127.0.0.1');
 
-    // Verify Referral record
-    const referral2 = await prisma.referral.findFirst({
+    // Verify ReferralReward record
+    const reward2 = await prisma.referralReward.findFirst({
       where: { paymentId: payment2.id },
     });
     
-    assert('No Referral record is created for deposit below minimum', referral2 === null);
+    assert('No ReferralReward record is created for deposit below minimum', reward2 === null);
 
     // ══════════════════════════════════════════════════════════════════════════
     // TEST 3 — Disabled Referral Test (Enabled = false)
@@ -232,12 +228,12 @@ async function bootstrap() {
     // Approve payment
     await adminService.approvePayment(admin.id, payment3.id, '127.0.0.1');
 
-    // Verify Referral record
-    const referral3 = await prisma.referral.findFirst({
+    // Verify ReferralReward record
+    const reward3 = await prisma.referralReward.findFirst({
       where: { paymentId: payment3.id },
     });
     
-    assert('No Referral record is created when referral engine is disabled', referral3 === null);
+    assert('No ReferralReward record is created when referral engine is disabled', reward3 === null);
 
     // ══════════════════════════════════════════════════════════════════════════
     // TEST 4 — Auto-Approve Disabled Test (Enabled = true, Auto Approve = false)
@@ -246,7 +242,12 @@ async function bootstrap() {
     
     // Update ReferralSettings to enabled, autoApprove = false
     await prisma.referralSettings.updateMany({
-      data: { enabled: true, autoApprove: false },
+      data: {
+        enabled: true,
+        autoApprove: false,
+        requireActiveSubscription: false,
+        requireReferrerDeposit: false,
+      },
     });
 
     // Create Referred pair
@@ -270,7 +271,7 @@ async function bootstrap() {
 
     // Verify Referral record
     const referral4 = await prisma.referral.findFirst({
-      where: { paymentId: payment4.id },
+      where: { referredId: pair4.referred.id },
     });
     
     assert('Referral record is created when auto-approve is disabled', referral4 !== null);

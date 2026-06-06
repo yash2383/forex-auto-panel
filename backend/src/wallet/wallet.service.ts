@@ -71,6 +71,10 @@ export class WalletService {
       throw new BadRequestException('Withdrawal method is required');
     }
 
+    if (method.toLowerCase().includes('upi')) {
+      throw new BadRequestException('UPI withdrawals are not supported');
+    }
+
     const result = await this.prisma.$transaction(async (tx: any) => {
       // 1. Fetch wallet with lock
       const wallet = await tx.wallet.findUnique({

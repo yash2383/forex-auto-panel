@@ -46,7 +46,7 @@ export function DataTable({ headers, rows }) {
         <thead className="bg-white/[0.025] text-xs uppercase tracking-wide text-neutral-500">
           <tr>
             {headers.map((header) => (
-              <th key={header} className="px-4 py-4 font-semibold">{header}</th>
+              <th key={header} className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm whitespace-nowrap">{header}</th>
             ))}
           </tr>
         </thead>

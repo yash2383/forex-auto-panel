@@ -98,6 +98,9 @@ export class TradeEngineService implements OnModuleInit {
               });
 
               // Write Ledger Entries
+              const entryType = pnl.isPositive() ? 'CREDIT' : 'DEBIT';
+              const systemEntryType = pnl.isPositive() ? 'DEBIT' : 'CREDIT';
+
               const group = await tx.transactionGroup.create({
                 data: {
                   type: pnl.isPositive() ? 'TRADE_PROFIT' : 'TRADE_LOSS',
@@ -106,16 +109,25 @@ export class TradeEngineService implements OnModuleInit {
                 },
               });
 
-              await tx.ledgerEntry.create({
-                data: {
-                  transactionGroupId: group.id,
-                  userId: trade.userId,
-                  partnerId: trade.partnerId,
-                  accountType: 'USER',
-                  entryType: pnl.isPositive() ? 'CREDIT' : 'DEBIT',
-                  amount: pnl.abs(),
-                  currency: 'USD',
-                },
+              await tx.ledgerEntry.createMany({
+                data: [
+                  {
+                    transactionGroupId: group.id,
+                    userId: trade.userId,
+                    partnerId: trade.partnerId,
+                    accountType: 'USER',
+                    entryType: entryType,
+                    amount: pnl.abs(),
+                    currency: 'USD',
+                  },
+                  {
+                    transactionGroupId: group.id,
+                    accountType: 'SYSTEM',
+                    entryType: systemEntryType,
+                    amount: pnl.abs(),
+                    currency: 'USD',
+                  },
+                ],
               });
             }
           });

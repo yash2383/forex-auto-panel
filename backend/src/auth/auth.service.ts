@@ -372,7 +372,7 @@ export class AuthService {
                 },
               });
 
-              // Create transaction group & ledger entry
+              // Create transaction group & ledger entries
               const group = await tx.transactionGroup.create({
                 data: {
                   type: 'REFERRAL_PAYOUT',
@@ -381,16 +381,25 @@ export class AuthService {
                 },
               });
 
-              await tx.ledgerEntry.create({
-                data: {
-                  transactionGroupId: group.id,
-                  userId: user.referredBy,
-                  partnerId: user.partnerId,
-                  accountType: 'USER',
-                  entryType: 'CREDIT',
-                  amount: bonusAmount,
-                  currency: 'USD',
-                },
+              await tx.ledgerEntry.createMany({
+                data: [
+                  {
+                    transactionGroupId: group.id,
+                    userId: user.referredBy,
+                    partnerId: user.partnerId,
+                    accountType: 'USER',
+                    entryType: 'CREDIT',
+                    amount: bonusAmount,
+                    currency: 'USD',
+                  },
+                  {
+                    transactionGroupId: group.id,
+                    accountType: 'SYSTEM',
+                    entryType: 'DEBIT',
+                    amount: bonusAmount,
+                    currency: 'USD',
+                  },
+                ],
               });
             }
           }

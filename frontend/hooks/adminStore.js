@@ -122,6 +122,8 @@ export const useAdminStore = create((set, get) => ({
   referralSettings: null,
   initiatedPayments: [],
   initiatedPaymentMetrics: null,
+  dashboardStats: null,
+  loadingDashboardStats: false,
 
   // INIT
   isInitialized: false,
@@ -208,6 +210,21 @@ export const useAdminStore = create((set, get) => ({
       }
     } catch (e) {
       console.error("fetchInitiatedPayments API error:", e);
+    }
+  },
+
+  fetchDashboardStats: async () => {
+    try {
+      set({ loadingDashboardStats: true });
+      const res = await apiFetch("/api/admin/dashboard/stats");
+      if (res.ok) {
+        const stats = await res.json();
+        set({ dashboardStats: stats });
+      }
+    } catch (err) {
+      console.error("fetchDashboardStats error:", err);
+    } finally {
+      set({ loadingDashboardStats: false });
     }
   },
 

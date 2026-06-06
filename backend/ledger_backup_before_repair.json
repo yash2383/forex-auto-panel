@@ -1,0 +1,79 @@
+{
+  "timestamp": "2026-06-06T11:43:34.775Z",
+  "transactionGroups": [
+    {
+      "id": "29e35bff-112f-49e0-a977-79b360776d55",
+      "type": "TRADE_PROFIT",
+      "description": "Settle trade 8044b860-a381-4f96-9ef7-be1606354d84 | PnL: ₹1.49",
+      "idempotencyKey": "TRADE_SETTLE_8044b860-a381-4f96-9ef7-be1606354d84",
+      "createdAt": "2026-06-05T09:58:58.650Z",
+      "ledgerEntries": [
+        {
+          "id": "ebd6d328-25db-47a3-acda-ea50fe7a196d",
+          "transactionGroupId": "29e35bff-112f-49e0-a977-79b360776d55",
+          "partnerId": "ecd33e7b-9992-497e-aa1d-468077e04c57",
+          "userId": "8024eeb8-8ff7-4575-b97a-69de09c1a3da",
+          "accountType": "USER",
+          "entryType": "CREDIT",
+          "amount": "1.4876",
+          "currency": "INR",
+          "createdAt": "2026-06-05T09:58:58.653Z"
+        }
+      ]
+    },
+    {
+      "id": "7e05f48b-2466-44e9-b260-f1b8ef2a250d",
+      "type": "REFERRAL_PAYOUT",
+      "description": "Referral signup bonus for inviting efe@gmail.com",
+      "idempotencyKey": "REF_SIGNUP_BONUS_c5eb4ab4-0bf5-4cc8-8b46-218c24dc6c47",
+      "createdAt": "2026-06-06T06:31:27.570Z",
+      "ledgerEntries": [
+        {
+          "id": "e8dd881d-c075-4916-a788-67eca89f8a11",
+          "transactionGroupId": "7e05f48b-2466-44e9-b260-f1b8ef2a250d",
+          "partnerId": "ecd33e7b-9992-497e-aa1d-468077e04c57",
+          "userId": "1d50e93c-9658-4f49-9ac6-38ba02cb7391",
+          "accountType": "USER",
+          "entryType": "CREDIT",
+          "amount": "100",
+          "currency": "INR",
+          "createdAt": "2026-06-06T06:31:27.573Z"
+        }
+      ]
+    }
+  ],
+  "userWallets": [
+    {
+      "email": "neha@mail.com",
+      "wallet": {
+        "id": "1f23c5f5-eca0-4745-9c54-1925bf3b85ec",
+        "userId": "8024eeb8-8ff7-4575-b97a-69de09c1a3da",
+        "realizedBalance": "2908.4876",
+        "unrealizedBalance": "0",
+        "currentEquity": "501.4876",
+        "availableBalance": "501.4876",
+        "pendingWithdrawals": "0",
+        "totalWithdrawn": "0",
+        "currency": "INR",
+        "version": 1,
+        "updatedAt": "2026-06-05T09:58:58.647Z"
+      }
+    },
+    {
+      "email": "iisrani.manakriti@gmail.com",
+      "wallet": {
+        "id": "56aff1d0-e8e4-4a57-a00c-7c69b972af01",
+        "userId": "1d50e93c-9658-4f49-9ac6-38ba02cb7391",
+        "realizedBalance": "100",
+        "unrealizedBalance": "0",
+        "currentEquity": "100",
+        "availableBalance": "100",
+        "pendingWithdrawals": "0",
+        "totalWithdrawn": "0",
+        "currency": "INR",
+        "version": 1,
+        "updatedAt": "2026-06-06T06:31:27.566Z"
+      }
+    }
+  ]
+}

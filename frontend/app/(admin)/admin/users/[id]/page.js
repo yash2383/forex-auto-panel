@@ -78,7 +78,7 @@ export default function UserDetailPage({ params }) {
 
   if (!hasPermission("users", "view")) {
     return (
-      <main className="min-h-screen bg-[#050a0f] p-6 text-white flex items-center justify-center">
+      <div className="p-6 text-white flex items-center justify-center min-h-[50vh]">
         <div className="max-w-md w-full text-center rounded-2xl border border-red-500/20 bg-red-500/5 p-8">
           <Ban className="h-12 w-12 text-red-400 mx-auto mb-4 animate-bounce" />
           <h3 className="text-xl font-bold text-white">Access Denied</h3>
@@ -89,26 +89,26 @@ export default function UserDetailPage({ params }) {
             Back to Dashboard
           </Link>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#050a0f] p-6 text-white flex items-center justify-center">
+      <div className="p-6 text-white flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-green-500/20 bg-green-950/40 text-green-400 shadow-[0_0_25px_rgba(34,197,94,0.15)] animate-spin">
             <Cpu className="h-6 w-6" />
           </div>
           <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Loading User Profile...</p>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (error || !data) {
     return (
-      <main className="min-h-screen bg-[#050a0f] p-6 text-white flex items-center justify-center">
+      <div className="p-6 text-white flex items-center justify-center min-h-[50vh]">
         <div className="max-w-md w-full text-center rounded-2xl border border-white/10 bg-white/[0.02] p-8">
           <ShieldAlert className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-white">Profile Load Error</h3>
@@ -117,14 +117,14 @@ export default function UserDetailPage({ params }) {
             Back to User Management
           </Link>
         </div>
-      </main>
+      </div>
     );
   }
 
   const { profile, subscription, wallet, trading, payments, trades, reports, security } = data;
 
   return (
-    <main className="min-h-screen bg-[#050a0f] p-4 md:p-6 text-white space-y-6">
+    <div className="space-y-6">
       {/* Header and Back Link */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -374,29 +374,29 @@ export default function UserDetailPage({ params }) {
               <table className="w-full text-left text-sm min-w-[760px]">
                 <thead className="bg-white/[0.025] text-xs uppercase tracking-wide text-neutral-500">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Date</th>
-                    <th className="px-4 py-3 font-semibold">Plan</th>
-                    <th className="px-4 py-3 font-semibold">Amount</th>
-                    <th className="px-4 py-3 font-semibold">Method</th>
-                    <th className="px-4 py-3 font-semibold">Transaction ID / Ref</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Date</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Plan</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Amount</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Method</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Transaction ID / Ref</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-neutral-300">
                   {payments.map((p) => (
                     <tr key={p.id} className="hover:bg-white/[0.02]">
-                      <td className="px-4 py-3 whitespace-nowrap">{formatDate(p.createdAt)}</td>
-                      <td className="px-4 py-3 font-semibold text-white whitespace-nowrap">{p.planName}</td>
-                      <td className="px-4 py-3 font-mono font-semibold text-white whitespace-nowrap">{formatCurrency(p.amount, p.currency)}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm whitespace-nowrap">{formatDate(p.createdAt)}</td>
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm text-white whitespace-nowrap">{p.planName}</td>
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 font-mono font-semibold text-xs sm:text-sm text-white whitespace-nowrap">{formatCurrency(p.amount, p.currency)}</td>
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
                         <span className="rounded bg-white/5 px-2 py-0.5 text-xs text-neutral-400 border border-white/10">{p.paymentType}</span>
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-amber-300 select-all whitespace-nowrap">{p.txnHash || "N/A"}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 font-mono text-xs text-amber-300 select-all whitespace-nowrap">{p.txnHash || "N/A"}</td>
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
                         <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold border ${
                           p.status === "APPROVED" ? "bg-green-500/10 text-green-400 border-green-500/20" :
                           p.status === "REJECTED" ? "bg-red-500/10 text-red-400 border-red-500/20" :
-                          p.status === "VERIFIED" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                          p.status === "VERIFIED" ? "bg-blue-500/10 text-blue-300 border-blue-500/20" :
                           "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
                         }`}>
                           {p.status}
@@ -406,7 +406,7 @@ export default function UserDetailPage({ params }) {
                   ))}
                   {payments.length === 0 && (
                     <tr>
-                      <td colSpan="6" className="px-4 py-8 text-center text-sm text-neutral-500">No payment records found.</td>
+                      <td colSpan="6" className="px-3 py-8 text-center text-sm text-neutral-500">No payment records found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -423,13 +423,13 @@ export default function UserDetailPage({ params }) {
               <table className="w-full text-left text-sm min-w-[760px]">
                 <thead className="bg-white/[0.025] text-xs uppercase tracking-wide text-neutral-500">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Date</th>
-                    <th className="px-4 py-3 font-semibold">Pair</th>
-                    <th className="px-4 py-3 font-semibold">Side</th>
-                    <th className="px-4 py-3 font-semibold">Entry Price</th>
-                    <th className="px-4 py-3 font-semibold">Current/Exit</th>
-                    <th className="px-4 py-3 font-semibold">Profit/Loss</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Date</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Pair</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Side</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Entry Price</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Current/Exit</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Profit/Loss</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-neutral-300">
@@ -437,22 +437,22 @@ export default function UserDetailPage({ params }) {
                     const isWin = t.pnl > 0;
                     return (
                       <tr key={t.id} className="hover:bg-white/[0.02]">
-                        <td className="px-4 py-3 whitespace-nowrap">{formatDate(t.createdAt)}</td>
-                        <td className="px-4 py-3 font-semibold text-white whitespace-nowrap">{t.pair}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm whitespace-nowrap">{formatDate(t.createdAt)}</td>
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm text-white whitespace-nowrap">{t.pair}</td>
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
                           <span className={`rounded px-1.5 py-0.5 text-xs font-bold ${t.type === "BUY" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
                             {t.type}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-mono whitespace-nowrap">{formatCurrency(t.entryPrice)}</td>
-                        <td className="px-4 py-3 font-mono whitespace-nowrap">{formatCurrency(t.status === "CLOSED" ? t.exitPrice : t.currentPrice)}</td>
-                        <td className={`px-4 py-3 font-mono font-bold whitespace-nowrap ${t.status === "CLOSED" ? (isWin ? "text-green-400" : "text-red-400") : "text-neutral-400"}`}>
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 font-mono text-xs sm:text-sm whitespace-nowrap">{formatCurrency(t.entryPrice)}</td>
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 font-mono text-xs sm:text-sm whitespace-nowrap">{formatCurrency(t.status === "CLOSED" ? t.exitPrice : t.currentPrice)}</td>
+                        <td className={`px-3 py-2.5 sm:px-4 sm:py-3 font-mono font-bold text-xs sm:text-sm whitespace-nowrap ${t.status === "CLOSED" ? (isWin ? "text-green-400" : "text-red-400") : "text-neutral-400"}`}>
                           {t.status === "CLOSED" ? `${isWin ? "+" : ""}${formatCurrency(t.pnl)}` : "Floating..."}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                            t.status === "CLOSED" ? "bg-white/5 text-neutral-400 border border-white/10" : "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
-                          } border`}>
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
+                          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold border ${
+                            t.status === "CLOSED" ? "bg-white/5 text-neutral-400 border-white/10" : "bg-green-500/10 text-green-400 border-green-500/20 animate-pulse"
+                          }`}>
                             {t.status}
                           </span>
                         </td>
@@ -461,7 +461,7 @@ export default function UserDetailPage({ params }) {
                   })}
                   {trades.length === 0 && (
                     <tr>
-                      <td colSpan="7" className="px-4 py-8 text-center text-sm text-neutral-500">No trading records found.</td>
+                      <td colSpan="7" className="px-3 py-8 text-center text-sm text-neutral-500">No trading records found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -478,21 +478,21 @@ export default function UserDetailPage({ params }) {
               <table className="w-full text-left text-sm min-w-[640px]">
                 <thead className="bg-white/[0.025] text-xs uppercase tracking-wide text-neutral-500">
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Report Name</th>
-                    <th className="px-4 py-3 font-semibold">Category</th>
-                    <th className="px-4 py-3 font-semibold">Date Generated</th>
-                    <th className="px-4 py-3 font-semibold text-right">Actions</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Report Name</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Category</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">Date Generated</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-neutral-300">
                   {reports.map((r) => (
                     <tr key={r.id} className="hover:bg-white/[0.02]">
-                      <td className="px-4 py-3 font-semibold text-white">{r.fileName}</td>
-                      <td className="px-4 py-3 whitespace-nowrap">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm text-white whitespace-nowrap">{r.fileName}</td>
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
                         <span className="rounded bg-white/5 px-2 py-0.5 text-xs text-neutral-400 border border-white/10">{r.reportType}</span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(r.createdAt)}</td>
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm whitespace-nowrap">{formatDateTime(r.createdAt)}</td>
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-right text-xs sm:text-sm whitespace-nowrap">
                         <a 
                           href={r.fileUrl} 
                           target="_blank" 
@@ -506,7 +506,7 @@ export default function UserDetailPage({ params }) {
                   ))}
                   {reports.length === 0 && (
                     <tr>
-                      <td colSpan="4" className="px-4 py-8 text-center text-sm text-neutral-500">No generated reports files found.</td>
+                      <td colSpan="4" className="px-3 py-8 text-center text-sm text-neutral-500">No generated reports files found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -566,6 +566,6 @@ export default function UserDetailPage({ params }) {
         )}
 
       </div>
-    </main>
+    </div>
   );
 }

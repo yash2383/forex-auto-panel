@@ -1,14 +1,110 @@
 "use client";
 
-import { Bell, CalendarDays, ChevronDown, Crown, ExternalLink, Globe2, Hexagon, Moon, Search, Sun, X, LogOut } from "lucide-react";
+import { Bell, CalendarDays, ChevronDown, Crown, ExternalLink, Hexagon, Moon, Search, Sun, X, LogOut, Menu, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback, memo } from "react";
 import { adminNavGroups } from "./adminData";
 import { useAdminStore } from "../../../../hooks/adminStore";
 import { apiFetch } from "../../../../lib/apiFetch";
 import NotificationDropdown from "../../../(user)/components/NotificationDropdown";
 import DateRangePicker from "../../../(user)/components/DateRangePicker";
+
+const SidebarContent = memo(({
+  currentUser,
+  getCleanRoleLabel,
+  adminNavGroups,
+  hasPermission,
+  searchParams,
+  pathname,
+  pendingWithdrawalCount,
+  onLinkClick
+}) => {
+  return (
+    <>
+      <div className="flex h-[86px] items-center justify-between px-6 shrink-0 border-b border-white/[0.04]">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.06] text-neutral-200 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
+            <Hexagon className="h-6 w-6 fill-white/20" />
+          </span>
+          <div>
+            <span className="block text-xl font-bold tracking-tight">Nexus Capital</span>
+            <span className="mt-1 flex items-center gap-1 text-xs text-neutral-400 font-semibold">
+              <Crown className="h-3 w-3 text-yellow-300" />
+              {getCleanRoleLabel(currentUser?.role)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex-1 space-y-7 overflow-y-auto px-4 py-4 scrollbar-thin">
+        {adminNavGroups.map((group) => {
+          const allowedItems = group.items.filter((item) => {
+            const itemSectionRaw = item.href.includes("?section=") ? item.href.split("?section=").at(-1) : "";
+            const itemSection = itemSectionRaw.includes("&filter=") ? itemSectionRaw.split("&filter=")[0] : itemSectionRaw;
+
+            let permissionKey = itemSection || (
+              item.href.includes("plans") ? "plans" : 
+              item.href.includes("profit-distribution") ? "profit-distribution" : 
+              item.href.includes("white-label") ? "partners" : 
+              item.href.includes("withdrawals") ? "payments" : 
+              item.href.includes("initiated-payments") ? "payments" : 
+              item.href.includes("inquiries") ? "inquiries" : 
+              item.href.includes("notifications") ? "notifications" : 
+              "dashboard"
+            );
+
+            if (permissionKey === "transactions") permissionKey = "payments";
+            if (item.label === "Dashboard") return true;
+            if (item.label === "Create Partner") {
+              return hasPermission("partners", "create");
+            }
+            return hasPermission(permissionKey, "view");
+          });
+
+          if (allowedItems.length === 0) return null;
+
+          return (
+            <div key={group.title}>
+              <p className="px-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">{group.title}</p>
+              <div className="mt-3 space-y-1">
+                {allowedItems.map((item) => {
+                  const Icon = item.icon;
+                  const itemSectionRaw = item.href.includes("?section=") ? item.href.split("?section=").at(-1) : "";
+                  const itemSection = itemSectionRaw.includes("&filter=") ? itemSectionRaw.split("&filter=")[0] : itemSectionRaw;
+                  const itemFilter = item.href.includes("&filter=") ? item.href.split("&filter=").at(-1) : "";
+                  const activeFilter = searchParams.get("filter") || "All";
+                  const active =
+                    (item.href === "/admin/dashboard" && pathname === "/admin/dashboard" && !searchParams.get("section")) ||
+                    (itemSection && searchParams.get("section") === itemSection && (!itemFilter || activeFilter === itemFilter)) ||
+                    (!itemSection && item.href !== "/admin/dashboard" && pathname?.startsWith(item.href));
+                  const badgeValue = item.label === "Withdraw Requests"
+                    ? (pendingWithdrawalCount > 0 ? pendingWithdrawalCount.toString() : null)
+                    : item.badge;
+                  return (
+                    <Link
+                      key={`${group.title}-${item.label}`}
+                      href={item.label === "Dashboard" ? "/admin/dashboard" : item.href}
+                      onClick={onLinkClick}
+                      className={`flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+                        active ? "bg-white/[0.06] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)]" : "text-neutral-400 hover:bg-white/[0.04] hover:text-white"
+                      }`}>
+                      <Icon className={`h-4 w-4 ${active ? "text-neutral-100" : "text-neutral-400"}`} />
+                      <span className="min-w-0 flex-1">{item.label}</span>
+                      {badgeValue && <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black text-white">{badgeValue}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </nav>
+
+    </>
+  );
+});
+SidebarContent.displayName = "SidebarContent";
 
 export default function AdminShell({ children }) {
   const pathname = usePathname();
@@ -25,6 +121,82 @@ export default function AdminShell({ children }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
+  
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showMobileMoreMenu, setShowMobileMoreMenu] = useState(false);
+  const scrollYRef = useRef(0);
+
+  const toggleSidebar = useCallback(() => {
+    setShowMobileMoreMenu(false);
+    setIsSidebarOpen((v) => !v);
+  }, []);
+
+  const toggleMoreMenu = useCallback(() => {
+    setIsSidebarOpen(false);
+    setShowMobileMoreMenu((v) => !v);
+  }, []);
+
+  const closeAllMobileMenus = useCallback(() => {
+    setIsSidebarOpen(false);
+    setShowMobileMoreMenu(false);
+  }, []);
+
+  // Close menus on path changes
+  useEffect(() => {
+    closeAllMobileMenus();
+  }, [pathname, closeAllMobileMenus]);
+
+  // Lock body scroll (iOS safe)
+  useEffect(() => {
+    if (isSidebarOpen) {
+      scrollYRef.current = window.scrollY;
+      document.body.style.top = `-${scrollYRef.current}px`;
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+    } else {
+      const savedTop = document.body.style.top;
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
+      if (savedTop) {
+        const topVal = parseInt(savedTop.replace(/[^0-9]/g, ""), 10);
+        if (!isNaN(topVal)) {
+          window.scrollTo(0, topVal);
+        }
+      }
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
+    };
+  }, [isSidebarOpen]);
+
+  // Handle ESC key to close drawer
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === "Escape") {
+        closeAllMobileMenus();
+      }
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [closeAllMobileMenus]);
+
+  // Handle window resize breakpoint synchronization
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        closeAllMobileMenus();
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [closeAllMobileMenus]);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -334,111 +506,60 @@ export default function AdminShell({ children }) {
   };
 
   return (
-    <main className="super-admin-theme min-h-screen bg-[#050a0f] text-white">
-      <div className="grid min-h-screen xl:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-white/[0.07] bg-[#071018]/95 xl:flex xl:flex-col">
-          <div className="flex h-[86px] items-center justify-between px-6">
-            <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.06] text-neutral-200 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]">
-                <Hexagon className="h-6 w-6 fill-white/20" />
-              </span>
-              <div>
-                <span className="block text-xl font-bold tracking-tight">Nexus Capital</span>
-                <span className="mt-1 flex items-center gap-1 text-xs text-neutral-400 font-semibold">
-                  <Crown className="h-3 w-3 text-yellow-300" />
-                  {getCleanRoleLabel(currentUser?.role)}
-                </span>
-              </div>
-            </div>
-          </div>
+    <div className="super-admin-theme min-h-screen bg-[#050a0f] text-white">
+      <div className="flex h-screen w-full overflow-hidden">
+        {/* Overlay backdrop for mobile drawer */}
+        <div
+          onClick={closeAllMobileMenus}
+          className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300 lg:hidden ${
+            isSidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
+        />
 
-          <nav className="flex-1 space-y-7 overflow-y-auto px-4 py-2">
-            {adminNavGroups.map((group) => {
-              // Filter navigation elements dynamically based on user role permissions
-              const allowedItems = group.items.filter((item) => {
-                const itemSectionRaw = item.href.includes("?section=") ? item.href.split("?section=").at(-1) : "";
-                const itemSection = itemSectionRaw.includes("&filter=") ? itemSectionRaw.split("&filter=")[0] : itemSectionRaw;
-
-                let permissionKey = itemSection || (
-                  item.href.includes("plans") ? "plans" : 
-                  item.href.includes("profit-distribution") ? "profit-distribution" : 
-                  item.href.includes("white-label") ? "partners" : 
-                  item.href.includes("withdrawals") ? "payments" : 
-                  item.href.includes("initiated-payments") ? "payments" : 
-                  item.href.includes("inquiries") ? "inquiries" : 
-                  item.href.includes("notifications") ? "notifications" : 
-                  "dashboard"
-                );
-
-                if (permissionKey === "transactions") permissionKey = "payments";
-                if (item.label === "Dashboard") return true;
-                if (item.label === "Create Partner") {
-                  return hasPermission("partners", "create");
-                }
-                return hasPermission(permissionKey, "view");
-              });
-
-              if (allowedItems.length === 0) return null;
-
-              return (
-                <div key={group.title}>
-                  <p className="px-2 text-[11px] font-medium uppercase tracking-wide text-neutral-500">{group.title}</p>
-                  <div className="mt-3 space-y-1">
-                    {allowedItems.map((item) => {
-                      const Icon = item.icon;
-                      const itemSectionRaw = item.href.includes("?section=") ? item.href.split("?section=").at(-1) : "";
-                      const itemSection = itemSectionRaw.includes("&filter=") ? itemSectionRaw.split("&filter=")[0] : itemSectionRaw;
-                      const itemFilter = item.href.includes("&filter=") ? item.href.split("&filter=").at(-1) : "";
-                      const activeFilter = searchParams.get("filter") || "All";
-                      const active =
-                        (item.href === "/admin/dashboard" && pathname === "/admin/dashboard" && !section) ||
-                        (itemSection && section === itemSection && (!itemFilter || activeFilter === itemFilter)) ||
-                        (!itemSection && item.href !== "/admin/dashboard" && pathname?.startsWith(item.href));
-                      const badgeValue = item.label === "Withdraw Requests"
-                        ? (pendingWithdrawalCount > 0 ? pendingWithdrawalCount.toString() : null)
-                        : item.badge;
-                      return (
-                        <Link
-                          key={`${group.title}-${item.label}`}
-                          href={item.label === "Dashboard" ? "/admin/dashboard" : item.href}
-                          className={`flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
-                            active ? "bg-white/[0.06] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)]" : "text-neutral-400 hover:bg-white/[0.04] hover:text-white"
-                          }`}>
-                          <Icon className={`h-4 w-4 ${active ? "text-neutral-100" : "text-neutral-400"}`} />
-                          <span className="min-w-0 flex-1">{item.label}</span>
-                          {badgeValue && <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black text-white">{badgeValue}</span>}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </nav>
-
-          <div className="px-4 pb-5">
-            <div className="rounded-xl border border-white/[0.08] bg-[#0b141b] p-4 shadow-[0_18px_50px_-40px_rgba(0,208,156,0.65)]">
-              <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/10 text-green-300">
-                  <Globe2 className="h-4 w-4" />
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold text-white">Platform Status</h3>
-                  <p className="mt-1 text-sm font-semibold text-green-300">All Systems Operational</p>
-                </div>
-              </div>
-              <p className="mt-3 text-xs text-neutral-500">Updated: 2 minutes ago</p>
-              <svg viewBox="0 0 160 34" className="mt-3 h-8 w-full" aria-hidden="true">
-                <path d="M0 25 L14 22 L28 24 L42 20 L56 23 L70 16 L84 21 L98 19 L112 23 L126 18 L140 20 L160 9" fill="none" stroke="rgb(34 197 94)" strokeWidth="2" />
-                <path d="M0 34 L0 25 L14 22 L28 24 L42 20 L56 23 L70 16 L84 21 L98 19 L112 23 L126 18 L140 20 L160 9 L160 34 Z" fill="rgba(34,197,94,0.12)" />
-              </svg>
-            </div>
-          </div>
+        {/* Single sidebar container promoted via CSS breakpoints */}
+        <aside
+          id="sidebar"
+          aria-expanded={isSidebarOpen}
+          className={`fixed inset-y-0 left-0 w-[260px] bg-[#071018] border-r border-white/[0.07] z-50 transform transition-transform duration-300 ease-in-out will-change-transform flex flex-col
+            lg:h-screen lg:shrink-0 lg:sticky lg:top-0 lg:z-30
+            ${isSidebarOpen ? "translate-x-0" : "max-lg:-translate-x-full lg:translate-x-0"}`}
+        >
+          <SidebarContent
+            currentUser={currentUser}
+            getCleanRoleLabel={getCleanRoleLabel}
+            adminNavGroups={adminNavGroups}
+            hasPermission={hasPermission}
+            searchParams={searchParams}
+            pathname={pathname}
+            pendingWithdrawalCount={pendingWithdrawalCount}
+            onLinkClick={closeAllMobileMenus}
+          />
         </aside>
 
-        <div className="min-w-0">
-          <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-[#050a0f]/88 px-4 py-4 backdrop-blur-xl sm:px-6">
-            <div className="flex flex-wrap xl:flex-nowrap items-center justify-between gap-4">
+        {/* Main content area */}
+        <main className="flex-1 min-w-0 flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar">
+          {/* Header */}
+          <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-[#050a0f]/88 px-4 py-4 backdrop-blur-xl sm:px-6 overflow-visible">
+            <div className="flex items-center justify-between gap-4">
+              
+              {/* Mobile/Tablet Menu Button & Brand logo */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={toggleSidebar}
+                  className="p-2 -ml-2 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 lg:hidden transition cursor-pointer"
+                  aria-label="Toggle sidebar"
+                  aria-expanded={isSidebarOpen}
+                  aria-controls="sidebar"
+                >
+                  <Menu className="h-6 w-6" />
+                </button>
+                <div className="flex items-center gap-2 lg:hidden">
+                  <Hexagon className="h-5 w-5 text-neutral-200 fill-white/20" />
+                  <span className="text-base font-bold tracking-tight">Nexus</span>
+                </div>
+              </div>
+
+              {/* Desktop Search bar */}
               <div className="relative hidden max-w-[460px] flex-1 lg:block z-40">
                 <label className="flex h-11 w-full items-center gap-2 rounded-full border border-white/[0.09] bg-black/10 px-4 text-sm text-neutral-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] focus-within:border-green-500/35 transition">
                   <Search className="h-4 w-4" />
@@ -465,32 +586,43 @@ export default function AdminShell({ children }) {
                   </>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
-                
-                <Link href="/" className="inline-flex h-11 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.03] px-3 sm:px-4 text-sm font-bold text-white transition hover:border-green-500/30 hover:text-green-300">
-                  <span className="hidden lg:inline">Visit Website</span>
-                  <ExternalLink className="h-4 w-4" />
-                </Link>
-                <DateRangePicker />
-                <button
-                  onClick={toggleTheme}
-                  className="flex shrink-0 h-[40px] w-[76px] items-center rounded-full border border-white/[0.09] bg-black/20 p-1 transition-all relative cursor-pointer"
-                  aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-                >
-                  <div
-                    className={`absolute h-8 w-8 rounded-full bg-green-500 transition-transform duration-300 ease-in-out ${
-                      theme === "light" ? "translate-x-0" : "translate-x-[36px]"
-                    }`}
-                  />
-                  <div className="relative z-10 flex w-full items-center justify-between px-1.5 pointer-events-none">
-                    <Sun className={`h-4 w-4 transition-colors ${theme === "light" ? "text-black" : "text-neutral-400"}`} />
-                    <Moon className={`h-4 w-4 transition-colors ${theme === "dark" ? "text-black" : "text-neutral-400"}`} />
-                  </div>
-                </button>
+
+              {/* Right Side Header Items */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Desktop controls: visible only on lg and above */}
+                <div className="hidden lg:flex lg:items-center lg:gap-3">
+                  <Link href="/" className="inline-flex h-11 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.03] px-4 text-sm font-bold text-white transition hover:border-green-500/30 hover:text-green-300">
+                    <span>Visit Website</span>
+                    <ExternalLink className="h-4 w-4" />
+                  </Link>
+                  <DateRangePicker />
+                  <button
+                    onClick={toggleTheme}
+                    className="flex shrink-0 h-[40px] w-[76px] items-center rounded-full border border-white/[0.09] bg-black/20 p-1 transition-all relative cursor-pointer"
+                    aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                  >
+                    <div
+                      className={`absolute h-8 w-8 rounded-full bg-green-500 transition-transform duration-300 ease-in-out ${
+                        theme === "light" ? "translate-x-0" : "translate-x-[36px]"
+                      }`}
+                    />
+                    <div className="relative z-10 flex w-full items-center justify-between px-1.5 pointer-events-none">
+                      <Sun className={`h-4 w-4 transition-colors ${theme === "light" ? "text-black" : "text-neutral-400"}`} />
+                      <Moon className={`h-4 w-4 transition-colors ${theme === "dark" ? "text-black" : "text-neutral-400"}`} />
+                    </div>
+                  </button>
+                </div>
+
+                {/* Notifications Dropdown: always visible */}
                 <NotificationDropdown />
+
+                {/* Profile menu: always visible */}
                 <div className="relative shrink-0">
                   <button 
-                    onClick={() => setShowProfileMenu(!showProfileMenu)}
+                    onClick={() => {
+                      closeAllMobileMenus();
+                      setShowProfileMenu(!showProfileMenu);
+                    }}
                     className="flex h-11 items-center gap-2 sm:gap-3 rounded-lg border border-white/[0.09] bg-white/[0.03] px-2 sm:px-3 text-left text-sm text-white hover:bg-white/[0.06] active:scale-[0.98] transition cursor-pointer select-none"
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-neutral-200 to-neutral-600 text-xs font-black text-black">SA</span>
@@ -526,6 +658,65 @@ export default function AdminShell({ children }) {
                     </>
                   )}
                 </div>
+
+                {/* Mobile kebab toggle button for secondary options */}
+                <div className="relative lg:hidden animate-fade-in">
+                  <button
+                    onClick={toggleMoreMenu}
+                    className="p-2.5 rounded-lg border border-white/[0.09] bg-white/[0.03] text-neutral-400 hover:text-white hover:bg-white/5 transition cursor-pointer"
+                    aria-label="More options"
+                  >
+                    <MoreVertical className="h-5 w-5" />
+                  </button>
+
+                  {showMobileMoreMenu && (
+                    <>
+                      {/* Backdrop to close more menu */}
+                      <div className="fixed inset-0 z-40" onClick={() => setShowMobileMoreMenu(false)} />
+                      
+                      {/* Dropdown Menu */}
+                      <div className="absolute right-0 mt-2 w-64 rounded-xl border border-white/[0.09] bg-[#0b141b] p-3 shadow-2xl backdrop-blur-xl z-50 flex flex-col gap-3">
+                        <div className="border-b border-white/5 pb-2 text-[10px] uppercase font-bold text-neutral-500 tracking-wider">
+                          Quick Actions
+                        </div>
+                        
+                        <Link 
+                          href="/" 
+                          onClick={closeAllMobileMenus}
+                          className="flex h-11 items-center justify-between rounded-lg border border-white/[0.09] bg-white/[0.03] px-3 text-sm font-bold text-white transition hover:border-green-500/30 hover:text-green-300"
+                        >
+                          <span>Visit Website</span>
+                          <ExternalLink className="h-4 w-4" />
+                        </Link>
+                        
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-[10px] font-bold text-neutral-500">Date Range</span>
+                          <DateRangePicker />
+                        </div>
+                        
+                        <div className="flex items-center justify-between border-t border-white/5 pt-2">
+                          <span className="text-xs font-bold text-neutral-400">Theme</span>
+                          <button
+                            onClick={toggleTheme}
+                            className="flex shrink-0 h-[40px] w-[76px] items-center rounded-full border border-white/[0.09] bg-black/20 p-1 transition-all relative cursor-pointer"
+                            aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                          >
+                            <div
+                              className={`absolute h-8 w-8 rounded-full bg-green-500 transition-transform duration-300 ease-in-out ${
+                                theme === "light" ? "translate-x-0" : "translate-x-[36px]"
+                              }`}
+                            />
+                            <div className="relative z-10 flex w-full items-center justify-between px-1.5 pointer-events-none">
+                              <Sun className={`h-4 w-4 transition-colors ${theme === "light" ? "text-black" : "text-neutral-400"}`} />
+                              <Moon className={`h-4 w-4 transition-colors ${theme === "dark" ? "text-black" : "text-neutral-400"}`} />
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
               </div>
             </div>
           </header>
@@ -564,8 +755,8 @@ export default function AdminShell({ children }) {
           )}
 
           <div className="space-y-5 px-4 py-5 sm:px-6">{children}</div>
-        </div>
+        </main>
       </div>
-    </main>
+    </div>
   );
 }

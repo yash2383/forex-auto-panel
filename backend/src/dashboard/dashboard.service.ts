@@ -242,8 +242,8 @@ export class DashboardService {
         partnerId,
         planId: planId || null,
         amount: finalAmount,
-        paymentGateway: paymentGateway || 'usdt',
-        paymentType: paymentGateway === 'upi' ? 'UPI' : 'USDT',
+        paymentGateway: 'usdt',
+        paymentType: 'USDT',
         source: source || 'Direct',
         status: 'initiated',
       },
@@ -295,23 +295,10 @@ export class DashboardService {
     let finalUtr = utr ? String(utr).trim().toUpperCase() : null;
 
     if (paymentType === 'UPI') {
-      const reference = finalUtr || finalTxnHash;
-      if (!reference) {
-        return {
-          error: 'UPI Transaction Reference (UTR) is required',
-          status: 400,
-        };
-      }
-      const cleanedRef = reference.replace(/[^A-Z0-9]/g, '');
-      if (cleanedRef.length < 8) {
-        return {
-          error:
-            'Invalid UPI UTR reference. It must be at least 8 alphanumeric characters.',
-          status: 400,
-        };
-      }
-      finalUtr = cleanedRef;
-      finalTxnHash = cleanedRef;
+      return {
+        error: 'UPI deposits are no longer supported. Please use USDT.',
+        status: 400,
+      };
     } else if (paymentType === 'USDT' || !paymentType) {
       if (finalTxnHash) {
         finalTxnHash = finalTxnHash.replace(/[^A-Z0-9]/gi, '').toUpperCase();

@@ -183,31 +183,31 @@ export default function WhiteLabelPage() {
           const totalEarnings = partner.revenue * (partner.profitShare / 100);
           return (
             <tr key={partner.id} className="hover:bg-white/[0.01]">
-              <td className="px-4 py-4">
+              <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-500/10 text-sm font-black text-green-300">
                   {partner.logo}
                 </span>
               </td>
-              <td className="px-4 py-4">
+              <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap">
                 <p className="font-semibold text-white">{partner.name}</p>
                 <p className="text-xs text-neutral-400">{partner.companyName}</p>
                 <p className="mt-1 text-[11px] text-neutral-500">{partner.domain} | {partner.email}</p>
               </td>
-              <td className="px-4 py-4">
+              <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap">
                 <p className="font-semibold text-white">{partner.profitShare}%</p>
                 <p className="text-[10px] text-neutral-500">Max Cap: {partner.maxAllowedShare || 40}%</p>
               </td>
-              <td className="px-4 py-4 font-semibold text-white">{partner.usersCount.toLocaleString()}</td>
-              <td className="px-4 py-4">
+              <td className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm text-white whitespace-nowrap">{partner.usersCount.toLocaleString()}</td>
+              <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap">
                 <p className="font-semibold text-green-300">${partner.revenue.toLocaleString()}</p>
                 <p className="text-[10px] text-neutral-400">Share: ${totalEarnings.toLocaleString()}</p>
               </td>
-              <td className="px-4 py-4">
+              <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap">
                 <span className={`rounded-full px-3 py-1 text-xs font-bold ${partner.status === "Active" ? "bg-green-500/10 text-green-300" : "bg-red-500/10 text-red-300"}`}>
                   {partner.status}
                 </span>
               </td>
-              <td className="px-4 py-4">
+              <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap">
                 <div className="flex flex-wrap gap-2">
                   <Link href={`/admin/white-label/${partner.id}`} className="inline-flex h-9 items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.025] px-3 text-xs font-bold text-white transition hover:bg-white/[0.08]">
                     <Eye className="h-3.5 w-3.5" />

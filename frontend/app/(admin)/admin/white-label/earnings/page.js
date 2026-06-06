@@ -159,12 +159,12 @@ export default function WhiteLabelEarningsPage() {
 
             return (
               <tr key={partner.id} className="hover:bg-white/[0.01]">
-                <td className="px-4 py-4 font-semibold text-white">{partner.name}</td>
-                <td className="px-4 py-4 text-neutral-400">{maskVal(partner.revenue, isViewer)}</td>
-                <td className="px-4 py-4 text-neutral-400">{maskVal(partnerShare, isViewer)} ({partner.profitShare}%)</td>
-                <td className="px-4 py-4 font-semibold text-green-300">{maskVal(adminShare, isViewer || isManager)}</td>
-                <td className="px-4 py-4 text-neutral-400">{maskVal(partner.withdrawn, isViewer)}</td>
-                <td className="px-4 py-4 font-semibold text-white">
+                <td className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm text-white whitespace-nowrap">{partner.name}</td>
+                <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm text-neutral-400 whitespace-nowrap">{maskVal(partner.revenue, isViewer)}</td>
+                <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm text-neutral-400 whitespace-nowrap">{maskVal(partnerShare, isViewer)} ({partner.profitShare}%)</td>
+                <td className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm text-green-300 whitespace-nowrap">{maskVal(adminShare, isViewer || isManager)}</td>
+                <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm text-neutral-400 whitespace-nowrap">{maskVal(partner.withdrawn, isViewer)}</td>
+                <td className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm text-white whitespace-nowrap">
                   <span className={`rounded-md px-2 py-0.5 ${pendingBalance > 0 ? "bg-green-500/10 text-green-300" : "bg-neutral-500/10 text-neutral-400"}`}>
                     {maskVal(pendingBalance, isViewer)}
                   </span>
@@ -196,18 +196,18 @@ export default function WhiteLabelEarningsPage() {
           headers={["Date", "Partner Name", "Type", "Adjustment Amount", "Auditor Remark", "Action"]}
           rows={filteredAdjustments.map((adj) => (
             <tr key={adj.id} className="hover:bg-white/[0.01]">
-              <td className="px-4 py-4 text-xs text-neutral-500 font-mono">{adj.date}</td>
-              <td className="px-4 py-4 font-semibold text-white">{adj.partnerName}</td>
-              <td className="px-4 py-4">
+              <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs text-neutral-500 font-mono whitespace-nowrap">{adj.date}</td>
+              <td className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm text-white whitespace-nowrap">{adj.partnerName}</td>
+              <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap">
                 <span className={`rounded px-2 py-0.5 text-xs font-bold ${adj.type === "Bonus" ? "bg-green-500/10 text-green-300" : "bg-red-500/10 text-red-300"}`}>
                   {adj.type}
                 </span>
               </td>
-              <td className={`px-4 py-4 font-semibold ${adj.amount >= 0 ? "text-green-300" : "text-red-300"}`}>
+              <td className={`px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm whitespace-nowrap ${adj.amount >= 0 ? "text-green-300" : "text-red-300"}`}>
                 {isViewer ? "$***" : (adj.amount >= 0 ? `+$${adj.amount.toLocaleString()}` : `-$${Math.abs(adj.amount).toLocaleString()}`)}
               </td>
-              <td className="px-4 py-4 text-neutral-400 text-xs italic">&quot;{adj.remark}&quot;</td>
-              <td className="px-4 py-4">
+              <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm text-neutral-400 italic whitespace-nowrap">&quot;{adj.remark}&quot;</td>
+              <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap">
                 {canDelete ? (
                   <button 
                     onClick={() => { deleteAdjustment(adj.id); triggerToast("Adjustment removed"); }}

@@ -91,7 +91,7 @@ export default function InitiatedPaymentsPage() {
       </div>
 
       {/* Metrics */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         {metrics.map(([label, value]) => (
           <article key={label} className={`${adminPanel} p-5`}>
             <p className="text-sm text-neutral-500">{label}</p>
@@ -152,45 +152,45 @@ export default function InitiatedPaymentsPage() {
 
         {/* Table */}
         <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
-          <table className="w-full min-w-[1000px] text-left text-sm">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="bg-white/[0.025] text-xs uppercase tracking-wide text-neutral-500">
               <tr>
-                <th className="px-4 py-4 font-semibold">User</th>
-                <th className="px-4 py-4 font-semibold">Plan</th>
-                <th className="px-4 py-4 font-semibold">Amount</th>
-                <th className="px-4 py-4 font-semibold">Source</th>
-                <th className="px-4 py-4 font-semibold">Initiated At</th>
-                <th className="px-4 py-4 font-semibold">Sys Status</th>
-                <th className="px-4 py-4 font-semibold">Sales Status</th>
-                <th className="px-4 py-4 font-semibold text-right">Actions</th>
+                <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold">User</th>
+                <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold">Plan</th>
+                <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold">Amount</th>
+                <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold hidden md:table-cell">Source</th>
+                <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold hidden md:table-cell">Initiated At</th>
+                <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold hidden sm:table-cell">Sys Status</th>
+                <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold">Sales Status</th>
+                <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filtered.map((i) => {
                 return (
                   <tr key={i.id} className="hover:bg-white/[0.025] transition-colors">
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm">
                       <div>
-                        <p className="font-semibold text-white">{i.user?.name || "Unknown"}</p>
-                        <p className="text-xs text-neutral-500">{i.user?.email}</p>
+                        <p className="font-semibold text-white leading-tight">{i.user?.name || "Unknown"}</p>
+                        <p className="text-[10px] sm:text-xs text-neutral-500 mt-0.5 hidden sm:block">{i.user?.email}</p>
                         {i.user?.phone && <p className="text-[10px] text-green-400 mt-0.5">📞 {i.user.phone}</p>}
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-xs font-semibold text-neutral-300">{i.plan?.name || "N/A"}</td>
-                    <td className="px-4 py-4 font-mono text-green-300 font-bold">${Number(i.amount).toLocaleString()}</td>
-                    <td className="px-4 py-4 text-xs text-neutral-300">{i.source || i.paymentGateway}</td>
-                    <td className="px-4 py-4 text-xs text-neutral-400 font-mono">
+                    <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-xs font-semibold text-neutral-300 whitespace-nowrap">{i.plan?.name || "N/A"}</td>
+                    <td className="px-2 py-2.5 sm:px-4 sm:py-4 font-mono text-green-300 font-bold whitespace-nowrap text-xs sm:text-sm">${Number(i.amount).toLocaleString()}</td>
+                    <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-xs text-neutral-300 hidden md:table-cell whitespace-nowrap">{i.source || i.paymentGateway}</td>
+                    <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-xs text-neutral-400 font-mono hidden md:table-cell whitespace-nowrap">
                       {new Date(i.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                     </td>
-                    <td className="px-4 py-4">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-black border uppercase tracking-wider ${
+                    <td className="px-2 py-2.5 sm:px-4 sm:py-4 hidden sm:table-cell whitespace-nowrap text-xs sm:text-sm">
+                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black border uppercase tracking-wider ${
                         i.status === "completed" ? "bg-green-500/10 text-green-300 border-green-500/20" : "bg-yellow-500/10 text-yellow-300 border-yellow-500/20"
                       }`}>
                         {i.status}
                       </span>
                     </td>
-                    <td className="px-4 py-4">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-black border uppercase tracking-wider ${
+                    <td className="px-2 py-2.5 sm:px-4 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black border uppercase tracking-wider ${
                         i.followUpStatus === "CONVERTED" ? "bg-green-500/10 text-green-300 border-green-500/20" :
                         i.followUpStatus === "CLOSED" ? "bg-red-500/10 text-red-300 border-red-500/20" :
                         i.followUpStatus === "PENDING" ? "bg-white/5 text-neutral-400 border-white/10" :
@@ -199,7 +199,7 @@ export default function InitiatedPaymentsPage() {
                         {i.followUpStatus}
                       </span>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-right whitespace-nowrap text-xs sm:text-sm">
                       <div className="flex gap-2 justify-end items-center">
                         {i.user?.phone && (
                           <>

@@ -69,10 +69,10 @@ export default function WhiteLabelDetailsPage({ params }) {
             headers={["User", "Plan", "Payment", "Date"]}
             rows={partnerUsers.map((user) => (
               <tr key={`${user.user}-${user.date}`}>
-                <td className="px-4 py-4 font-semibold text-white">{user.user}</td>
-                <td className="px-4 py-4 text-neutral-400">{user.plan}</td>
-                <td className="px-4 py-4 font-semibold text-white">{isViewer ? "$ ***" : user.payment}</td>
-                <td className="px-4 py-4 text-neutral-400">{user.date}</td>
+                <td className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm text-white whitespace-nowrap">{user.user}</td>
+                <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm text-neutral-400 whitespace-nowrap">{user.plan}</td>
+                <td className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm text-white whitespace-nowrap">{isViewer ? "$ ***" : user.payment}</td>
+                <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm text-neutral-400 whitespace-nowrap">{user.date}</td>
               </tr>
             ))}
           />
@@ -85,10 +85,10 @@ export default function WhiteLabelDetailsPage({ params }) {
             rows={transactions.map((transaction) => {
               return (
                 <tr key={`${transaction.amount}-${transaction.date}`}>
-                  <td className="px-4 py-4 font-semibold text-white">{isViewer ? "$ ***" : transaction.amount}</td>
-                  <td className="px-4 py-4 text-green-300">{(isViewer || isManager) ? "$ ***" : transaction.adminCut}</td>
-                  <td className="px-4 py-4 text-neutral-400">{isViewer ? "$ ***" : transaction.wlCut}</td>
-                  <td className="px-4 py-4 text-neutral-400">{transaction.date}</td>
+                  <td className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm text-white whitespace-nowrap">{isViewer ? "$ ***" : transaction.amount}</td>
+                  <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm text-green-300 whitespace-nowrap">{(isViewer || isManager) ? "$ ***" : transaction.adminCut}</td>
+                  <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm text-neutral-400 whitespace-nowrap">{isViewer ? "$ ***" : transaction.wlCut}</td>
+                  <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm text-neutral-400 whitespace-nowrap">{transaction.date}</td>
                 </tr>
               );
             })}

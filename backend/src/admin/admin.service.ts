@@ -105,6 +105,214 @@ export class AdminService implements OnModuleInit {
       .replace(/^-+|-+$/g, '');
   }
 
+  async getDashboardStats() {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    // 1. Total Users
+    const totalUsers = await this.prisma.user.count({
+      where: { isDeleted: false },
+    });
+
+    // 2. Active Users
+    const activeUsers = await this.prisma.user.count({
+      where: {
+        isDeleted: false,
+        status: { in: ['ACTIVE', 'VIP'] },
+      },
+    });
+
+    // 3. Total Revenue (Approved deposits)
+    const revenueAgg = await this.prisma.payment.aggregate({
+      where: { status: 'APPROVED' },
+      _sum: { amount: true },
+    });
+    const totalRevenue = revenueAgg._sum.amount ? Number(revenueAgg._sum.amount) : 0;
+
+    // 4. Total Capital
+    const capitalAgg = await this.prisma.wallet.aggregate({
+      _sum: { currentEquity: true },
+    });
+    const totalCapital = capitalAgg._sum.currentEquity ? Number(capitalAgg._sum.currentEquity) : 0;
+
+    // 5. Total User Wallet Balance
+    const realizedAgg = await this.prisma.wallet.aggregate({
+      _sum: { realizedBalance: true },
+    });
+    const totalWalletBalance = realizedAgg._sum.realizedBalance ? Number(realizedAgg._sum.realizedBalance) : 0;
+
+    // 6. Active Wallet Balance
+    const activeWalletAgg = await this.prisma.wallet.aggregate({
+      where: {
+        user: {
+          isDeleted: false,
+          status: { in: ['ACTIVE', 'VIP'] },
+        },
+      },
+      _sum: { availableBalance: true },
+    });
+    const activeWalletBalance = activeWalletAgg._sum.availableBalance ? Number(activeWalletAgg._sum.availableBalance) : 0;
+
+    // 7. Total Profit Paid
+    const profitAgg = await this.prisma.profitDistribution.aggregate({
+      where: { status: 'COMPLETED' },
+      _sum: { netProfit: true },
+    });
+    const totalProfitPaid = profitAgg._sum.netProfit ? Number(profitAgg._sum.netProfit) : 0;
+
+    // 8. Subscription Status Card
+    const subActive = await this.prisma.user.count({
+      where: { isDeleted: false, status: { in: ['ACTIVE', 'VIP'] } },
+    });
+    const subExpired = await this.prisma.user.count({
+      where: { isDeleted: false, status: 'EXPIRED' },
+    });
+    const subNew = await this.prisma.user.count({
+      where: { isDeleted: false, status: 'NEW' },
+    });
+    const subBlocked = await this.prisma.user.count({
+      where: { isDeleted: false, status: 'BLOCKED' },
+    });
+
+    // 9. Revenue Overview & Change Percent
+    const now = new Date();
+    const currentWeekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const prevWeekStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const currentWeekPayments = await this.prisma.payment.aggregate({
+      where: {
+        status: 'APPROVED',
+        createdAt: { gte: currentWeekStart },
+      },
+      _sum: { amount: true },
+    });
+    const prevWeekPayments = await this.prisma.payment.aggregate({
+      where: {
+        status: 'APPROVED',
+        createdAt: { gte: prevWeekStart, lt: currentWeekStart },
+      },
+      _sum: { amount: true },
+    });
+
+    const currentWeekVal = currentWeekPayments._sum.amount ? Number(currentWeekPayments._sum.amount) : 0;
+    const prevWeekVal = prevWeekPayments._sum.amount ? Number(prevWeekPayments._sum.amount) : 0;
+
+    const changePercent = prevWeekVal > 0 
+      ? parseFloat(((currentWeekVal - prevWeekVal) / prevWeekVal * 100).toFixed(1))
+      : 0;
+
+    // 10. Additional operational metrics
+    const pendingDeposits = await this.prisma.payment.count({
+      where: { status: 'PENDING' },
+    });
+    const approvedDeposits = await this.prisma.payment.count({
+      where: { status: 'APPROVED' },
+    });
+    const pendingWithdrawals = await this.prisma.withdrawal.count({
+      where: { status: 'PENDING' },
+    });
+    const approvedWithdrawals = await this.prisma.withdrawal.count({
+      where: { status: 'APPROVED' },
+    });
+    const todayProfitAgg = await this.prisma.profitDistribution.aggregate({
+      where: {
+        status: 'COMPLETED',
+        createdAt: { gte: startOfToday },
+      },
+      _sum: { netProfit: true },
+    });
+    const todayProfitDistributed = todayProfitAgg._sum.netProfit ? Number(todayProfitAgg._sum.netProfit) : 0;
+
+    const totalActivePlans = await this.prisma.userPlan.count({
+      where: { active: true },
+    });
+
+    const referralAgg = await this.prisma.referralReward.aggregate({
+      where: { status: 'PAID' },
+      _sum: { commissionAmount: true },
+    });
+    const totalReferralEarnings = referralAgg._sum.commissionAmount ? Number(referralAgg._sum.commissionAmount) : 0;
+
+    const todayNewUsers = await this.prisma.user.count({
+      where: {
+        isDeleted: false,
+        createdAt: { gte: startOfToday },
+      },
+    });
+
+    // 11. Chart data
+    const revenueChart = await this.getRevenueChartData();
+
+    return {
+      totalUsers,
+      activeUsers,
+      totalRevenue,
+      totalCapital,
+      totalWalletBalance,
+      activeWalletBalance,
+      totalProfitPaid,
+      subscriptionStatus: {
+        total: totalUsers,
+        active: subActive,
+        expired: subExpired,
+        newUsers: subNew,
+        blocked: subBlocked,
+      },
+      revenueOverview: {
+        total: totalRevenue,
+        changePercent,
+      },
+      revenueChart,
+      additionalMetrics: {
+        pendingDeposits,
+        approvedDeposits,
+        pendingWithdrawals,
+        approvedWithdrawals,
+        todayProfitDistributed,
+        totalActivePlans,
+        totalReferralEarnings,
+        todayNewUsers,
+      },
+    };
+  }
+
+  async getRevenueChartData() {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 6); // Last 7 days including today
+    startDate.setHours(0, 0, 0, 0);
+
+    const payments = await this.prisma.payment.findMany({
+      where: {
+        status: 'APPROVED',
+        createdAt: { gte: startDate },
+      },
+      select: {
+        createdAt: true,
+        amount: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const dailyMap = new Map<string, number>();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      dailyMap.set(dateStr, 0);
+    }
+
+    for (const p of payments) {
+      const dateStr = p.createdAt.toISOString().split('T')[0];
+      if (dailyMap.has(dateStr)) {
+        dailyMap.set(dateStr, dailyMap.get(dateStr)! + Number(p.amount));
+      }
+    }
+
+    return Array.from(dailyMap.entries())
+      .map(([date, amount]) => ({ date, amount }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
   async getData() {
     const [
       dbUsers,
@@ -550,7 +758,7 @@ export class AdminService implements OnModuleInit {
           dbSettings?.maintenanceMode ?? dbSettings?.maintenance ?? false,
       },
       paymentModes: {
-        upi: dbSettings?.upiEnabled ?? false,
+        upi: false,
         bank: false,
         usdt: dbSettings?.usdtEnabled ?? true,
       },
@@ -1125,19 +1333,10 @@ export class AdminService implements OnModuleInit {
     } = body;
 
     if (upiEnabled === true) {
-      if (!upiId || !upiId.trim()) {
-        return {
-          error: 'UPI ID is required when UPI payment rail is enabled',
-          status: 400,
-        };
-      }
-      if (!upiName || !upiName.trim()) {
-        return {
-          error:
-            'UPI Account Name is required when UPI payment rail is enabled',
-          status: 400,
-        };
-      }
+      return {
+        error: 'UPI payment rail cannot be enabled. UPI is deprecated.',
+        status: 400,
+      };
     }
 
     if (usdtEnabled === true) {
@@ -1189,10 +1388,7 @@ export class AdminService implements OnModuleInit {
             usdtAddress !== undefined ? usdtAddress : existing.usdtAddress,
           usdtNetwork:
             usdtNetwork !== undefined ? usdtNetwork : existing.usdtNetwork,
-          upiEnabled:
-            upiEnabled !== undefined
-              ? Boolean(upiEnabled)
-              : existing.upiEnabled,
+          upiEnabled: false,
           usdtEnabled:
             usdtEnabled !== undefined
               ? Boolean(usdtEnabled)
@@ -1255,7 +1451,7 @@ export class AdminService implements OnModuleInit {
           upiId: upiId || null,
           usdtAddress: usdtAddress || null,
           usdtNetwork: usdtNetwork || 'TRC20',
-          upiEnabled: upiEnabled !== undefined ? Boolean(upiEnabled) : true,
+          upiEnabled: false,
           usdtEnabled: usdtEnabled !== undefined ? Boolean(usdtEnabled) : true,
           upiName: upiName || '',
           upiQrCode: upiQrCode || '',
@@ -2310,6 +2506,9 @@ export class AdminService implements OnModuleInit {
           data: { realizedBalance: nextBalance },
         });
 
+        const entryType = pnl.isPositive() ? 'CREDIT' : 'DEBIT';
+        const systemEntryType = pnl.isPositive() ? 'DEBIT' : 'CREDIT';
+
         const group = await tx.transactionGroup.create({
           data: {
             type: pnl.isPositive() ? 'TRADE_PROFIT' : 'TRADE_LOSS',
@@ -2318,16 +2517,25 @@ export class AdminService implements OnModuleInit {
           },
         });
 
-        await tx.ledgerEntry.create({
-          data: {
-            transactionGroupId: group.id,
-            userId: trade.userId,
-            partnerId: trade.partnerId,
-            accountType: 'USER',
-            entryType: pnl.isPositive() ? 'CREDIT' : 'DEBIT',
-            amount: pnl.abs(),
-            currency: 'USD',
-          },
+        await tx.ledgerEntry.createMany({
+          data: [
+            {
+              transactionGroupId: group.id,
+              userId: trade.userId,
+              partnerId: trade.partnerId,
+              accountType: 'USER',
+              entryType: entryType,
+              amount: pnl.abs(),
+              currency: 'USD',
+            },
+            {
+              transactionGroupId: group.id,
+              accountType: 'SYSTEM',
+              entryType: systemEntryType,
+              amount: pnl.abs(),
+              currency: 'USD',
+            },
+          ],
         });
       }
     });
@@ -3475,7 +3683,7 @@ export class AdminService implements OnModuleInit {
       existing.forEach((d) => alreadyPaidSet.add(d.userId));
     }
 
-    const eligibleUsers = [];
+    const eligibleUsers: any[] = [];
 
     for (const up of activeUserPlans) {
       const user = up.user;

@@ -63,13 +63,6 @@ export class PlansService {
           network: settings?.usdtNetwork || 'TRC20',
           usdtQrCode: settings?.usdtQrCode || '',
         },
-        {
-          key: 'UPI',
-          enabled: settings?.upiEnabled ?? !!settings?.upiId,
-          upiId: settings?.upiId || '',
-          upiName: settings?.upiName || '',
-          upiQrCode: settings?.upiQrCode || '',
-        },
       ],
     };
   }

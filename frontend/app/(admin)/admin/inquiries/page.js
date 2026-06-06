@@ -110,7 +110,7 @@ export default function InquiriesPage() {
       </div>
 
       {/* Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {metrics.map(([label, value]) => (
           <article key={label} className={`${adminPanel} p-5`}>
             <p className="text-sm text-neutral-500">{label}</p>
@@ -178,15 +178,15 @@ export default function InquiriesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
-            <table className="w-full min-w-[960px] text-left text-sm">
+            <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="bg-white/[0.025] text-xs uppercase tracking-wide text-neutral-500">
                 <tr>
-                  <th className="px-4 py-4 font-semibold">ID</th>
-                  <th className="px-4 py-4 font-semibold">Sender Details</th>
-                  <th className="px-4 py-4 font-semibold">Subject</th>
-                  <th className="px-4 py-4 font-semibold">Status</th>
-                  <th className="px-4 py-4 font-semibold">Received Date</th>
-                  <th className="px-4 py-4 font-semibold text-right">Actions</th>
+                  <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold hidden sm:table-cell">ID</th>
+                  <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold">Sender Details</th>
+                  <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold hidden sm:table-cell">Subject</th>
+                  <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold">Status</th>
+                  <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold hidden md:table-cell">Received Date</th>
+                  <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -194,18 +194,18 @@ export default function InquiriesPage() {
                   const initials = (i.name || 'S').split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
                   return (
                     <tr key={i.id} className="hover:bg-white/[0.025] transition-colors">
-                      <td className="px-4 py-4 font-mono text-xs text-neutral-400">#{i.id.slice(-6).toUpperCase()}</td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-green-500/10 border border-green-500/20 text-xs font-black text-green-300">{initials}</span>
+                      <td className="px-2 py-2.5 sm:px-4 sm:py-4 font-mono text-xs text-neutral-400 hidden sm:table-cell whitespace-nowrap">#{i.id.slice(-6).toUpperCase()}</td>
+                      <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm">
+                        <div className="flex items-center gap-2.5">
+                          <span className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-green-500/10 border border-green-500/20 text-xs font-black text-green-300">{initials}</span>
                           <div>
-                            <p className="font-semibold text-white">{i.name}</p>
-                            <p className="text-xs text-neutral-500">{i.email}</p>
+                            <p className="font-semibold text-white leading-tight">{i.name}</p>
+                            <p className="text-[10px] sm:text-xs text-neutral-500 mt-0.5 hidden sm:block">{i.email}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-neutral-200 font-medium max-w-xs truncate" title={i.subject}>{i.subject}</td>
-                      <td className="px-4 py-4">
+                      <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-neutral-200 font-medium max-w-xs truncate hidden sm:table-cell whitespace-nowrap" title={i.subject}>{i.subject}</td>
+                      <td className="px-2 py-2.5 sm:px-4 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
                         <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black border uppercase tracking-wider ${
                           i.status === "CLOSED" ? "bg-red-500/10 text-red-300 border-red-500/20" :
                           i.status === "RESPONDED" ? "bg-green-500/10 text-green-300 border-green-500/20" :
@@ -214,10 +214,10 @@ export default function InquiriesPage() {
                           {i.status}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-xs text-neutral-400 font-mono">
+                      <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-xs text-neutral-400 font-mono hidden md:table-cell whitespace-nowrap">
                         {new Date(i.createdAt).toLocaleDateString("en-US")} {new Date(i.createdAt).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' })}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-right whitespace-nowrap text-xs sm:text-sm">
                         <div className="flex gap-2 justify-end items-center">
                           <CrudButton icon={Eye} label="View Message" tone="view" onClick={() => setSelectedInquiry(i)} />
                           {canModify && i.status === "PENDING" && (

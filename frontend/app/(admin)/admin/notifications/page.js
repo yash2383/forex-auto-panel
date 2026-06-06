@@ -732,7 +732,7 @@ export default function AdminNotificationsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 w-full max-w-full overflow-x-hidden">
       {/* Toast Alert */}
       {message && (
         <div className={`fixed top-5 right-5 z-[100] flex items-center gap-2 rounded-lg border px-4 py-3 text-xs font-semibold shadow-2xl transition-all duration-300 animate-slide-in ${
@@ -1451,34 +1451,33 @@ export default function AdminNotificationsPage() {
                     </>
                   )}
                 </div>
-
               </div>
             )}
 
-            {/* Simplified Broadcast Table History */}
-            <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
+              {/* Simplified Broadcast Table History */}
+              <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
               <table className="w-full text-left text-xs">
                 <thead className="bg-white/[0.025] uppercase tracking-wide text-neutral-500 font-bold text-[10px]">
                   <tr>
-                    <th className="px-4 py-3">Title</th>
-                    <th className="px-4 py-3">Audience</th>
-                    <th className="px-4 py-3 text-center">Sent</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 text-[10px] sm:text-xs font-semibold whitespace-nowrap">Title</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 text-[10px] sm:text-xs font-semibold whitespace-nowrap">Audience</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 text-center text-[10px] sm:text-xs font-semibold whitespace-nowrap">Sent</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 text-[10px] sm:text-xs font-semibold whitespace-nowrap">Status</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 text-right text-[10px] sm:text-xs font-semibold whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {broadcasts.map(b => (
                     <tr key={b.id} className="hover:bg-white/[0.01]">
-                      <td className="px-4 py-3.5">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3.5 text-xs sm:text-sm">
                         <p className="font-semibold text-white">{b.title}</p>
                         <p className="text-neutral-500 mt-0.5 line-clamp-1">{b.body}</p>
                       </td>
-                      <td className="px-4 py-3.5 font-semibold text-[#00e676]">{b.audience}</td>
-                      <td className="px-4 py-3.5 text-center font-bold text-neutral-300">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3.5 text-xs sm:text-sm font-semibold text-[#00e676] whitespace-nowrap">{b.audience}</td>
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3.5 text-center font-bold text-neutral-300 text-xs sm:text-sm whitespace-nowrap">
                         {b.execution ? `${b.execution.sentUsers}/${b.execution.targetUsers}` : (b.totalUsers || "-")}
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3.5 text-xs sm:text-sm whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                           b.status === "SENT" ? "bg-green-500/10 text-green-300 border-green-500/20" :
                           b.status === "SENDING" ? "bg-cyan-500/10 text-cyan-300 border-cyan-500/20 animate-pulse" :
@@ -1488,7 +1487,7 @@ export default function AdminNotificationsPage() {
                           {b.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3.5">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3.5 text-xs sm:text-sm whitespace-nowrap">
                         <div className="flex gap-1.5 justify-end">
                           {b.status === "DRAFT" && true && (
                             <button
@@ -1609,19 +1608,19 @@ export default function AdminNotificationsPage() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-white/[0.025] uppercase tracking-wide text-neutral-500 font-bold text-[10px]">
                   <tr>
-                    {true && <th className="px-4 py-3 w-8"></th>}
-                    <th className="px-4 py-3">Notification</th>
-                    <th className="px-4 py-3">User</th>
-                    <th className="px-4 py-3">Channel</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Sent At</th>
+                    {true && <th className="px-3 py-2.5 sm:px-4 sm:py-3 w-8"></th>}
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 text-[10px] sm:text-xs font-semibold whitespace-nowrap">Notification</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 text-[10px] sm:text-xs font-semibold whitespace-nowrap">User</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 text-[10px] sm:text-xs font-semibold whitespace-nowrap">Channel</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 text-[10px] sm:text-xs font-semibold whitespace-nowrap">Status</th>
+                    <th className="px-3 py-2.5 sm:px-4 sm:py-3 text-[10px] sm:text-xs font-semibold whitespace-nowrap">Sent At</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 font-medium">
                   {getFilteredDeliveries().map(d => (
                     <tr key={d.id} className="hover:bg-white/[0.01] transition">
                       {true && (
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
                           <input
                             type="checkbox"
                             checked={selectedDeliveries.includes(d.id)}
@@ -1634,20 +1633,20 @@ export default function AdminNotificationsPage() {
                           />
                         </td>
                       )}
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm">
                         <p className="font-bold text-white">{d.notification?.title}</p>
                         <p className="text-neutral-500 text-[11px] mt-0.5 line-clamp-1">{d.notification?.body}</p>
                       </td>
-                      <td className="px-4 py-3 text-neutral-400 font-mono text-[10px]">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-neutral-400 font-mono text-[10px] whitespace-nowrap">
                         {d.notification?.userId || d.notification?.adminId || "Broadcast"}
                       </td>
-                      <td className="px-4 py-3 font-semibold">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">
                         <span className="flex items-center gap-1.5">
                           {getChannelIcon(d.channel)}
                           <span>{getChannelName(d.channel)}</span>
                         </span>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm whitespace-nowrap">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                           d.status === "DELIVERED" ? "bg-green-500/10 text-green-300 border-green-500/20" :
                           d.status === "PENDING" ? "bg-yellow-500/10 text-yellow-300 border-yellow-500/20 animate-pulse" :
@@ -1657,11 +1656,11 @@ export default function AdminNotificationsPage() {
                           {d.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-neutral-500 font-mono text-[10px]">
+                      <td className="px-3 py-2.5 sm:px-4 sm:py-3 text-neutral-500 font-mono text-[10px] whitespace-nowrap">
                         {new Date(d.createdAt).toLocaleString()}
                       </td>
                     </tr>
-                  ))}
+                  ))}`
                   {getFilteredDeliveries().length === 0 && (
                     <tr>
                       <td colSpan={true ? 6 : 5} className="px-4 py-8 text-center text-neutral-500">No matching logs found.</td>

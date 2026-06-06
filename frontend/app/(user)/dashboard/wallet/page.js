@@ -242,7 +242,6 @@ export default function WalletPage() {
                   >
                     <option value="bank_transfer">Bank Transfer</option>
                     <option value="crypto">Crypto (USDT)</option>
-                    <option value="upi">UPI Transfer</option>
                   </select>
                 </div>
               </div>
@@ -267,8 +266,7 @@ export default function WalletPage() {
                 <textarea 
                   placeholder={
                     method === "bank_transfer" ? "Bank Name: ABC Bank\nAccount Number: XXXXXX\nIFSC Code: ABCD0123456\nAccount Holder: John Doe" :
-                    method === "crypto" ? "USDT Address (TRC20): TXYZ123ABC..." :
-                    "UPI ID: username@bank"
+                    "USDT Address (TRC20): TXYZ123ABC..."
                   }
                   value={accountDetails}
                   onChange={(e) => setAccountDetails(e.target.value)}

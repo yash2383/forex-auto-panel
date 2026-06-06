@@ -318,14 +318,14 @@ export default function ProfitDistributionPage() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-white/[0.025] text-xs uppercase tracking-wide text-neutral-500">
               <tr>
-                <th className="px-4 py-4 font-semibold">Reference</th>
-                <th className="px-4 py-4 font-semibold">User</th>
-                <th className="px-4 py-4 font-semibold">Type</th>
-                <th className="px-4 py-4 font-semibold">Amount</th>
-                <th className="px-4 py-4 font-semibold">Distribution Date</th>
-                <th className="px-4 py-4 font-semibold">Status</th>
-                <th className="px-4 py-4 font-semibold">Notes</th>
-                {canEdit && <th className="px-4 py-4 font-semibold text-right">Actions</th>}
+                <th className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm whitespace-nowrap">Reference</th>
+                <th className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm whitespace-nowrap">User</th>
+                <th className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm whitespace-nowrap">Type</th>
+                <th className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm whitespace-nowrap">Amount</th>
+                <th className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm whitespace-nowrap">Distribution Date</th>
+                <th className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm whitespace-nowrap">Status</th>
+                <th className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm whitespace-nowrap">Notes</th>
+                {canEdit && <th className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm whitespace-nowrap text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-neutral-300">
@@ -341,19 +341,19 @@ export default function ProfitDistributionPage() {
 
                 return (
                   <tr key={pd.id} className="hover:bg-white/[0.025] transition-colors">
-                    <td className="px-4 py-4 font-semibold text-white font-mono">{pd.reference}</td>
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-3 sm:px-4 sm:py-4 font-semibold text-xs sm:text-sm text-white font-mono whitespace-nowrap">{pd.reference}</td>
+                    <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap">
                       <div>
                         <p className="font-semibold text-white">{pd.userName}</p>
                         <p className="text-[11px] text-neutral-500">{pd.userEmail}</p>
                       </div>
                     </td>
-                    <td className="px-4 py-4 font-medium">{pd.type}</td>
-                    <td className="px-4 py-4 font-mono font-bold text-green-300">
+                    <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm font-medium whitespace-nowrap">{pd.type}</td>
+                    <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm font-mono font-bold text-green-300 whitespace-nowrap">
                       ${pd.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-4 py-4">{distDate}</td>
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap">{distDate}</td>
+                    <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap">
                       <button
                         disabled={!canEdit}
                         onClick={() => handleToggleStatus(pd)}
@@ -367,11 +367,11 @@ export default function ProfitDistributionPage() {
                         {isPaid ? "Paid" : "Pending"}
                       </button>
                     </td>
-                    <td className="px-4 py-4 text-xs text-neutral-400 max-w-xs truncate" title={pd.note}>
+                    <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm text-neutral-400 max-w-xs truncate whitespace-nowrap" title={pd.note}>
                       {pd.note || "-"}
                     </td>
                     {canEdit && (
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-3 py-3 sm:px-4 sm:py-4 text-xs sm:text-sm text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-2">
                           <button
                             onClick={() => handleOpenEditModal(pd)}
@@ -395,7 +395,7 @@ export default function ProfitDistributionPage() {
               })}
               {filteredDistributions.length === 0 && (
                 <tr>
-                  <td colSpan={canEdit ? 8 : 7} className="px-4 py-12 text-center text-neutral-500">
+                  <td colSpan={canEdit ? 8 : 7} className="px-3 py-12 text-center text-neutral-500">
                     No payout distributions found.
                   </td>
                 </tr>

@@ -81,6 +81,69 @@ const sparklineFill = {
   purple: "rgba(168,85,247,0.13)",
 };
 
+const getResponsiveClass = (sectionKey, header, index) => {
+  if (!header) return "";
+  const h = header.toLowerCase();
+  
+  if (index === 0 || h.includes("status") || h.includes("action") || h.includes("amount") || h.includes("p/l") || h.includes("revenue")) {
+    return "";
+  }
+  
+  if (sectionKey === "users") {
+    if (h.includes("email")) return "hidden lg:table-cell";
+    if (h.includes("campaign")) return "hidden md:table-cell";
+    if (h.includes("plan")) return "hidden md:table-cell";
+    if (h.includes("deposit")) return "hidden sm:table-cell";
+  }
+  
+  if (sectionKey === "payments") {
+    if (h.includes("plan")) return "hidden md:table-cell";
+    if (h.includes("method")) return "hidden sm:table-cell";
+    if (h.includes("transaction id") || h.includes("ref / utr") || h.includes("utr")) return "hidden lg:table-cell";
+  }
+  
+  if (sectionKey === "trades") {
+    if (h.includes("side")) return "hidden sm:table-cell";
+    if (h.includes("entry")) return "hidden md:table-cell";
+    if (h.includes("exit")) return "hidden md:table-cell";
+    if (h.includes("date")) return "hidden sm:table-cell";
+    if (h.includes("result")) return "hidden md:table-cell";
+  }
+  
+  if (sectionKey === "notifications") {
+    if (h.includes("channel")) return "hidden sm:table-cell";
+  }
+  
+  if (sectionKey === "campaigns") {
+    if (h.includes("users")) return "hidden sm:table-cell";
+    if (h.includes("deposits")) return "hidden sm:table-cell";
+  }
+  
+  if (sectionKey === "referrals") {
+    if (h.includes("user")) return "hidden sm:table-cell";
+    if (h.includes("deposit")) return "hidden md:table-cell";
+  }
+  
+  if (sectionKey === "reports") {
+    if (h.includes("client")) return "hidden sm:table-cell";
+    if (h.includes("last updated") || h.includes("date")) return "hidden md:table-cell";
+    if (h.includes("file format")) return "hidden sm:table-cell";
+  }
+  
+  if (sectionKey === "withdrawals" || h.includes("withdrawal")) {
+    if (h.includes("method")) return "hidden sm:table-cell";
+    if (h.includes("date")) return "hidden md:table-cell";
+  }
+  
+  if (sectionKey === "plans") {
+    if (h.includes("subtitle")) return "hidden sm:table-cell";
+    if (h.includes("features")) return "hidden md:table-cell";
+  }
+
+  if (index > 2 && index < 6) return "hidden sm:table-cell";
+  return "";
+};
+
 const sectionContent = {
   users: {
     permissionKey: "users",
@@ -425,14 +488,60 @@ function MetricCard({ item }) {
   );
 }
 
+const formatCurrency = (val) => {
+  if (val === undefined || val === null || val === "—") return "—";
+  if (typeof val === "string" && val.startsWith("$")) return val;
+  return `$${Number(val).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+};
+
+const formatNumber = (val) => {
+  if (val === undefined || val === null || val === "—") return "—";
+  if (typeof val === "string" && !isNaN(val)) return Number(val).toLocaleString("en-US");
+  if (typeof val === "number") return val.toLocaleString("en-US");
+  return val;
+};
+
 function RevenueChart() {
-  const labels = ["May 19", "May 20", "May 21", "May 22", "May 23", "May 24", "May 25"];
-  const points = [[35, 168], [126, 146], [216, 100], [307, 128], [398, 88], [489, 45], [568, 70]];
+  const dashboardStats = useAdminStore((s) => s.dashboardStats);
+  const chartData = dashboardStats?.revenueChart || [];
+  const overview = dashboardStats?.revenueOverview || { total: 248250.75, changePercent: 23.8 };
+
+  const labels = useMemo(() => {
+    if (chartData.length === 0) {
+      return ["May 19", "May 20", "May 21", "May 22", "May 23", "May 24", "May 25"];
+    }
+    return chartData.map((d) => {
+      const parts = d.date.split("-");
+      if (parts.length === 3) {
+        const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        return dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      }
+      return d.date;
+    });
+  }, [chartData]);
+
+  const points = useMemo(() => {
+    if (chartData.length === 0) {
+      return [[35, 168], [126, 146], [216, 100], [307, 128], [398, 88], [489, 45], [568, 70]];
+    }
+    const maxVal = Math.max(...chartData.map((d) => d.amount), 100);
+    const startX = 35;
+    const endX = 568;
+    const minY = 45;
+    const maxY = 205;
+
+    return chartData.map((d, index) => {
+      const x = startX + (index * (endX - startX)) / (chartData.length - 1 || 1);
+      const y = maxY - (d.amount / maxVal) * (maxY - minY);
+      return [x, y];
+    });
+  }, [chartData]);
+
   const path = points.map(([x, y], index) => `${index === 0 ? "M" : "L"} ${x} ${y}`).join(" ");
-  const area = `${path} L 568 205 L 35 205 Z`;
+  const area = `${path} L ${points[points.length - 1]?.[0] || 568} 205 L 35 205 Z`;
 
   return (
-    <section className={`${adminPanel} p-5 xl:col-span-6`}>
+    <section className={`${adminPanel} p-5 w-full min-w-0 overflow-hidden`}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
@@ -440,8 +549,12 @@ function RevenueChart() {
             <h2 className="text-lg font-semibold text-white">Revenue Overview</h2>
           </div>
           <div className="mt-5 flex flex-wrap items-end gap-3">
-            <p className="text-3xl font-semibold tracking-tight text-white">$248,250.75</p>
-            <p className="pb-1 text-sm text-neutral-400"><span className="text-green-300">+ 23.8%</span> vs last week</p>
+            <p className="text-3xl font-semibold tracking-tight text-white">{formatCurrency(overview.total)}</p>
+            <p className="pb-1 text-sm text-neutral-400">
+              <span className={overview.changePercent >= 0 ? "text-green-300" : "text-red-300"}>
+                {overview.changePercent >= 0 ? `+ ${overview.changePercent}%` : `${overview.changePercent}%`}
+              </span> vs last week
+            </p>
           </div>
         </div>
         <button className={`inline-flex h-10 items-center gap-2 px-4 text-sm text-white ${adminControl}`}>
@@ -450,7 +563,7 @@ function RevenueChart() {
         </button>
       </div>
 
-      <div className="mt-5 h-[255px] overflow-hidden">
+      <div className="mt-5 w-full min-w-0 overflow-hidden h-[255px]">
         <svg viewBox="0 0 620 230" className="h-full w-full" role="img" aria-label="Revenue chart">
           {[0, 1, 2, 3, 4, 5].map((line) => (
             <line key={line} x1="35" x2="590" y1={25 + line * 36} y2={25 + line * 36} stroke="rgba(255,255,255,0.08)" strokeDasharray="4 5" />
@@ -466,11 +579,11 @@ function RevenueChart() {
           </defs>
           <path d={area} fill="url(#revenueArea)" />
           <path d={path} fill="none" stroke="rgb(34 197 94)" strokeWidth="2.5" />
-          {points.map(([x, y]) => (
+          {points.map(([x, y], index) => (
             <circle key={`${x}-${y}`} cx={x} cy={y} r="4.5" fill="rgb(34 197 94)" />
           ))}
           {labels.map((label, index) => (
-            <text key={label} x={35 + index * 89} y="225" fill="rgb(156 163 175)" fontSize="12" textAnchor="middle">{label}</text>
+            <text key={`${label}-${index}`} x={points[index]?.[0] || (35 + index * 89)} y="225" fill="rgb(156 163 175)" fontSize="12" textAnchor="middle">{label}</text>
           ))}
         </svg>
       </div>
@@ -480,18 +593,21 @@ function RevenueChart() {
 
 function SubscriptionStatus() {
   const users = useAdminStore((s) => s.users);
+  const dashboardStats = useAdminStore((s) => s.dashboardStats);
 
   const counts = useMemo(() => {
-    const active = users.filter((u) => u.status === "Active").length;
-    const vip    = users.filter((u) => u.status === "VIP").length;
+    if (dashboardStats?.subscriptionStatus) {
+      return dashboardStats.subscriptionStatus;
+    }
+    const active = users.filter((u) => u.status === "Active" || u.status === "VIP").length;
     const expired = users.filter((u) => u.status === "Expired").length;
     const newUsers = users.filter((u) => u.status === "New").length;
     const blocked = users.filter((u) => u.status === "Blocked").length;
     const total = users.length || 1;
-    return { active, vip, expired, newUsers, blocked, total };
-  }, [users]);
+    return { active, expired, newUsers, blocked, total };
+  }, [users, dashboardStats]);
 
-  const activeTotal = counts.active + counts.vip;
+  const activeTotal = counts.active;
   const t = counts.total;
   const activePct  = ((activeTotal / t) * 100).toFixed(1);
   const expiredPct = ((counts.expired / t) * 100).toFixed(1);
@@ -520,7 +636,7 @@ function SubscriptionStatus() {
   ];
 
   return (
-    <section className={`${adminPanel} p-5 xl:col-span-3`}>
+    <section className={`${adminPanel} p-5 w-full min-w-0 overflow-hidden`}>
       <h2 className="text-lg font-semibold text-white">Subscription Status</h2>
       <div className="mt-8 grid items-center gap-8 sm:grid-cols-[190px_1fr] xl:grid-cols-1 2xl:grid-cols-[190px_1fr]">
         <div
@@ -552,31 +668,7 @@ function SubscriptionStatus() {
   );
 }
 
-function ActivityFeed() {
-  const logs = useAdminStore((s) => s.logs);
-  return (
-    <section className={`${adminPanel} p-5 xl:col-span-3`}>
-      <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
-      <div className="mt-6 space-y-5">
-        {logs.slice(0, 5).map((item) => (
-          <div key={item.id} className="flex gap-4">
-            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-blue-500/25 bg-blue-500/10 text-blue-300`}>
-              <Search className="h-4 w-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex justify-between gap-3">
-                <p className="text-sm font-semibold text-white">{item.action}</p>
-                <span className="shrink-0 text-sm text-neutral-400">{item.time}</span>
-              </div>
-              <p className="mt-1 text-sm text-neutral-400">Module: {item.module} {item.targetId && `| Ref: ${item.targetId}`}</p>
-            </div>
-          </div>
-        ))}
-      </div>
 
-    </section>
-  );
-}
 
 function PendingPaymentsTable({ onVerify, onApprove, onReject }) {
   const payments = useAdminStore((s) => s.payments);
@@ -617,35 +709,40 @@ function PendingPaymentsTable({ onVerify, onApprove, onReject }) {
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
-        <table className="w-full min-w-[1180px] text-left text-sm">
+        <table className="w-full min-w-[700px] text-left text-sm">
           <thead className="bg-white/[0.025] text-xs uppercase tracking-wide text-neutral-500">
             <tr>
-              {["ID", "User", "Plan", "Amount", "Method", "Transaction ID", "Status", "Actions"].map((head) => (
-                <th key={head} className="px-4 py-4 font-semibold">{head}</th>
-              ))}
+              <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold text-xs">ID</th>
+              <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold text-xs">User</th>
+              <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold text-xs hidden md:table-cell">Plan</th>
+              <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold text-xs">Amount</th>
+              <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold text-xs hidden sm:table-cell">Method</th>
+              <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold text-xs hidden lg:table-cell">Transaction ID</th>
+              <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold text-xs">Status</th>
+              <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold text-xs text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
             {pending.map((payment) => (
-              <tr key={payment.id} className="hover:bg-white/[0.025]">
-                <td className="px-4 py-4 font-bold text-white">{payment.id}</td>
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cyan-100 text-xs font-black text-slate-800">{payment.initials}</span>
+              <tr key={payment.id} className="hover:bg-white/[0.025] transition-colors">
+                <td className="px-2 py-2.5 sm:px-4 sm:py-4 font-bold text-white whitespace-nowrap text-xs sm:text-sm">{payment.id}</td>
+                <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-cyan-100 text-[10px] sm:text-xs font-black text-slate-800">{payment.initials}</span>
                     <div>
-                      <p className="font-semibold text-white">{payment.user}</p>
-                      <p className="text-xs text-neutral-500">{payment.email}</p>
+                      <p className="font-semibold text-white leading-tight">{payment.user}</p>
+                      <p className="text-[10px] sm:text-xs text-neutral-500 mt-0.5 hidden sm:block">{payment.email}</p>
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-4">{payment.plan}</td>
-                <td className="px-4 py-4 font-semibold text-white">{payment.amount}</td>
-                <td className="px-4 py-4">
-                  <span className="rounded bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-300">
+                <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm hidden md:table-cell whitespace-nowrap">{payment.plan}</td>
+                <td className="px-2 py-2.5 sm:px-4 sm:py-4 font-semibold text-white whitespace-nowrap text-xs sm:text-sm">{payment.amount}</td>
+                <td className="px-2 py-2.5 sm:px-4 sm:py-4 hidden sm:table-cell whitespace-nowrap text-xs sm:text-sm">
+                  <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300">
                     {payment.paymentType}
                   </span>
                 </td>
-                <td className="px-4 py-4 font-mono text-xs text-neutral-300">
+                <td className="px-2 py-2.5 sm:px-4 sm:py-4 hidden lg:table-cell font-mono text-xs text-neutral-300 whitespace-nowrap">
                   <div>
                     <span className="block font-semibold text-neutral-400">Transaction ID:</span>
                     <span className="block select-all text-amber-300">{payment.txnHash}</span>
@@ -658,31 +755,31 @@ function PendingPaymentsTable({ onVerify, onApprove, onReject }) {
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-4">
-                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${payment.status === "Verified" ? "bg-green-500/10 text-green-300 border border-green-500/20" : "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20"
+                <td className="px-2 py-2.5 sm:px-4 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${payment.status === "Verified" ? "bg-green-500/10 text-green-300 border border-green-500/20" : "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20"
                     }`}>
                     {payment.status}
                   </span>
                 </td>
-                <td className="px-4 py-4">
-                  <div className="flex items-center gap-2">
+                <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-right whitespace-nowrap text-xs sm:text-sm">
+                  <div className="flex items-center justify-end gap-1.5">
                     {payment.status === "Pending" && (
-                      <button onClick={() => onVerify(payment.id)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 text-xs font-bold text-yellow-300 hover:bg-yellow-500/20">
+                      <button onClick={() => onVerify(payment.id)} className="inline-flex h-8 items-center gap-1 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-2.5 text-[10px] sm:text-xs font-bold text-yellow-300 hover:bg-yellow-500/20 transition cursor-pointer">
                         Verify
                       </button>
                     )}
                     {payment.status === "Verified" && (
                       <>
-                        <button onClick={() => onApprove(payment.id)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/10 px-3 text-xs font-bold text-green-300 hover:bg-green-500/20">
+                        <button onClick={() => onApprove(payment.id)} className="inline-flex h-8 items-center gap-1 rounded-lg border border-green-500/30 bg-green-500/10 px-2.5 text-[10px] sm:text-xs font-bold text-green-300 hover:bg-green-500/20 transition cursor-pointer">
                           Approve
                         </button>
-                        <button onClick={() => onReject(payment.id)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 text-xs font-bold text-red-300 hover:bg-red-500/20">
+                        <button onClick={() => onReject(payment.id)} className="inline-flex h-8 items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 text-[10px] sm:text-xs font-bold text-red-300 hover:bg-red-500/20 transition cursor-pointer">
                           Reject
                         </button>
                       </>
                     )}
-                    <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.025] text-neutral-400">
-                      <MoreVertical className="h-4 w-4" />
+                    <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.025] text-neutral-400 hover:text-white transition">
+                      <MoreVertical className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </td>
@@ -790,32 +887,45 @@ const isNoDepositUser = (u) => u.plan === "None" || u.rawDeposit === 0;
 
 function PlatformOverview({ onVerify, onApprove, onReject }) {
   const stats = useAdminStore((s) => s.stats);
+  const dashboardStats = useAdminStore((s) => s.dashboardStats);
+  const activeStats = dashboardStats || stats;
+
+  const totalUsers = activeStats.totalUsers;
+  const activeUsers = activeStats.activeUsers;
+  const totalRevenue = activeStats.totalRevenue;
+  const totalCapital = activeStats.totalCapital;
+  const totalWalletBalance = activeStats.totalWalletBalance ?? activeStats.totalUserWalletBalance;
+  const activeWalletBalance = activeStats.activeWalletBalance;
+  const totalProfit = activeStats.totalProfitPaid ?? activeStats.totalProfit;
 
   return (
     <>
-      <section className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+      <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 min-w-0">
         {[
-          { icon: Users, label: "Total Users", value: stats.totalUsers ?? "—", sub: "Registered on platform", tone: "green" },
-          { icon: UserCheck, label: "Active Users", value: stats.activeUsers ?? "—", sub: "Active + VIP subscribers", tone: "violet" },
-          { icon: DollarSign, label: "Total Revenue", value: stats.totalRevenue ?? "—", sub: "All approved deposits", tone: "blue" },
-          { icon: Wallet, label: "Total Capital", value: stats.totalCapital ?? "—", sub: "Sum of user equity", tone: "amber" },
-          { icon: Wallet, label: "Total User Wallet Balance", value: stats.totalUserWalletBalance ?? "—", sub: "Realized balance sum", tone: "cyan" },
-          { icon: Wallet, label: "Active Wallet Balance", value: stats.activeWalletBalance ?? "—", sub: "Active + VIP users only", tone: "purple" },
-          { icon: TrendingUp, label: "Total Profit Paid", value: stats.totalProfit ?? "—", sub: "Paid profit distributions", tone: "green" },
+          { icon: Users, label: "Total Users", value: formatNumber(totalUsers) ?? "—", sub: "Registered on platform", tone: "green" },
+          { icon: UserCheck, label: "Active Users", value: formatNumber(activeUsers) ?? "—", sub: "Active + VIP subscribers", tone: "violet" },
+          { icon: DollarSign, label: "Total Revenue", value: formatCurrency(totalRevenue) ?? "—", sub: "All approved deposits", tone: "blue" },
+          { icon: Wallet, label: "Total Capital", value: formatCurrency(totalCapital) ?? "—", sub: "Sum of user equity", tone: "amber" },
+          { icon: Wallet, label: "Total User Wallet Balance", value: formatCurrency(totalWalletBalance) ?? "—", sub: "Realized balance sum", tone: "cyan" },
+          { icon: Wallet, label: "Active Wallet Balance", value: formatCurrency(activeWalletBalance) ?? "—", sub: "Active + VIP users only", tone: "purple" },
+          { icon: TrendingUp, label: "Total Profit Paid", value: formatCurrency(totalProfit) ?? "—", sub: "Paid profit distributions", tone: "green" },
         ].map((item) => (
           <MetricCard key={item.label} item={item} />
         ))}
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-12">
-        <RevenueChart />
-        <SubscriptionStatus />
-        <ActivityFeed />
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-6 w-full min-w-0">
+        <div className="xl:col-span-2 min-w-0 overflow-hidden">
+          <RevenueChart />
+        </div>
+        <div className="min-w-0 overflow-hidden">
+          <SubscriptionStatus />
+        </div>
       </section>
 
       <PendingPaymentsTable onVerify={onVerify} onApprove={onApprove} onReject={onReject} />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 min-w-0">
         {quickActions.map((item) => (
           <QuickActionCard key={item.title} item={item} />
         ))}
@@ -1294,9 +1404,9 @@ function AdminSectionPage({
   const [usdtQrCodeInput, setUsdtQrCodeInput] = useState(activeSettings.usdt?.usdtQrCode || "");
   const [platformFee, setPlatformFee] = useState(activeSettings.financials?.platformFee || 30);
   const [referralFee, setReferralFee] = useState(activeSettings.financials?.referralFee || 10);
-  const [upiEnabled, setUpiEnabled] = useState(activeSettings.paymentModes?.upi ?? false);
-  const [bankEnabled, setBankEnabled] = useState(activeSettings.paymentModes?.bank ?? false);
-  const [usdtEnabled, setUsdtEnabled] = useState(activeSettings.paymentModes?.usdt ?? true);
+  const [upiEnabled, setUpiEnabled] = useState(false);
+  const [bankEnabled, setBankEnabled] = useState(false);
+  const [usdtEnabled, setUsdtEnabled] = useState(true);
   const [activePaymentConfigTab, setActivePaymentConfigTab] = useState("USDT");
   const [maintenanceMode, setMaintenanceMode] = useState(activeSettings.system?.maintenanceMode ?? false);
 
@@ -1347,11 +1457,11 @@ function AdminSectionPage({
     setUsdtQrCodeInput(activeSettings.usdt?.usdtQrCode || "");
     setPlatformFee(activeSettings.financials?.platformFee || 30);
     setReferralFee(activeSettings.financials?.referralFee || 10);
-    const hasUpi = activeSettings.paymentModes?.upi ?? false;
-    const hasUsdt = activeSettings.paymentModes?.usdt ?? true;
-    setUpiEnabled(hasUpi);
-    setBankEnabled(activeSettings.paymentModes?.bank ?? false);
-    setUsdtEnabled(hasUsdt);
+    const hasUpi = false;
+    const hasUsdt = true;
+    setUpiEnabled(false);
+    setBankEnabled(false);
+    setUsdtEnabled(true);
     setMaintenanceMode(activeSettings.system?.maintenanceMode ?? false);
     setIndividualProfitPct(activeSettings.profitDist?.individualProfitPct ?? 5.00);
     setClubProfitPct(activeSettings.profitDist?.clubProfitPct ?? 7.00);
@@ -1492,7 +1602,7 @@ function AdminSectionPage({
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">{section.description}</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 min-w-0">
         {sectionMetrics.map(([label, value]) => (
           <article key={label} className={`${adminPanel} p-5`}>
             <p className="text-sm text-neutral-500">{label}</p>
@@ -1503,7 +1613,7 @@ function AdminSectionPage({
 
       {section.permissionKey === "reports" && (
         <>
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5 mb-5">
+          <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 mb-5 min-w-0">
             {[
               { label: "Total Trades", value: globalDistribution?.totalTrades || 0, tone: "text-white" },
               { label: "Win Rate", value: `${globalDistribution?.winRate || 0}%`, tone: "text-blue-300" },
@@ -1651,8 +1761,10 @@ function AdminSectionPage({
                   <Link
                     key={filter}
                     href={href}
-                    className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${active ? "border-green-500/40 bg-green-500/15 text-green-300" : "border-white/[0.08] bg-white/[0.025] text-neutral-300 hover:bg-white/[0.08]"
-                      }`}>
+                    className={active 
+                      ? "rounded-lg border px-3 py-2 text-xs font-bold transition border-green-500/40 bg-green-500/15 text-green-300" 
+                      : "rounded-lg border px-3 py-2 text-xs font-bold transition border-white/[0.08] bg-white/[0.025] text-neutral-300 hover:bg-white/[0.08]"
+                    }>
                     {filter}
                   </Link>
                 );
@@ -1661,11 +1773,11 @@ function AdminSectionPage({
           )}
 
           <div className="overflow-x-auto rounded-lg border border-white/[0.08]">
-            <table className="w-full min-w-[860px] text-left text-sm">
+            <table className="w-full min-w-[700px] text-left text-sm">
               <thead className="bg-white/[0.025] text-xs uppercase tracking-wide text-neutral-500">
                 <tr>
                   {section.permissionKey === "trades" && (
-                    <th className="px-4 py-4 font-semibold w-10">
+                    <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold w-10 text-xs">
                       <input
                         type="checkbox"
                         checked={rows.length > 0 && selectedTrades.length === rows.length}
@@ -1680,10 +1792,10 @@ function AdminSectionPage({
                       />
                     </th>
                   )}
-                  {section.headers.map((header) => (
-                    <th key={header} className="px-4 py-4 font-semibold">{header}</th>
+                  {section.headers.map((header, idx) => (
+                    <th key={header} className={`px-2 py-3 sm:px-4 sm:py-4 font-semibold text-xs ${getResponsiveClass(section.permissionKey, header, idx + (section.permissionKey === "trades" ? 1 : 0))}`}>{header}</th>
                   ))}
-                  <th className="px-4 py-4 font-semibold text-right">Actions</th>
+                  <th className="px-2 py-3 sm:px-4 sm:py-4 font-semibold text-right text-xs">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -1692,9 +1804,9 @@ function AdminSectionPage({
                   const cells = row.slice(0, -1);
 
                   return (
-                    <tr key={`${itemId}-${index}`} className="hover:bg-white/[0.025]">
+                    <tr key={`${itemId}-${index}`} className="hover:bg-white/[0.025] transition-colors">
                       {section.permissionKey === "trades" && (
-                        <td className="px-4 py-4 w-10">
+                        <td className="px-2 py-2.5 sm:px-4 sm:py-4 w-10 text-xs">
                           <input
                             type="checkbox"
                             checked={selectedTrades.includes(itemId)}
@@ -1710,17 +1822,21 @@ function AdminSectionPage({
                         </td>
                       )}
                       {cells.map((cell, idx) => {
+                        const cellHeader = section.headers[idx];
+                        const cellIndex = idx + (section.permissionKey === "trades" ? 1 : 0);
+                        const responsiveClass = getResponsiveClass(section.permissionKey, cellHeader, cellIndex);
+
                         if (section.permissionKey === "payments" && section.title === "Payment Management") {
                           const paymentItem = payments.find(p => p.id === itemId);
                           if (paymentItem) {
                             if (idx === 1) {
                               return (
-                                <td key={idx} className="px-4 py-4">
-                                  <div className="flex items-center gap-3">
-                                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cyan-100 text-xs font-black text-slate-800">{paymentItem.initials}</span>
+                                <td key={idx} className={`px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm ${responsiveClass}`}>
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-cyan-100 text-[10px] sm:text-xs font-black text-slate-800">{paymentItem.initials}</span>
                                     <div>
-                                      <p className="font-semibold text-white">{paymentItem.user}</p>
-                                      <p className="text-xs text-neutral-500">{paymentItem.email}</p>
+                                      <p className="font-semibold text-white leading-tight">{paymentItem.user}</p>
+                                      <p className="text-[10px] sm:text-xs text-neutral-500 mt-0.5 hidden sm:block">{paymentItem.email}</p>
                                     </div>
                                   </div>
                                 </td>
@@ -1728,9 +1844,8 @@ function AdminSectionPage({
                             }
                             if (idx === 4) {
                               return (
-                                <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded px-2 py-0.5 text-xs font-bold ${"bg-amber-500/10 text-amber-300"
-                                    }`}>
+                                <td key={idx} className={`px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap ${responsiveClass}`}>
+                                  <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300">
                                     {paymentItem.paymentType}
                                   </span>
                                 </td>
@@ -1738,7 +1853,7 @@ function AdminSectionPage({
                             }
                             if (idx === 5) {
                               return (
-                                <td key={idx} className="px-4 py-4 font-mono text-xs text-neutral-300">
+                                <td key={idx} className={`px-2 py-2.5 sm:px-4 sm:py-4 font-mono text-xs text-neutral-300 whitespace-nowrap ${responsiveClass}`}>
                                   <div>
                                     <span className="block font-semibold text-neutral-400">Transaction ID:</span>
                                     <span className="block select-all text-amber-300">{paymentItem.txnHash}</span>
@@ -1755,11 +1870,11 @@ function AdminSectionPage({
                             }
                             if (idx === 6) {
                               return (
-                                <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${paymentItem.status === "Approved" ? "bg-green-500/10 text-green-300 border border-green-500/20" :
-                                      paymentItem.status === "Rejected" ? "bg-red-500/10 text-red-300 border border-red-500/20" :
-                                        paymentItem.status === "Verified" ? "bg-blue-500/10 text-blue-300 border border-blue-500/20" :
-                                          "bg-yellow-500/10 text-yellow-300 border border-yellow-500/20"
+                                <td key={idx} className={`px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap ${responsiveClass}`}>
+                                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${paymentItem.status === "Approved" ? "bg-green-500/10 text-green-300 border border-green-500/20" :
+                                      paymentItem.status === "Rejected" ? "bg-red-500/10 text-red-300 border-red-500/20" :
+                                        paymentItem.status === "Verified" ? "bg-blue-500/10 text-blue-300 border-blue-500/20" :
+                                          "bg-yellow-500/10 text-yellow-300 border-yellow-500/20"
                                     }`}>
                                     {paymentItem.status}
                                   </span>
@@ -1772,20 +1887,18 @@ function AdminSectionPage({
                           }
                         }
 
-
-
                         if (section.title === "Withdrawal Requests") {
                           const wItem = withdrawals.find(w => w.id === itemId);
                           if (wItem) {
                             if (idx === 1) {
                               const initials = (wItem.userName || 'U').split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
                               return (
-                                <td key={idx} className="px-4 py-4">
-                                  <div className="flex items-center gap-3">
-                                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cyan-100 text-xs font-black text-slate-800">{initials}</span>
+                                <td key={idx} className={`px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm ${responsiveClass}`}>
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-cyan-100 text-[10px] sm:text-xs font-black text-slate-800">{initials}</span>
                                     <div>
-                                      <p className="font-semibold text-white">{wItem.userName}</p>
-                                      <p className="text-xs text-neutral-500">{wItem.userEmail}</p>
+                                      <p className="font-semibold text-white leading-tight">{wItem.userName}</p>
+                                      <p className="text-[10px] sm:text-xs text-neutral-500 mt-0.5 hidden sm:block">{wItem.userEmail}</p>
                                     </div>
                                   </div>
                                 </td>
@@ -1793,8 +1906,8 @@ function AdminSectionPage({
                             }
                             if (idx === 4) {
                               return (
-                                <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded-full px-3 py-1 text-xs font-bold border ${wItem.status === "Approved" ? "bg-green-500/10 text-green-300 border-green-500/20" :
+                                <td key={idx} className={`px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap ${responsiveClass}`}>
+                                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${wItem.status === "Approved" ? "bg-green-500/10 text-green-300 border-green-500/20" :
                                       wItem.status === "Rejected" ? "bg-red-500/10 text-red-300 border-red-500/20" :
                                         "bg-yellow-500/10 text-yellow-300 border-yellow-500/20"
                                     }`}>
@@ -1813,8 +1926,8 @@ function AdminSectionPage({
                             if (idx === 5) { // Result column
                               const winTone = tradeItem.result?.toUpperCase() === "WIN" ? "text-green-400 bg-green-500/10 border border-green-500/20" : tradeItem.result?.toUpperCase() === "LOSS" ? "text-red-400 bg-red-500/10 border border-red-500/20" : "text-neutral-400 bg-neutral-500/10 border border-neutral-500/20";
                               return (
-                                <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded px-2.5 py-0.5 text-xs font-bold ${winTone}`}>
+                                <td key={idx} className={`px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap ${responsiveClass}`}>
+                                  <span className={`rounded px-2.5 py-0.5 text-[10px] font-bold ${winTone}`}>
                                     {tradeItem.result}
                                   </span>
                                 </td>
@@ -1823,15 +1936,15 @@ function AdminSectionPage({
                             if (idx === 6) { // P/L column
                               const plColor = tradeItem.profitLoss >= 0 ? "text-green-300 font-bold" : "text-red-300 font-bold";
                               return (
-                                <td key={idx} className={`px-4 py-4 font-mono ${plColor}`}>
+                                <td key={idx} className={`px-2 py-2.5 sm:px-4 sm:py-4 font-mono text-xs sm:text-sm whitespace-nowrap ${plColor} ${responsiveClass}`}>
                                   {tradeItem.profitLoss >= 0 ? `+$${tradeItem.profitLoss.toLocaleString("en-US")}` : `-$${Math.abs(tradeItem.profitLoss).toLocaleString("en-US")}`}
                                 </td>
                               );
                             }
                             if (idx === 7) { // Status column
                               return (
-                                <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${tradeItem.status === "published" ? "bg-green-500/10 text-green-300" : "bg-yellow-500/10 text-yellow-300"}`}>
+                                <td key={idx} className={`px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap ${responsiveClass}`}>
+                                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${tradeItem.status === "published" ? "bg-green-500/10 text-green-300" : "bg-yellow-500/10 text-yellow-300"}`}>
                                     {tradeItem.status}
                                   </span>
                                 </td>
@@ -1840,19 +1953,13 @@ function AdminSectionPage({
                           }
                         }
 
-
-
-
-
-
-
                         if (section.title === "Transaction History") {
                           const txnItem = transactions.find(t => t.id === itemId);
                           if (txnItem) {
                             if (idx === 2) { // Type badge
                               return (
-                                <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded px-2.5 py-0.5 text-xs font-bold ${txnItem.type === "Deposit" ? "bg-green-500/10 text-green-300 border border-green-500/20" :
+                                <td key={idx} className={`px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap ${responsiveClass}`}>
+                                  <span className={`rounded px-2.5 py-0.5 text-[10px] font-bold ${txnItem.type === "Deposit" ? "bg-green-500/10 text-green-300 border border-green-500/20" :
                                       "bg-red-500/10 text-red-300 border border-red-500/20"
                                     }`}>
                                     {txnItem.type === "Deposit" ? "↓ Deposit" : "↑ Withdrawal"}
@@ -1862,16 +1969,16 @@ function AdminSectionPage({
                             }
                             if (idx === 3) { // Amount
                               return (
-                                <td key={idx} className={`px-4 py-4 font-mono font-bold ${txnItem.type === "Deposit" ? "text-green-300" : "text-red-300"
-                                  }`}>
+                                <td key={idx} className={`px-2 py-2.5 sm:px-4 sm:py-4 font-mono font-bold text-xs sm:text-sm whitespace-nowrap ${txnItem.type === "Deposit" ? "text-green-300" : "text-red-300"
+                                  } ${responsiveClass}`}>
                                   {txnItem.type === "Deposit" ? "+" : "-"}${txnItem.amount.toLocaleString()}
                                 </td>
                               );
                             }
                             if (idx === 6) { // Status
                               return (
-                                <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded-full px-3 py-0.5 text-xs font-bold border ${txnItem.status === "Completed" ? "bg-green-500/10 text-green-300 border-green-500/20" :
+                                <td key={idx} className={`px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap ${responsiveClass}`}>
+                                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${txnItem.status === "Completed" ? "bg-green-500/10 text-green-300 border-green-500/20" :
                                       txnItem.status === "Pending" ? "bg-yellow-500/10 text-yellow-300 border-yellow-500/20" :
                                         txnItem.status === "Rejected" ? "bg-red-500/10 text-red-300 border-red-500/20" :
                                           "bg-neutral-500/10 text-neutral-400 border-neutral-500/20"
@@ -1884,13 +1991,12 @@ function AdminSectionPage({
                           }
                         }
 
-
                         return (
-                          <td key={`${cell}-${idx}`} className={`px-4 py-4 ${idx === 0 ? "font-semibold text-white" : "text-neutral-300"}`}>
+                          <td key={`${cell}-${idx}`} className={`px-2 py-2.5 sm:px-4 sm:py-4 text-xs sm:text-sm whitespace-nowrap ${idx === 0 ? "font-semibold text-white" : "text-neutral-300"} ${responsiveClass}`}>
                             {section.permissionKey === "referrals" && idx === 0 ? (
                               <div className="flex items-center justify-between gap-3">
                                 <span className="font-semibold text-white">{cell}</span>
-                                <button type="button" onClick={() => setReferralListModal(cell)} className="ml-3 inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-2 py-1 text-[11px] font-bold text-neutral-300 hover:bg-white/[0.04]">View all</button>
+                                <button type="button" onClick={() => setReferralListModal(cell)} className="ml-3 inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 text-[10px] sm:text-[11px] font-bold text-neutral-300 hover:bg-white/[0.04]">View all</button>
                               </div>
                             ) : (
                               cell
@@ -1898,7 +2004,7 @@ function AdminSectionPage({
                           </td>
                         );
                       })}
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-2 py-2.5 sm:px-4 sm:py-4 text-right whitespace-nowrap text-xs sm:text-sm">
                         <RecordActions
                           permissionKey={section.permissionKey}
                           sectionTitle={section.title}
@@ -1922,7 +2028,7 @@ function AdminSectionPage({
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={section.headers.length + 1} className="px-4 py-8 text-center text-sm text-neutral-500">
+                    <td colSpan={section.headers.length + (section.permissionKey === "trades" ? 2 : 1)} className="px-4 py-8 text-center text-sm text-neutral-500">
                       No records match this filter.
                     </td>
                   </tr>
@@ -1954,57 +2060,13 @@ function AdminSectionPage({
               <div className="space-y-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-green-300">Payment Methods</h3>
                 <div className="space-y-3">
-                  {/* UPI Gateway Card */}
-                  <div
-                    onClick={() => {
-                      if (upiEnabled) {
-                        setActivePaymentConfigTab("UPI");
-                      }
-                    }}
-                    className={`flex flex-col gap-2 rounded-xl border p-4 transition ${
-                      upiEnabled ? "cursor-pointer" : "opacity-50"
-                    } ${
-                      activePaymentConfigTab === "UPI" && upiEnabled
-                        ? "border-green-500 bg-green-500/5 text-white"
-                        : "border-white/[0.08] bg-white/[0.015] text-neutral-400 hover:border-white/20 hover:text-white"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-white">UPI Gateway</span>
-                      <input 
-                        type="checkbox" 
-                        disabled={!canEditSettings} 
-                        checked={upiEnabled} 
-                        onClick={(e) => e.stopPropagation()} 
-                        onChange={(e) => {
-                          setUpiEnabled(e.target.checked);
-                          if (e.target.checked) {
-                            setActivePaymentConfigTab("UPI");
-                          } else if (activePaymentConfigTab === "UPI") {
-                            if (usdtEnabled) {
-                              setActivePaymentConfigTab("USDT");
-                            } else {
-                              setActivePaymentConfigTab("");
-                            }
-                          }
-                        }} 
-                        className="h-4 w-4 accent-green-500" 
-                      />
-                    </div>
-                    <p className="text-xs text-neutral-500">Enable local bank payments in India via UPI.</p>
-                  </div>
-
                   {/* USDT (Crypto) Card */}
                   <div
                     onClick={() => {
-                      if (usdtEnabled) {
-                        setActivePaymentConfigTab("USDT");
-                      }
+                      setActivePaymentConfigTab("USDT");
                     }}
-                    className={`flex flex-col gap-2 rounded-xl border p-4 transition ${
-                      usdtEnabled ? "cursor-pointer" : "opacity-50"
-                    } ${
-                      activePaymentConfigTab === "USDT" && usdtEnabled
+                    className={`flex flex-col gap-2 rounded-xl border p-4 transition cursor-pointer ${
+                      activePaymentConfigTab === "USDT"
                         ? "border-green-500 bg-green-500/5 text-white"
                         : "border-white/[0.08] bg-white/[0.015] text-neutral-400 hover:border-white/20 hover:text-white"
                     }`}
@@ -2013,21 +2075,9 @@ function AdminSectionPage({
                       <span className="text-sm font-bold text-white">USDT (Crypto)</span>
                       <input 
                         type="checkbox" 
-                        disabled={!canEditSettings} 
-                        checked={usdtEnabled} 
+                        disabled={true} 
+                        checked={true} 
                         onClick={(e) => e.stopPropagation()} 
-                        onChange={(e) => {
-                          setUsdtEnabled(e.target.checked);
-                          if (e.target.checked) {
-                            setActivePaymentConfigTab("USDT");
-                          } else if (activePaymentConfigTab === "USDT") {
-                            if (upiEnabled) {
-                              setActivePaymentConfigTab("UPI");
-                            } else {
-                              setActivePaymentConfigTab("");
-                            }
-                          }
-                        }} 
                         className="h-4 w-4 accent-green-500" 
                       />
                     </div>
@@ -2036,93 +2086,7 @@ function AdminSectionPage({
                 </div>
               </div>
 
-              {/* UPI Form */}
-              {activePaymentConfigTab === "UPI" && upiEnabled && (
-                <div className={`space-y-4 ${!canEditSettings ? "opacity-40" : ""}`}>
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-green-300">🏦 UPI Configuration</h3>
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-neutral-400">UPI Address ID</span>
-                    <input
-                      type="text"
-                      value={upiIdInput}
-                      disabled={!canEditSettings}
-                      onChange={(e) => setUpiIdInput(e.target.value)}
-                      placeholder="e.g. pay@upi"
-                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-2 block text-xs font-semibold text-neutral-400">UPI Account Name</span>
-                    <input
-                      type="text"
-                      value={upiNameInput}
-                      disabled={!canEditSettings}
-                      onChange={(e) => setUpiNameInput(e.target.value)}
-                      placeholder="e.g. Nexus Capital"
-                      className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50"
-                    />
-                  </label>
-                  <div className="block">
-                    <span className="mb-2 block text-xs font-semibold text-neutral-400">UPI QR Code Image</span>
-                    {upiQrCodeInput ? (
-                      <div className="relative mb-2 flex flex-col items-center gap-2 rounded-lg border border-white/[0.08] bg-black/10 p-3">
-                        <img 
-                          src={upiQrCodeInput.startsWith('http') || upiQrCodeInput.startsWith('data:') ? upiQrCodeInput : `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '')}${upiQrCodeInput}`} 
-                          alt="QR Code Preview" 
-                          className="max-h-32 object-contain" 
-                        />
-                        <button
-                          type="button"
-                          disabled={!canEditSettings}
-                          onClick={() => setUpiQrCodeInput("")}
-                          className="text-xs text-red-400 hover:text-red-300 font-semibold disabled:opacity-50"
-                        >
-                          Remove QR Code
-                        </button>
-                      </div>
-                    ) : (
-                      <label className={`flex h-24 w-full cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-white/20 bg-black/10 hover:border-green-500/50 ${(!canEditSettings) ? "cursor-not-allowed opacity-50" : ""}`}>
-                        <span className="text-xs text-neutral-400 font-semibold">Click to upload QR Code</span>
-                        <span className="text-[10px] text-neutral-600 mt-1">PNG, JPG up to 5MB</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          disabled={!canEditSettings}
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            
-                            const reader = new FileReader();
-                            reader.onloadend = async () => {
-                              const base64 = reader.result;
-                              try {
-                                const res = await apiFetch("/api/admin/upload-qr", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ image: base64 })
-                                });
-                                if (res.ok) {
-                                  const data = await res.json();
-                                  if (data.url) {
-                                    setUpiQrCodeInput(data.url);
-                                  }
-                                } else {
-                                  const err = await res.json().catch(() => null);
-                                  alert(err?.message || "Failed to upload image");
-                                }
-                              } catch (err) {
-                                alert("Failed to upload image due to a network error");
-                              }
-                            };
-                            reader.readAsDataURL(file);
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* UPI Form - Removed */}
 
               {/* USDT Config */}
               {activePaymentConfigTab === "USDT" && usdtEnabled && (
@@ -2726,11 +2690,22 @@ export default function DashboardPage() {
   const campaignIdParam = searchParams.get("id");
   const section = sectionContent[sectionKey];
 
+  const dashboardStats = useAdminStore((s) => s.dashboardStats);
+  const fetchDashboardStats = useAdminStore((s) => s.fetchDashboardStats);
+
   useEffect(() => {
     if (sectionKey && !Object.keys(sectionContent).includes(sectionKey)) {
       router.replace("/admin/dashboard");
     }
   }, [sectionKey, router]);
+
+  useEffect(() => {
+    fetchDashboardStats();
+    const interval = setInterval(() => {
+      fetchDashboardStats();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchDashboardStats]);
 
   const hasPermission = useAdminStore((s) => s.hasPermission);
 
@@ -3212,7 +3187,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <>
+    <div className="w-full max-w-full overflow-x-hidden">
       {/* Toast Alert */}
       {toast && (
         <div className={`fixed right-5 top-24 z-50 rounded-lg border px-4 py-3 text-sm font-semibold shadow-2xl backdrop-blur-xl animate-fade-in ${toast.type === "error"
@@ -4176,7 +4151,7 @@ export default function DashboardPage() {
       )}
 
 
-    </>
+    </div>
   );
 }
 

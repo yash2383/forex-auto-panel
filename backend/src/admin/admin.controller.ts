@@ -44,6 +44,34 @@ export class AdminController {
     }
   }
 
+  @Get('dashboard/stats')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getDashboardStats(@Res() res: Response) {
+    try {
+      const result = await this.adminService.getDashboardStats();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Admin dashboard stats load error:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
+  @Get('dashboard/revenue-chart')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getRevenueChart(@Res() res: Response) {
+    try {
+      const result = await this.adminService.getRevenueChartData();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Admin revenue chart load error:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
   @Get('pnl-reports')
   @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
   async getPnlReports(@Res() res: Response) {

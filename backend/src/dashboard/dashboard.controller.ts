@@ -135,7 +135,6 @@ export class DashboardController {
   }
 
   @Get('my-payment-status')
-  @Roles('USER')
   async getMyPaymentStatus(@Req() req: Request, @Res() res: Response) {
     try {
       const user = (req as any).user;

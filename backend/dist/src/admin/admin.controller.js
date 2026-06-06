@@ -301,6 +301,18 @@ let AdminController = class AdminController {
                 .json({ message: 'Internal server error' });
         }
     }
+    async getReferralStats(res) {
+        try {
+            const result = await this.adminService.getReferralStats();
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Get referral stats error:', error);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
+        }
+    }
     async updateReferralStatus(id, status, req, res) {
         try {
             const user = req.user;
@@ -311,6 +323,63 @@ let AdminController = class AdminController {
         }
         catch (error) {
             console.error('Update referral status error:', error);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
+        }
+    }
+    async getCampaigns(res) {
+        try {
+            const result = await this.adminService.getCampaigns();
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Get campaigns error:', error);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
+        }
+    }
+    async createCampaign(body, req, res) {
+        try {
+            const user = req.user;
+            const result = await this.adminService.createCampaign(user.id, body, this.getClientIp(req));
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Create campaign error:', error);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
+        }
+    }
+    async updateCampaign(id, body, req, res) {
+        try {
+            const user = req.user;
+            const result = await this.adminService.updateCampaign(user.id, id, body, this.getClientIp(req));
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Update campaign error:', error);
+            return res
+                .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
+                .json({ message: 'Internal server error' });
+        }
+    }
+    async deleteCampaign(id, req, res) {
+        try {
+            const user = req.user;
+            const result = await this.adminService.deleteCampaign(user.id, id, this.getClientIp(req));
+            if ('error' in result)
+                return res.status(result.status || 400).json({ message: result.error });
+            return res.json(result);
+        }
+        catch (error) {
+            console.error('Delete campaign error:', error);
             return res
                 .status(common_1.HttpStatus.INTERNAL_SERVER_ERROR)
                 .json({ message: 'Internal server error' });
@@ -844,6 +913,14 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "getReferrals", null);
 __decorate([
+    (0, common_1.Get)('referrals/stats'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getReferralStats", null);
+__decorate([
     (0, common_1.Post)('referrals/:id/status'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
     __param(0, (0, common_1.Param)('id')),
@@ -854,6 +931,45 @@ __decorate([
     __metadata("design:paramtypes", [String, String, Object, Object]),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "updateReferralStatus", null);
+__decorate([
+    (0, common_1.Get)('campaigns'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getCampaigns", null);
+__decorate([
+    (0, common_1.Post)('campaigns'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "createCampaign", null);
+__decorate([
+    (0, common_1.Patch)('campaigns/:id'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Req)()),
+    __param(3, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "updateCampaign", null);
+__decorate([
+    (0, common_1.Delete)('campaigns/:id'),
+    (0, roles_guard_1.Roles)('SUPER_ADMIN'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "deleteCampaign", null);
 __decorate([
     (0, common_1.Get)('trades'),
     (0, roles_guard_1.Roles)('SUPER_ADMIN', 'MANAGER', 'VIEWER'),

@@ -93,7 +93,6 @@ export function useFcmToken() {
         // ── 2. Validate VAPID key (Early Guard) ───────────────────────────
         const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
         if (!vapidKey || vapidKey === "REPLACE_WITH_YOUR_VAPID_KEY") {
-          console.warn("[FCM] FCM disabled: NEXT_PUBLIC_FIREBASE_VAPID_KEY is not configured or still set to the placeholder in .env.local.");
           return;
         }
 

@@ -109,6 +109,10 @@ export const useAdminStore = create((set, get) => ({
   searchQuery: "",
   setSearchQuery: (query) => set({ searchQuery: query }),
 
+  referralStats: null,
+  loadingReferrals: false,
+  loadingCampaigns: false,
+  loadingReferralStats: false,
 
   referralSettings: null,
   initiatedPayments: [],
@@ -174,6 +178,11 @@ export const useAdminStore = create((set, get) => ({
             generatedReports: data.generatedReports || [],
           });
         }
+        await Promise.all([
+          get().fetchReferrals(),
+          get().fetchReferralStats(),
+          get().fetchCampaigns(),
+        ]);
       }
     } catch (e) {
       console.error("fetchData error:", e);
@@ -224,6 +233,59 @@ export const useAdminStore = create((set, get) => ({
     }
   },
 
+  fetchReferrals: async () => {
+    set({ loadingReferrals: true });
+    try {
+      const res = await apiFetch("/api/admin/referrals");
+      if (res.ok) {
+        const data = await res.json();
+        set({ referrals: data.referrals || data });
+      }
+    } catch (e) {
+      console.error("fetchReferrals error:", e);
+    } finally {
+      set({ loadingReferrals: false });
+    }
+  },
+
+  fetchReferralStats: async () => {
+    set({ loadingReferralStats: true });
+    try {
+      const res = await apiFetch("/api/admin/referrals/stats");
+      if (res.ok) {
+        const data = await res.json();
+        set({ referralStats: data.stats || data });
+      }
+    } catch (e) {
+      console.error("fetchReferralStats error:", e);
+    } finally {
+      set({ loadingReferralStats: false });
+    }
+  },
+
+  fetchCampaigns: async () => {
+    set({ loadingCampaigns: true });
+    try {
+      const res = await apiFetch("/api/admin/campaigns");
+      if (res.ok) {
+        const data = await res.json();
+        set({ campaigns: data.campaigns || data });
+      }
+    } catch (e) {
+      console.error("fetchCampaigns error:", e);
+    } finally {
+      set({ loadingCampaigns: false });
+    }
+  },
+
+  refreshSection: async () => {
+    await Promise.all([
+      get().fetchReferrals(),
+      get().fetchReferralStats(),
+      get().fetchCampaigns(),
+    ]);
+  },
+
   fetchPlans: async () => {
     try {
       const res = await apiFetch("/api/plans");
@@ -258,6 +320,9 @@ export const useAdminStore = create((set, get) => ({
   hasPermission: (module, action) => {
     const user = get().currentUser;
     if (!user) return false;
+    // All admin roles have full permissions — no role-based restrictions.
+    const adminRoles = ['SUPER_ADMIN', 'MANAGER', 'VIEWER'];
+    if (adminRoles.includes(user.role)) return true;
     return rolePermissions[user.role]?.[module]?.includes(action) || false;
   },
 
@@ -408,14 +473,18 @@ export const useAdminStore = create((set, get) => ({
         get().fetchData().catch((e) => {
           console.error("post-payment refresh error:", e);
         });
-        return true;
+        return { success: true };
       }
       const errorBody = await res.json().catch(() => null);
+      if (res.status === 409 && errorBody?.message?.includes("already been completed")) {
+        console.warn("addPayment: Payment initiation already completed.");
+        return { success: true, alreadyCompleted: true };
+      }
       console.error("addPayment API failed:", errorBody?.message || res.statusText);
-      return false;
+      return { success: false, error: errorBody?.message || res.statusText };
     } catch (e) {
       console.error("addPayment API error:", e);
-      return false;
+      return { success: false, error: e.message };
     }
   },
 
@@ -710,41 +779,78 @@ export const useAdminStore = create((set, get) => ({
       notifications: state.notifications.filter((n) => n.id !== id)
     })),
 
-  addCampaign: (campaign) =>
-    set((state) => ({
-      campaigns: [
-        { id: `camp-${Date.now()}`, users: 0, revenue: "₹0", status: "Active", ...campaign },
-        ...state.campaigns
-      ]
-    })),
+  addCampaign: async (campaign) => {
+    try {
+      const res = await apiFetch("/api/admin/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(campaign),
+      });
+      if (res.ok) {
+        await get().refreshSection();
+      }
+    } catch (e) {
+      console.error("addCampaign error:", e);
+    }
+  },
 
-  editCampaign: (id, updated) =>
-    set((state) => ({
-      campaigns: state.campaigns.map((c) => (c.id === id ? { ...c, ...updated } : c))
-    })),
+  editCampaign: async (id, updated) => {
+    try {
+      const res = await apiFetch(`/api/admin/campaigns/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated),
+      });
+      if (res.ok) {
+        await get().refreshSection();
+      }
+    } catch (e) {
+      console.error("editCampaign error:", e);
+    }
+  },
 
-  deleteCampaign: (id) =>
-    set((state) => ({
-      campaigns: state.campaigns.filter((c) => c.id !== id)
-    })),
+  deleteCampaign: async (id) => {
+    try {
+      const res = await apiFetch(`/api/admin/campaigns/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        await get().refreshSection();
+      }
+    } catch (e) {
+      console.error("deleteCampaign error:", e);
+    }
+  },
 
-  addReferral: (referral) =>
+  addReferral: async (referral) => {
     set((state) => ({
       referrals: [
         { id: `ref-${Date.now()}`, status: "Pending", ...referral },
         ...state.referrals
       ]
-    })),
+    }));
+  },
 
-  editReferral: (id, updated) =>
-    set((state) => ({
-      referrals: state.referrals.map((r) => (r.id === id ? { ...r, ...updated } : r))
-    })),
+  editReferral: async (id, updated) => {
+    try {
+      const res = await apiFetch(`/api/admin/referrals/${id}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: updated.status }),
+      });
+      if (res.ok) {
+        await get().refreshSection();
+      }
+    } catch (e) {
+      console.error("editReferral error:", e);
+    }
+  },
 
-  deleteReferral: (id) =>
+  deleteReferral: async (id) => {
     set((state) => ({
       referrals: state.referrals.filter((r) => r.id !== id)
-    })),
+    }));
+  },
 
   addAdjustment: (adj) =>
     set((state) => ({

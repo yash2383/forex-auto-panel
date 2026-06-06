@@ -176,6 +176,7 @@ export declare class DashboardService {
         status?: undefined;
     }>;
     getMyPaymentStatus(userId: string): Promise<{
+        success: boolean;
         found: boolean;
         status: null;
         plan?: undefined;
@@ -186,7 +187,9 @@ export declare class DashboardService {
         subscriptionActive?: undefined;
         createdAt?: undefined;
         updatedAt?: undefined;
+        message?: undefined;
     } | {
+        success: boolean;
         found: boolean;
         status: import("@prisma/client").$Enums.PaymentStatus;
         plan: string;
@@ -197,5 +200,6 @@ export declare class DashboardService {
         subscriptionActive: boolean;
         createdAt: Date;
         updatedAt: Date;
+        message: string | undefined;
     }>;
 }

@@ -33,7 +33,7 @@ export default function InquiriesPage() {
   const [selectedInquiry, setSelectedInquiry] = useState(null);
 
   const currentUser = useAdminStore((s) => s.currentUser);
-  const canModify = currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "MANAGER";
+  const canModify = !!currentUser; // All authenticated admins can modify
 
   const loadInquiries = async () => {
     setLoading(true);

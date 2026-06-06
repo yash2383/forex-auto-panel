@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   ArrowRight, Ban, Check, ChevronDown, ChevronLeft, ChevronRight, Eye, FileDown,
   MessageSquare, MoreVertical, Pencil, Plus, Search, Send, SlidersHorizontal, Trash2, X, AlertTriangle, User, Users,
@@ -40,7 +40,7 @@ const createLabels = {
   trades: "Add Trade",
   notifications: "Send Notification",
   campaigns: "Create Campaign",
-  admins: "Add Admin",
+
   plans: "Add Plan",
 };
 
@@ -152,13 +152,7 @@ const sectionContent = {
       ["Amit", "Neha", "$5,000", "$500"],
     ],
   },
-  admins: {
-    permissionKey: "admins",
-    title: "Admin Management",
-    description: "Manage platform administrators and their roles.",
-    metrics: [["Admins", "8"], ["Support", "3"], ["Super Admins", "2"], ["Pending Invites", "1"]],
-    headers: ["Admin Name", "Role", "Assigned Module Permissions", "Status"],
-  },
+
   reports: {
     permissionKey: "reports",
     title: "Reports & Analytics",
@@ -298,24 +292,7 @@ function RecordActions({ permissionKey, sectionTitle, itemId, itemRow, onView, o
     );
   }
 
-  if (permissionKey === "admins") {
-    const role = itemRow[1];
-    return (
-      <div className="flex gap-2">
-        {canEdit && <CrudButton icon={Pencil} label="Edit" tone="edit" onClick={() => onEdit(itemId)} />}
-        {canDelete && (
-          <CrudButton
-            icon={Trash2}
-            label="Remove"
-            tone="delete"
-            disabled={role === "Super Admin"}
-            onClick={() => onDelete(itemId)}
-          />
-        )}
-        {!canEdit && !canDelete && <span className="text-xs text-neutral-500">Read-Only</span>}
-      </div>
-    );
-  }
+
 
 
 
@@ -866,6 +843,10 @@ function AdminSectionPage({
   const trades = useAdminStore((s) => s.trades);
   const settings = useAdminStore((s) => s.settings);
 
+  const loadingReferrals = useAdminStore((s) => s.loadingReferrals);
+  const loadingCampaigns = useAdminStore((s) => s.loadingCampaigns);
+  const referralStats = useAdminStore((s) => s.referralStats);
+
   const admins = useAdminStore((s) => s.admins);
   const partners = useAdminStore((s) => s.partners);
   const notifications = useAdminStore((s) => s.notifications || []);
@@ -1006,6 +987,14 @@ function AdminSectionPage({
     }
 
     if (pk === "referrals") {
+      if (referralStats) {
+        return [
+          ["Total Referrals", (referralStats.total || 0).toLocaleString()],
+          ["Paid",            (referralStats.paid || 0).toLocaleString()],
+          ["Pending",         (referralStats.pending || 0).toLocaleString()],
+          ["Payouts",         `₹${(referralStats.totalPayouts || 0).toLocaleString("en-IN")}`],
+        ];
+      }
       const paid    = referrals.filter((r) => r.status === "Paid").length;
       const pending = referrals.filter((r) => r.status === "Pending").length;
       const totalCommission = referrals.reduce((sum, r) => {
@@ -1020,17 +1009,7 @@ function AdminSectionPage({
       ];
     }
 
-    if (pk === "admins") {
-      const superAdmins = admins.filter((a) => a.role === "Super Admin").length;
-      const managers    = admins.filter((a) => a.role === "Manager").length;
-      const viewers     = admins.filter((a) => a.role === "Viewer").length;
-      return [
-        ["Total Admins",  admins.length.toLocaleString()],
-        ["Super Admins",  superAdmins.toLocaleString()],
-        ["Managers",      managers.toLocaleString()],
-        ["Viewers",       viewers.toLocaleString()],
-      ];
-    }
+
 
     if (pk === "plans") {
       const active   = plans.filter((p) => p.status === "Active").length;
@@ -1062,7 +1041,7 @@ function AdminSectionPage({
     return section.metrics ?? [];
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [section, trades, generatedReports, withdrawals, pnlReports, users, payments,
-      transactions, notifications, campaigns, referrals, admins, plans, settings]);
+      transactions, notifications, campaigns, referrals, admins, plans, settings, referralStats]);
 
   let rows = [];
   if (section.permissionKey === "users") {
@@ -1131,23 +1110,7 @@ function AdminSectionPage({
       t.status,
       t.id
     ]);
-  } else if (section.permissionKey === "admins") {
-    let list = admins;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter((a) =>
-        a.name.toLowerCase().includes(q) ||
-        a.role.toLowerCase().includes(q) ||
-        a.status.toLowerCase().includes(q)
-      );
-    }
-    rows = list.map((a) => [
-      a.name,
-      a.role,
-      Object.keys(a.permissions).filter((k) => a.permissions[k].length > 0).map((k) => `${k[0].toUpperCase()}${k.slice(1)}`).join(", ") || "None",
-      a.status,
-      a.id
-    ]);
+
   } else if (section.permissionKey === "reports") {
     // Dynamic reports table from generatedReports store
     let list = [...generatedReports];
@@ -1459,6 +1422,66 @@ function AdminSectionPage({
       }
     });
   };
+
+  if (section.permissionKey === "referrals") {
+    if (loadingReferrals) {
+      return (
+        <section className="space-y-5">
+          <div className={`${adminPanel} p-6`}>
+            <p className="text-xs font-bold uppercase tracking-wider text-green-300">Super Admin</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">{section.title}</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">{section.description}</p>
+          </div>
+          <LoadingState message="Loading referrals..." />
+        </section>
+      );
+    }
+    if (!referrals.length) {
+      return (
+        <section className="space-y-5">
+          <div className={`${adminPanel} p-6`}>
+            <p className="text-xs font-bold uppercase tracking-wider text-green-300">Super Admin</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">{section.title}</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">{section.description}</p>
+          </div>
+          <EmptyState
+            title="No referrals found"
+            description="Referral data will appear here."
+          />
+        </section>
+      );
+    }
+  }
+
+  if (section.permissionKey === "campaigns") {
+    if (loadingCampaigns) {
+      return (
+        <section className="space-y-5">
+          <div className={`${adminPanel} p-6`}>
+            <p className="text-xs font-bold uppercase tracking-wider text-green-300">Super Admin</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">{section.title}</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">{section.description}</p>
+          </div>
+          <LoadingState message="Loading campaigns..." />
+        </section>
+      );
+    }
+    if (!campaigns.length) {
+      return (
+        <section className="space-y-5">
+          <div className={`${adminPanel} p-6`}>
+            <p className="text-xs font-bold uppercase tracking-wider text-green-300">Super Admin</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">{section.title}</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">{section.description}</p>
+          </div>
+          <EmptyState
+            title="No campaigns created"
+            description="Create your first campaign."
+          />
+        </section>
+      );
+    }
+  }
 
   return (
     <section className="space-y-5">
@@ -1816,21 +1839,7 @@ function AdminSectionPage({
                           }
                         }
 
-                        // Admins dynamic state render
-                        if (section.permissionKey === "admins") {
-                          const adminItem = admins.find(a => a.id === itemId);
-                          if (adminItem) {
-                            if (idx === 3) {
-                              return (
-                                <td key={idx} className="px-4 py-4">
-                                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${adminItem.status === "Active" ? "bg-green-500/10 text-green-300" : "bg-red-500/10 text-red-300"}`}>
-                                    {adminItem.status}
-                                  </span>
-                                </td>
-                              );
-                            }
-                          }
-                        }
+
 
 
 
@@ -2539,10 +2548,17 @@ function AdminSectionPage({
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const sectionKey = searchParams.get("section");
   const filterKey = searchParams.get("filter");
   const section = sectionContent[sectionKey];
+
+  useEffect(() => {
+    if (sectionKey && !Object.keys(sectionContent).includes(sectionKey)) {
+      router.replace("/admin/dashboard");
+    }
+  }, [sectionKey, router]);
 
   const hasPermission = useAdminStore((s) => s.hasPermission);
 
@@ -2811,59 +2827,7 @@ export default function DashboardPage() {
     }
   };
 
-  // ADMINS CRUD EVENT HANDLERS
-  const handleAddAdminSubmit = (e) => {
-    e.preventDefault();
-    if (!adminName || !adminEmail || !adminPassword) return;
-    addAdmin({
-      name: adminName,
-      email: adminEmail,
-      role: adminRole,
-      permissions: {
-        partners: adminPermPartners ? ["view", "create", "edit"] : [],
-        admins: adminPermAdmins ? ["view", "create", "edit", "delete"] : [],
-        reports: adminPermReports ? ["view"] : []
-      }
-    });
-    setAdminName("");
-    setAdminEmail("");
-    setAdminPassword("");
-    setAdminRole("Admin");
-    setIsAddAdminOpen(false);
-    showToast("Admin account registered!");
-  };
 
-  const handleEditAdminSubmit = (e) => {
-    e.preventDefault();
-    editAdmin(activeAdminId, {
-      name: editAdminName,
-      email: editAdminEmail,
-      role: editAdminRole,
-      status: editAdminStatus,
-      permissions: {
-        partners: editAdminPermPartners ? ["view", "create", "edit"] : [],
-        admins: editAdminPermAdmins ? ["view", "create", "edit", "delete"] : [],
-        reports: editAdminPermReports ? ["view"] : []
-      }
-    });
-    setIsEditAdminOpen(false);
-    showToast("Operator account updated!");
-  };
-
-  const handleEditAdminClick = (id) => {
-    const adminObj = admins.find(a => a.id === id);
-    if (adminObj) {
-      setActiveAdminId(id);
-      setEditAdminName(adminObj.name);
-      setEditAdminEmail(adminObj.email);
-      setEditAdminRole(adminObj.role);
-      setEditAdminStatus(adminObj.status);
-      setEditAdminPermPartners(adminObj.permissions.partners?.length > 0);
-      setEditAdminPermAdmins(adminObj.permissions.admins?.length > 0);
-      setEditAdminPermReports(adminObj.permissions.reports?.length > 0);
-      setIsEditAdminOpen(true);
-    }
-  };
 
   const parsePlanFeatures = (value) =>
     value
@@ -3138,9 +3102,6 @@ export default function DashboardPage() {
             if (section.permissionKey === "trades") {
               deleteTrade(id);
               showToast("Trade record deleted");
-            } else if (section.permissionKey === "admins") {
-              deleteAdmin(id);
-              showToast("Admin account deactivated");
             } else if (section.permissionKey === "plans") {
               const res = await deletePlan(id);
               if (res?.success) showToast("Pricing plan deleted");
@@ -3168,8 +3129,6 @@ export default function DashboardPage() {
                 setEditTradeStatus(trade.status || "published");
                 setIsEditTradeOpen(true);
               }
-            } else if (section.permissionKey === "admins") {
-              handleEditAdminClick(id);
             } else if (section.permissionKey === "plans") {
               handleEditPlanClick(id);
             } else if (["notifications", "campaigns", "referrals"].includes(section.permissionKey)) {
@@ -3194,7 +3153,6 @@ export default function DashboardPage() {
           onAddClick={() => {
             if (section.permissionKey === "users") setIsAddUserOpen(true);
             if (section.permissionKey === "trades") setIsAddTradeOpen(true);
-            if (section.permissionKey === "admins") setIsAddAdminOpen(true);
             if (section.permissionKey === "plans") setIsAddPlanOpen(true);
             if (["notifications", "campaigns", "referrals"].includes(section.permissionKey)) openRecordModal(section.permissionKey, "add");
           }}
@@ -3472,121 +3430,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ADD ADMIN OPERATOR MODAL */}
-      {isAddAdminOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <form onSubmit={handleAddAdminSubmit} className="w-full max-w-md rounded-2xl border border-white/[0.1] bg-[#0b141b] p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-white/[0.08] pb-3">
-              <h3 className="text-lg font-bold text-white">Register Admin Account</h3>
-              <button type="button" onClick={() => setIsAddAdminOpen(false)} className="text-neutral-400 hover:text-white">✕</button>
-            </div>
-            <label className="block">
-              <span className="block text-xs font-semibold text-neutral-400 mb-2">Name</span>
-              <input type="text" required value={adminName} onChange={(e) => setAdminName(e.target.value)} placeholder="Operator name" className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
-            </label>
-            <label className="block">
-              <span className="block text-xs font-semibold text-neutral-400 mb-2">Email</span>
-              <input type="email" required value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="name@nexus.com" className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
-            </label>
-            <label className="block">
-              <span className="block text-xs font-semibold text-neutral-400 mb-2">Password</span>
-              <input type="password" required value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="Temporary password" className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
-            </label>
-            <label className="block">
-              <span className="block text-xs font-semibold text-neutral-400 mb-2">System Role</span>
-              <select value={adminRole} onChange={(e) => setAdminRole(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
-                <option value="Admin">Admin Operator</option>
-                <option value="Manager">Manager</option>
-                <option value="Support">Support Staff</option>
-              </select>
-            </label>
-
-            {/* Permission checklist */}
-            <div className="space-y-2 pt-2">
-              <span className="block text-xs font-bold uppercase tracking-wider text-green-300">Section Permissions</span>
-              <div className="grid grid-cols-3 gap-2">
-                <label className="flex items-center gap-2 rounded border border-white/[0.06] bg-white/[0.01] p-2 text-xs text-neutral-300 hover:bg-white/[0.03] cursor-pointer">
-                  <input type="checkbox" checked={adminPermPartners} onChange={(e) => setAdminPermPartners(e.target.checked)} className="accent-green-500" />
-                  Partners
-                </label>
-                <label className="flex items-center gap-2 rounded border border-white/[0.06] bg-white/[0.01] p-2 text-xs text-neutral-300 hover:bg-white/[0.03] cursor-pointer">
-                  <input type="checkbox" checked={adminPermAdmins} onChange={(e) => setAdminPermAdmins(e.target.checked)} className="accent-green-500" />
-                  Admins
-                </label>
-                <label className="flex items-center gap-2 rounded border border-white/[0.06] bg-white/[0.01] p-2 text-xs text-neutral-300 hover:bg-white/[0.03] cursor-pointer">
-                  <input type="checkbox" checked={adminPermReports} onChange={(e) => setAdminPermReports(e.target.checked)} className="accent-green-500" />
-                  Reports
-                </label>
-              </div>
-            </div>
-
-            <button type="submit" className="w-full h-11 rounded-lg bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition mt-2">
-              Onboard Admin
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* EDIT ADMIN OPERATOR MODAL */}
-      {isEditAdminOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <form onSubmit={handleEditAdminSubmit} className="w-full max-w-md rounded-2xl border border-white/[0.1] bg-[#0b141b] p-6 shadow-2xl space-y-4">
-            <div className="flex justify-between items-center border-b border-white/[0.08] pb-3">
-              <h3 className="text-lg font-bold text-white">Edit Admin Operator</h3>
-              <button type="button" onClick={() => setIsEditAdminOpen(false)} className="text-neutral-400 hover:text-white">✕</button>
-            </div>
-            <label className="block">
-              <span className="block text-xs font-semibold text-neutral-400 mb-2">Name</span>
-              <input type="text" required value={editAdminName} onChange={(e) => setEditAdminName(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
-            </label>
-            <label className="block">
-              <span className="block text-xs font-semibold text-neutral-400 mb-2">Email</span>
-              <input type="email" required value={editAdminEmail} onChange={(e) => setEditAdminEmail(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50" />
-            </label>
-            <div className="grid grid-cols-2 gap-4">
-              <label className="block">
-                <span className="block text-xs font-semibold text-neutral-400 mb-2">System Role</span>
-                <select value={editAdminRole} onChange={(e) => setEditAdminRole(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
-                  <option value="Super Admin">Super Admin</option>
-                  <option value="Admin">Admin Operator</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Support">Support Staff</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="block text-xs font-semibold text-neutral-400 mb-2">Status</span>
-                <select value={editAdminStatus} onChange={(e) => setEditAdminStatus(e.target.value)} className="h-11 w-full rounded-lg border border-white/[0.08] bg-[#0b141b] px-3 text-sm text-white outline-none focus:border-green-500/50">
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </label>
-            </div>
-
-            {/* Permission checklist */}
-            <div className="space-y-2 pt-2">
-              <span className="block text-xs font-bold uppercase tracking-wider text-green-300">Section Permissions</span>
-              <div className="grid grid-cols-3 gap-2">
-                <label className="flex items-center gap-2 rounded border border-white/[0.06] bg-white/[0.01] p-2 text-xs text-neutral-300 hover:bg-white/[0.03] cursor-pointer">
-                  <input type="checkbox" checked={editAdminPermPartners} onChange={(e) => setEditAdminPermPartners(e.target.checked)} className="accent-green-500" />
-                  Partners
-                </label>
-                <label className="flex items-center gap-2 rounded border border-white/[0.06] bg-white/[0.01] p-2 text-xs text-neutral-300 hover:bg-white/[0.03] cursor-pointer">
-                  <input type="checkbox" checked={editAdminPermAdmins} onChange={(e) => setEditAdminPermAdmins(e.target.checked)} className="accent-green-500" />
-                  Admins
-                </label>
-                <label className="flex items-center gap-2 rounded border border-white/[0.06] bg-white/[0.01] p-2 text-xs text-neutral-300 hover:bg-white/[0.03] cursor-pointer">
-                  <input type="checkbox" checked={editAdminPermReports} onChange={(e) => setEditAdminPermReports(e.target.checked)} className="accent-green-500" />
-                  Reports
-                </label>
-              </div>
-            </div>
-
-            <button type="submit" className="w-full h-11 rounded-lg bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition mt-2">
-              Save Operator configs
-            </button>
-          </form>
-        </div>
-      )}
 
       {/* NOTIFICATIONS / CAMPAIGNS / REFERRALS MODAL */}
       {recordModal.type && (
@@ -4150,5 +3993,26 @@ export default function DashboardPage() {
 
 
     </>
+  );
+}
+
+function EmptyState({ title, description }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 rounded-xl border border-white/[0.08] bg-white/[0.01] text-center p-6 w-full">
+      <div className="h-12 w-12 rounded-full bg-white/[0.04] flex items-center justify-center mb-4 text-neutral-500">
+        <Users className="h-6 w-6" />
+      </div>
+      <h3 className="text-lg font-bold text-white">{title}</h3>
+      <p className="mt-2 text-sm text-neutral-400 max-w-sm">{description}</p>
+    </div>
+  );
+}
+
+function LoadingState({ message = "Loading data..." }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center w-full">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-green-500 border-t-transparent mb-4"></div>
+      <p className="text-sm text-neutral-400 font-medium">{message}</p>
+    </div>
   );
 }

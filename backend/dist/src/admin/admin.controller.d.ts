@@ -27,7 +27,12 @@ export declare class AdminController {
     getReferralSettings(res: Response): Promise<Response<any, Record<string, any>>>;
     updateReferralSettings(req: Request, body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     getReferrals(res: Response): Promise<Response<any, Record<string, any>>>;
+    getReferralStats(res: Response): Promise<Response<any, Record<string, any>>>;
     updateReferralStatus(id: string, status: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    getCampaigns(res: Response): Promise<Response<any, Record<string, any>>>;
+    createCampaign(body: any, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    updateCampaign(id: string, body: any, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
+    deleteCampaign(id: string, req: Request, res: Response): Promise<Response<any, Record<string, any>>>;
     getTrades(res: Response): Promise<Response<any, Record<string, any>>>;
     createTradeRecord(body: any, res: Response): Promise<Response<any, Record<string, any>>>;
     updateTradeRecord(id: string, body: any, res: Response): Promise<Response<any, Record<string, any>>>;

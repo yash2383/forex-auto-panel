@@ -603,12 +603,13 @@ let DashboardService = class DashboardService {
             orderBy: { createdAt: 'desc' },
         });
         if (!payment) {
-            return { found: false, status: null };
+            return { success: false, found: false, status: null };
         }
         const planSlug = payment.planName
             ? payment.planName.split(' ')[0].toLowerCase()
             : 'individual';
         return {
+            success: true,
             found: true,
             status: payment.status,
             plan: planSlug,
@@ -619,6 +620,7 @@ let DashboardService = class DashboardService {
             subscriptionActive: payment.status === 'APPROVED',
             createdAt: payment.createdAt,
             updatedAt: payment.updatedAt,
+            message: payment.status === 'PENDING' || payment.status === 'VERIFIED' ? 'Payment is under review' : undefined,
         };
     }
 };

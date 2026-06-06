@@ -80,8 +80,8 @@ export default function WhiteLabelEarningsPage() {
     );
   }
 
-  const isViewer = currentUser?.role === "VIEWER";
-  const isManager = currentUser?.role === "MANAGER";
+  const isViewer = false;
+  const isManager = false;
   const canEdit = hasPermission("partners", "edit");
   const canDelete = hasPermission("partners", "delete");
 

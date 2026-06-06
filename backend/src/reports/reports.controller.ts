@@ -136,7 +136,8 @@ export class ReportsController {
   ) {
     try {
       const user = (req as any).user;
-      const isAdmin = ['SUPER_ADMIN', 'MANAGER', 'VIEWER'].includes(user.role);
+      const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'MANAGER', 'VIEWER']);
+      const isAdmin = ADMIN_ROLES.has(user.role);
 
       const report =
         await this.reportsService.prisma.generatedReport.findUnique({
@@ -212,7 +213,8 @@ export class ReportsController {
       let targetUserId = user.id;
       let targetUserName = user.name || 'User';
 
-      const isAdmin = ['SUPER_ADMIN', 'MANAGER', 'VIEWER'].includes(user.role);
+      const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'MANAGER', 'VIEWER']);
+      const isAdmin = ADMIN_ROLES.has(user.role);
       if (isAdmin && userId) {
         targetUserId = userId;
         const targetUser = await this.reportsService.prisma.user.findUnique({

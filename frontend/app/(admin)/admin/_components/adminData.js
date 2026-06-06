@@ -55,7 +55,6 @@ export const adminNavGroups = [
   {
     title: "Administration",
     items: [
-      { icon: UserCog, label: "Admins", href: "/admin/dashboard?section=admins" },
       { icon: ChartNoAxesCombined, label: "Reports", href: "/admin/dashboard?section=reports" },
       { icon: Settings, label: "Settings", href: "/admin/dashboard?section=settings" },
       { icon: Crown, label: "Pricing Plans", href: "/admin/dashboard?section=plans" },

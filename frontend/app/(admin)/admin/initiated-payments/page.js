@@ -33,7 +33,7 @@ export default function InitiatedPaymentsPage() {
   const [editStatus, setEditStatus] = useState("");
 
   const currentUser = useAdminStore((s) => s.currentUser);
-  const canModify = currentUser?.role === "SUPER_ADMIN" || currentUser?.role === "MANAGER";
+  const canModify = !!currentUser; // All authenticated admins can modify
 
   const loadData = async () => {
     setLoading(true);

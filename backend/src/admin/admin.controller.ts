@@ -459,6 +459,20 @@ export class AdminController {
     }
   }
 
+  @Get('referrals/stats')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getReferralStats(@Res() res: Response) {
+    try {
+      const result = await this.adminService.getReferralStats();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Get referral stats error:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
   @Post('referrals/:id/status')
   @Roles('SUPER_ADMIN', 'MANAGER')
   async updateReferralStatus(
@@ -480,6 +494,99 @@ export class AdminController {
       return res.json(result);
     } catch (error: any) {
       console.error('Update referral status error:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
+  // --- Campaigns ---
+
+  @Get('campaigns')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getCampaigns(@Res() res: Response) {
+    try {
+      const result = await this.adminService.getCampaigns();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Get campaigns error:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
+  @Post('campaigns')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async createCampaign(
+    @Body() body: any,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    try {
+      const user = (req as any).user;
+      const result = await this.adminService.createCampaign(
+        user.id,
+        body,
+        this.getClientIp(req),
+      );
+      if ('error' in result)
+        return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Create campaign error:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
+  @Patch('campaigns/:id')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async updateCampaign(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    try {
+      const user = (req as any).user;
+      const result = await this.adminService.updateCampaign(
+        user.id,
+        id,
+        body,
+        this.getClientIp(req),
+      );
+      if ('error' in result)
+        return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Update campaign error:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
+  @Delete('campaigns/:id')
+  @Roles('SUPER_ADMIN')
+  async deleteCampaign(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    try {
+      const user = (req as any).user;
+      const result = await this.adminService.deleteCampaign(
+        user.id,
+        id,
+        this.getClientIp(req),
+      );
+      if ('error' in result)
+        return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Delete campaign error:', error);
       return res
         .status(HttpStatus.INTERNAL_SERVER_ERROR)
         .json({ message: 'Internal server error' });

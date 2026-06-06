@@ -114,10 +114,8 @@ export default function AdminNotificationsPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
-  // Auth User Role
+  // Auth User
   const currentUser = useAdminStore((s) => s.currentUser);
-  const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
-  const isManager = currentUser?.role === "MANAGER" || isSuperAdmin;
 
   // TAB state: Overview
   const [analytics, setAnalytics] = useState(null);
@@ -357,10 +355,6 @@ export default function AdminNotificationsPage() {
   // Create Broadcast Campaign
   const handleCreateBroadcast = async (e) => {
     e.preventDefault();
-    if (!isManager) {
-      showStatus("Access denied: managerial role required", "error");
-      return;
-    }
     setLoading(true);
     try {
       const payload = {
@@ -396,10 +390,6 @@ export default function AdminNotificationsPage() {
   };
 
   const handleBroadcastAction = async (id, action) => {
-    if (action === "APPROVE" && !isSuperAdmin) {
-      showStatus("Access Denied: Only Super Admins can approve broadcasts.", "error");
-      return;
-    }
     if (!confirm(`Are you sure you want to ${action.toLowerCase()} this broadcast?`)) return;
 
     const approvalRequestId = action === "APPROVE"
@@ -451,7 +441,6 @@ export default function AdminNotificationsPage() {
   };
 
   const handleRetryFailedDeliveries = async () => {
-    if (!isSuperAdmin) return;
     if (!confirm("Are you sure you want to retry all failed deliveries?")) return;
     setLoading(true);
     try {
@@ -500,11 +489,6 @@ export default function AdminNotificationsPage() {
 
   // Direct toggle Event Setting
   const handleDirectToggle = async (ev, field) => {
-    if (!isSuperAdmin) {
-      showStatus("Only Super Admins can change event settings.", "error");
-      return;
-    }
-    
     const newValue = !ev[field];
     const updatedEvent = { ...ev, [field]: newValue };
     
@@ -529,7 +513,6 @@ export default function AdminNotificationsPage() {
 
   // Bulk enable/disable settings per category
   const handleBulkToggleCategory = async (categoryKey, targetValue) => {
-    if (!isSuperAdmin) return;
     const categoryDef = EVENT_CATEGORIES.find(c => c.key === categoryKey);
     if (!categoryDef) return;
 
@@ -573,7 +556,6 @@ export default function AdminNotificationsPage() {
   // Save Template overrides
   const handleSaveTemplate = async (e) => {
     e.preventDefault();
-    if (!isSuperAdmin) return;
     setLoading(true);
     try {
       const res = await apiFetch("/api/notifications/admin/templates", {
@@ -865,7 +847,7 @@ export default function AdminNotificationsPage() {
                       </button>
 
                       {/* Enable/Disable All Action Toggles */}
-                      {isSuperAdmin && (
+                      {true && (
                         <div className="flex gap-2 shrink-0">
                           <button
                             onClick={() => handleBulkToggleCategory(category.key, true)}
@@ -904,21 +886,21 @@ export default function AdminNotificationsPage() {
                                     <ToggleSwitch
                                       checked={ev.bellEnabled}
                                       onChange={() => handleDirectToggle(ev, "bellEnabled")}
-                                      disabled={!isSuperAdmin}
+                                      disabled={!true}
                                     />
                                   </td>
                                   <td className="px-5 py-3 text-center">
                                     <ToggleSwitch
                                       checked={ev.pushEnabled}
                                       onChange={() => handleDirectToggle(ev, "pushEnabled")}
-                                      disabled={!isSuperAdmin}
+                                      disabled={!true}
                                     />
                                   </td>
                                   <td className="px-5 py-3 text-center">
                                     <ToggleSwitch
                                       checked={ev.socketEnabled}
                                       onChange={() => handleDirectToggle(ev, "socketEnabled")}
-                                      disabled={!isSuperAdmin}
+                                      disabled={!true}
                                     />
                                   </td>
                                 </tr>
@@ -938,7 +920,7 @@ export default function AdminNotificationsPage() {
                                   <ToggleSwitch
                                     checked={ev.bellEnabled}
                                     onChange={() => handleDirectToggle(ev, "bellEnabled")}
-                                    disabled={!isSuperAdmin}
+                                    disabled={!true}
                                   />
                                 </div>
                                 <div className="flex items-center gap-1.5 select-none">
@@ -946,7 +928,7 @@ export default function AdminNotificationsPage() {
                                   <ToggleSwitch
                                     checked={ev.pushEnabled}
                                     onChange={() => handleDirectToggle(ev, "pushEnabled")}
-                                    disabled={!isSuperAdmin}
+                                    disabled={!true}
                                   />
                                 </div>
                                 <div className="flex items-center gap-1.5 select-none">
@@ -954,7 +936,7 @@ export default function AdminNotificationsPage() {
                                   <ToggleSwitch
                                     checked={ev.socketEnabled}
                                     onChange={() => handleDirectToggle(ev, "socketEnabled")}
-                                    disabled={!isSuperAdmin}
+                                    disabled={!true}
                                   />
                                 </div>
                               </div>
@@ -1037,7 +1019,7 @@ export default function AdminNotificationsPage() {
                 <button onClick={() => loadTabData("broadcasts")} className="p-1.5 rounded border border-white/10 hover:bg-white/5 text-neutral-400 hover:text-white transition">
                   <RefreshCw className="h-3.5 w-3.5" />
                 </button>
-                {isManager && !showCreateBroadcast && (
+                {true && !showCreateBroadcast && (
                   <button onClick={() => setShowCreateBroadcast(true)} className="flex items-center gap-1.5 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 px-3 py-1.5 rounded text-xs font-bold transition">
                     <Plus className="h-3.5 w-3.5" />
                     <span>Create Announcement</span>
@@ -1508,7 +1490,7 @@ export default function AdminNotificationsPage() {
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex gap-1.5 justify-end">
-                          {b.status === "DRAFT" && isSuperAdmin && (
+                          {b.status === "DRAFT" && true && (
                             <button
                               onClick={() => handleBroadcastAction(b.id, "APPROVE")}
                               className="border border-green-500/20 bg-green-500/10 hover:bg-green-500/20 text-green-300 px-2 py-1 rounded font-bold transition text-[10px]"
@@ -1516,7 +1498,7 @@ export default function AdminNotificationsPage() {
                               Approve & Send
                             </button>
                           )}
-                          {b.status === "DRAFT" && isManager && (
+                          {b.status === "DRAFT" && true && (
                             <button
                               onClick={() => handleBroadcastAction(b.id, "CANCEL")}
                               className="border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-300 px-2 py-1 rounded font-bold transition text-[10px]"
@@ -1545,7 +1527,7 @@ export default function AdminNotificationsPage() {
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
               <h2 className="text-base font-bold text-white">Delivery Logs</h2>
               <div className="flex gap-2">
-                {isSuperAdmin && (
+                {true && (
                   <>
                     <button
                       onClick={handleRetryFailedDeliveries}
@@ -1627,7 +1609,7 @@ export default function AdminNotificationsPage() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-white/[0.025] uppercase tracking-wide text-neutral-500 font-bold text-[10px]">
                   <tr>
-                    {isSuperAdmin && <th className="px-4 py-3 w-8"></th>}
+                    {true && <th className="px-4 py-3 w-8"></th>}
                     <th className="px-4 py-3">Notification</th>
                     <th className="px-4 py-3">User</th>
                     <th className="px-4 py-3">Channel</th>
@@ -1638,7 +1620,7 @@ export default function AdminNotificationsPage() {
                 <tbody className="divide-y divide-white/5 font-medium">
                   {getFilteredDeliveries().map(d => (
                     <tr key={d.id} className="hover:bg-white/[0.01] transition">
-                      {isSuperAdmin && (
+                      {true && (
                         <td className="px-4 py-3">
                           <input
                             type="checkbox"
@@ -1682,7 +1664,7 @@ export default function AdminNotificationsPage() {
                   ))}
                   {getFilteredDeliveries().length === 0 && (
                     <tr>
-                      <td colSpan={isSuperAdmin ? 6 : 5} className="px-4 py-8 text-center text-neutral-500">No matching logs found.</td>
+                      <td colSpan={true ? 6 : 5} className="px-4 py-8 text-center text-neutral-500">No matching logs found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -1765,7 +1747,7 @@ export default function AdminNotificationsPage() {
                       <input
                         type="text"
                         required
-                        disabled={!isSuperAdmin}
+                        disabled={!true}
                         value={editedTemplate.title || ""}
                         onChange={(e) => setEditedTemplate({ ...editedTemplate, title: e.target.value })}
                         className={adminInput}
@@ -1777,7 +1759,7 @@ export default function AdminNotificationsPage() {
                       <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Body Markup Syntax (Handlebars supported)</span>
                       <textarea
                         required
-                        disabled={!isSuperAdmin}
+                        disabled={!true}
                         value={editedTemplate.body || ""}
                         onChange={(e) => setEditedTemplate({ ...editedTemplate, body: e.target.value })}
                         className="w-full h-32 font-mono rounded-lg border border-white/[0.08] bg-black/20 p-3 text-xs text-white outline-none focus:border-green-500/35 transition resize-none"
@@ -1806,7 +1788,7 @@ export default function AdminNotificationsPage() {
                             title={v.desc}
                             className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-neutral-300 font-semibold cursor-pointer hover:bg-white/15 hover:text-white transition"
                             onClick={() => {
-                              if (isSuperAdmin) {
+                              if (true) {
                                 setEditedTemplate({ ...editedTemplate, body: (editedTemplate.body || "") + " " + v.key });
                               }
                             }}
@@ -1832,7 +1814,7 @@ export default function AdminNotificationsPage() {
                       </div>
                     </div>
 
-                    {isSuperAdmin && (
+                    {true && (
                       <div className="flex justify-end pt-2">
                         <button type="submit" className="px-5 py-2.5 bg-green-500/10 hover:bg-green-500/20 text-[#00e676] border border-green-500/20 rounded-lg text-xs font-bold transition">
                           Save Template Updates

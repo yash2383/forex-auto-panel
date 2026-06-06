@@ -584,11 +584,6 @@ export class NotificationsController {
       const userAgent = req.headers['user-agent'] as string;
 
       if (action === BroadcastAction.APPROVE) {
-        if (user.role !== 'SUPER_ADMIN') {
-          return res
-            .status(HttpStatus.FORBIDDEN)
-            .json({ message: 'Only SUPER_ADMIN can approve broadcasts.' });
-        }
         if (broadcast.status === BroadcastStatus.SENDING) {
           if (
             approvalRequestId &&

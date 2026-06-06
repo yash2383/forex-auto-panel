@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var RolesGuard_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RolesGuard = exports.Roles = exports.ROLES_KEY = void 0;
 const common_1 = require("@nestjs/common");
@@ -16,10 +17,16 @@ exports.ROLES_KEY = 'roles';
 const Roles = (...roles) => (0, common_1.SetMetadata)(exports.ROLES_KEY, roles);
 exports.Roles = Roles;
 let RolesGuard = class RolesGuard {
+    static { RolesGuard_1 = this; }
     reflector;
     constructor(reflector) {
         this.reflector = reflector;
     }
+    static ADMIN_ROLES = new Set([
+        'SUPER_ADMIN',
+        'MANAGER',
+        'VIEWER',
+    ]);
     canActivate(context) {
         const requiredRoles = this.reflector.getAllAndOverride(exports.ROLES_KEY, [context.getHandler(), context.getClass()]);
         if (!requiredRoles || requiredRoles.length === 0) {
@@ -27,16 +34,21 @@ let RolesGuard = class RolesGuard {
         }
         const request = context.switchToHttp().getRequest();
         const user = request.user;
-        console.log('[RolesGuard] path:', request.url, 'required:', requiredRoles, 'user.role:', user?.role, 'user:', user);
-        if (!user || !requiredRoles.includes(user.role)) {
-            console.warn('[RolesGuard] Access denied for user role:', user?.role, 'required:', requiredRoles);
+        if (!user) {
             throw new common_1.ForbiddenException('Access denied');
         }
-        return true;
+        const routeRequiresAdmin = requiredRoles.some((r) => RolesGuard_1.ADMIN_ROLES.has(r));
+        if (routeRequiresAdmin && RolesGuard_1.ADMIN_ROLES.has(user.role)) {
+            return true;
+        }
+        if (requiredRoles.includes(user.role)) {
+            return true;
+        }
+        throw new common_1.ForbiddenException('Access denied');
     }
 };
 exports.RolesGuard = RolesGuard;
-exports.RolesGuard = RolesGuard = __decorate([
+exports.RolesGuard = RolesGuard = RolesGuard_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [core_1.Reflector])
 ], RolesGuard);

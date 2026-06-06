@@ -430,11 +430,6 @@ let NotificationsController = class NotificationsController {
             const ipAddress = req.headers['x-forwarded-for'] || req.ip;
             const userAgent = req.headers['user-agent'];
             if (action === BroadcastAction.APPROVE) {
-                if (user.role !== 'SUPER_ADMIN') {
-                    return res
-                        .status(common_1.HttpStatus.FORBIDDEN)
-                        .json({ message: 'Only SUPER_ADMIN can approve broadcasts.' });
-                }
                 if (broadcast.status === client_1.BroadcastStatus.SENDING) {
                     if (approvalRequestId &&
                         broadcast.approvalRequestId === approvalRequestId) {

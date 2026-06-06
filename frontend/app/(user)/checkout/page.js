@@ -91,6 +91,13 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
           }
         }
       } else {
+        if (res.status === 401) {
+          localStorage.removeItem("tradebot-user");
+          localStorage.removeItem("tradebot-authenticated");
+          document.cookie = 'tradebot-token=; path=/; max-age=0; SameSite=Lax';
+          router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+          return;
+        }
         setError("Unable to fetch payment status");
       }
     } catch (e) {
@@ -98,7 +105,7 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
     } finally {
       setLoading(false);
     }
-  }, [onStatusLoaded]);
+  }, [onStatusLoaded, router]);
 
   useEffect(() => {
     fetchStatus();
@@ -128,7 +135,9 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
         </span>
         <h2 className="mt-6 text-2xl font-semibold text-white">Unable to fetch payment status</h2>
         <p className="mx-auto mt-3 max-w-md text-sm text-neutral-400">
-          {error}
+          {error === "Unable to fetch payment status"
+            ? "We encountered an issue retrieving your transaction verification records. Please try again."
+            : error}
         </p>
         <button
           type="button"
@@ -191,7 +200,7 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
         </h1>
 
         <p className="mx-auto mt-4 max-w-lg text-lg text-neutral-300">
-          Your plan has been activated successfully.
+          Your subscription has been activated successfully.
         </p>
 
         <div className="mx-auto mt-8 max-w-xs rounded-2xl border border-white/5 bg-white/[0.02] p-6 text-left space-y-4">
@@ -205,10 +214,6 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
           </div>
         </div>
 
-        <p className="mt-8 text-sm text-neutral-400 font-medium">
-          You now have full access to all premium features.
-        </p>
-
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <button
             type="button"
@@ -218,20 +223,13 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
             Go to Dashboard
             <ArrowRight className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            onClick={() => router.push("/")}
-            className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-8 text-sm font-bold text-white transition hover:bg-white/[0.08]"
-          >
-            Go to Home
-          </button>
         </div>
       </section>
     );
   }
 
   // REJECTED STATE
-  if (status === "REJECTED") {
+  if (status === "REJECTED" || status === "FAILED") {
     return (
       <section className="mx-auto max-w-3xl rounded-2xl border border-red-500/30 bg-[#0A0A0A]/95 p-8 text-center shadow-[0_0_80px_-30px_rgba(239,68,68,0.4)] sm:p-12">
         <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-red-500/10 text-red-400 shadow-[0_0_40px_rgba(239,68,68,0.2)]">
@@ -239,16 +237,16 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
         </span>
         
         <h1 className="mt-8 text-3xl font-extrabold tracking-tight text-red-400 sm:text-4xl">
-          ❌ Payment Verification Failed
+          Payment Rejected
         </h1>
 
         <p className="mx-auto mt-4 max-w-lg text-lg text-neutral-300">
-          Please submit a new payment or contact support.
+          Unfortunately your payment could not be verified.
         </p>
 
         {adminRemark && (
           <div className="mx-auto mt-6 max-w-md rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-left">
-            <p className="text-xs font-bold uppercase tracking-widest text-red-300">Admin Note</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-red-300">Reason</p>
             <p className="mt-2 text-sm leading-relaxed text-neutral-300">{adminRemark}</p>
           </div>
         )}
@@ -257,82 +255,50 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
           <button
             type="button"
             onClick={() => moveToStep("payment")}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-red-500 px-6 text-sm font-bold text-white transition hover:bg-red-400 hover:scale-[1.02] active:scale-[0.98]"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-500 px-6 text-sm font-bold text-black transition hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98]"
           >
-            Upload New Payment Proof
+            Submit New Payment
             <ArrowRight className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard")}
-            className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm font-bold text-white transition hover:bg-white/[0.08]"
-          >
-            Go to Dashboard
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push("/")}
-            className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm font-bold text-white transition hover:bg-white/[0.08]"
-          >
-            Go to Home
           </button>
         </div>
       </section>
     );
   }
 
-  // PENDING / VERIFIED / default
+  // PENDING / VERIFIED / UNDER_REVIEW / DEFAULT STATE
   return (
-    <section className="mx-auto max-w-3xl rounded-2xl border border-yellow-400/20 bg-[#0A0A0A]/95 p-8 text-center shadow-[0_0_80px_-30px_rgba(250,204,21,0.3)] sm:p-12">
-      <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-yellow-400/10 text-yellow-300 shadow-[0_0_40px_rgba(250,204,21,0.1)]">
+    <section className="mx-auto max-w-3xl rounded-2xl border border-yellow-500/30 bg-[#0A0A0A]/95 p-8 text-center shadow-[0_0_80px_-30px_rgba(250,204,21,0.3)] sm:p-12">
+      <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-yellow-400/10 text-yellow-300 shadow-[0_0_40px_rgba(250,204,21,0.15)] mb-6">
         <Clock3 className="h-12 w-12 animate-pulse" />
       </span>
       
-      <h1 className="mt-8 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-        ⏳ Payment Submitted Successfully
-      </h1>
+      <h2 className="text-2xl font-bold text-white mb-2">Payment Under Review</h2>
 
-      <p className="mx-auto mt-4 max-w-lg text-lg text-neutral-300">
-        Your payment has been received and is under review.
-      </p>
-
-      <div className="mx-auto mt-8 max-w-xs rounded-2xl border border-white/5 bg-white/[0.02] p-6 text-left space-y-4">
-        <div className="flex items-center justify-between text-neutral-400">
-          <span className="text-sm">Status:</span>
-          <span className="text-sm font-semibold text-yellow-300">
-            {status === "VERIFIED" ? "Verified (Pending Approval)" : "Pending Approval"}
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-neutral-400">
-          <span className="text-sm">Plan:</span>
-          <span className="text-sm font-semibold text-white">{planName || "--"}</span>
-        </div>
-        {amount && (
-          <div className="flex items-center justify-between text-neutral-400">
-            <span className="text-sm">Amount:</span>
-            <span className="text-sm font-semibold text-white font-mono">{formattedAmount}</span>
-          </div>
-        )}
+      <div className="flex flex-col items-center gap-2 text-sm text-neutral-400 mb-6 font-semibold">
+        <span className="flex items-center gap-1.5 text-green-400">
+          <Check className="h-4 w-4 stroke-[3px]" /> Payment Submitted
+        </span>
+        <span className="flex items-center gap-1.5 text-yellow-400">
+          <Clock3 className="h-4 w-4 animate-spin" /> Awaiting Admin Verification
+        </span>
       </div>
 
-      <p className="mt-8 text-sm text-neutral-500 font-medium">
-        We will activate your plan after verification.
+      <p className="mx-auto max-w-md text-sm text-neutral-400 leading-relaxed">
+        Your payment request has been received successfully. Our team is reviewing your payment details.
+        This process may take a few minutes to several hours depending on verification requirements.
+      </p>
+
+      <p className="mt-4 text-xs text-neutral-500 font-medium">
+        You will receive a notification once your payment has been approved.
       </p>
 
       <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
         <button
           type="button"
           onClick={() => router.push("/dashboard")}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-500 px-6 text-sm font-bold text-black transition hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98]"
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-500 px-8 text-sm font-bold text-black transition hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98]"
         >
           Go to Dashboard
-        </button>
-        <button
-          type="button"
-          onClick={() => router.push("/")}
-          className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-6 text-sm font-bold text-white transition hover:bg-white/[0.08]"
-        >
-          Go to Home
         </button>
         <button
           type="button"
@@ -431,6 +397,21 @@ export default function CheckoutPage() {
       }, 0);
       return;
     }
+
+    // Auto-redirect if they already have an active/pending payment
+    apiFetch("/api/dashboard/my-payment-status")
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data.found && ["PENDING", "VERIFIED", "APPROVED"].includes(data.status)) {
+            if (!params.get("step")) {
+              setStep("status");
+              window.history.pushState(null, "", `/checkout?plan=${requestedPlan}&step=status`);
+            }
+          }
+        }
+      })
+      .catch((err) => console.error("Error checking payment status on mount:", err));
 
     setPlanLoading(true);
     setPlanError(null);
@@ -812,9 +793,27 @@ export default function CheckoutPage() {
                     txnHash = txnHash.replace(/[^A-Za-z0-9]/gi, "").toUpperCase();
                   }
 
+                  // Client-side amount validation: ensure submitted amount meets plan minimum
+                  if (pricing?.isFlexible) {
+                    const slug = fetchedPlan?.name?.split(" ")[0]?.toLowerCase() || "";
+                    const minAllowed = PLAN_MIN_AMOUNTS[slug] || 1;
+                    const submittedAmount = pricing?.entryFee || 0;
+                    if (submittedAmount < minAllowed) {
+                      setPaymentError(
+                        `Minimum deposit for the ${fetchedPlan?.name || "selected"} plan is $${minAllowed} USDT. Please enter at least $${minAllowed}.`
+                      );
+                      return;
+                    }
+                  }
+
+                  if (!pricing?.entryFee || pricing.entryFee <= 0) {
+                    setPaymentError("Please enter a valid deposit amount.");
+                    return;
+                  }
+
                   setIsSubmittingPayment(true);
                   setPaymentError("");
-                  const created = await addPayment({
+                  const result = await addPayment({
                     user: paymentUser.name,
                     email: paymentUser.email,
                     plan: `${plan.name} ${plan.planType}`,
@@ -826,8 +825,8 @@ export default function CheckoutPage() {
                     initiationId
                   });
                   setIsSubmittingPayment(false);
-                  if (!created) {
-                    setPaymentError("Payment submission failed. Please check your login and try again.");
+                  if (!result.success) {
+                    setPaymentError(result.error || "Payment submission failed. Please check your login and try again.");
                     return;
                   }
                   moveToStep("status");
@@ -843,7 +842,11 @@ export default function CheckoutPage() {
                     name="amount"
                     required
                     type="number"
-                    min="1"
+                    min={(() => {
+                      if (!pricing?.isFlexible) return undefined;
+                      const slug = fetchedPlan?.name?.split(" ")[0]?.toLowerCase() || "";
+                      return PLAN_MIN_AMOUNTS[slug] || 1;
+                    })()}
                     step="any"
                     placeholder="Enter exact amount paid"
                     value={amountInput ?? ""}
@@ -855,7 +858,14 @@ export default function CheckoutPage() {
                     }`}
                   />
                   <p className="mt-1 text-[11px] text-neutral-500">
-                    Specify the exact amount you sent. Target range/minimum for this plan: <span className="text-green-300 font-semibold">{plan.capital}</span>.
+                    {pricing?.isFlexible
+                      ? (() => {
+                          const slug = fetchedPlan?.name?.split(" ")[0]?.toLowerCase() || "";
+                          const min = PLAN_MIN_AMOUNTS[slug] || 1;
+                          return <>Minimum deposit: <span className="text-green-300 font-semibold">${min} USDT</span>. Enter the exact amount you sent.</>
+                        })()
+                      : <>Fixed entry fee: <span className="text-green-300 font-semibold">{plan.capital}</span>. Enter the exact amount you sent.</>
+                    }
                   </p>
                   {(!pricing?.isFlexible) && (
                     <p className="mt-2 text-xs text-neutral-400 flex items-center gap-1.5">

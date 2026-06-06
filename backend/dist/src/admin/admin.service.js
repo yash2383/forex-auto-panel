@@ -1195,10 +1195,55 @@ let AdminService = AdminService_1 = class AdminService {
             orderBy: { createdAt: 'desc' },
             include: {
                 referrer: { select: { name: true, email: true } },
-                referredUser: { select: { name: true, email: true } },
+                referredUser: {
+                    select: {
+                        name: true,
+                        email: true,
+                        wallet: { select: { realizedBalance: true } },
+                    },
+                },
             },
         });
-        return { success: true, referrals };
+        const formatted = referrals.map((r) => {
+            const referrerName = r.referrer ? (r.referrer.name || r.referrer.email) : 'Unknown';
+            const referredName = r.referredUser ? (r.referredUser.name || r.referredUser.email) : 'Unknown';
+            return {
+                id: r.id,
+                referrer: referrerName,
+                user: referredName,
+                deposit: r.depositAmount
+                    ? `₹${Number(r.depositAmount).toLocaleString('en-IN')}`
+                    : r.referredUser?.wallet
+                        ? `₹${Number(r.referredUser.wallet.realizedBalance).toLocaleString('en-IN')}`
+                        : '₹0',
+                reward: `₹${Number(r.commissionAmount || 0).toLocaleString('en-IN')}`,
+                status: r.status === 'PENDING'
+                    ? 'Pending'
+                    : r.status === 'PAID'
+                        ? 'Paid'
+                        : r.status === 'APPROVED'
+                            ? 'Approved'
+                            : r.status === 'REJECTED'
+                                ? 'Rejected'
+                                : 'Cancelled',
+            };
+        });
+        return { success: true, referrals: formatted };
+    }
+    async getReferralStats() {
+        const referrals = await this.prisma.referral.findMany();
+        const paid = referrals.filter((r) => r.status === 'PAID');
+        const pending = referrals.filter((r) => r.status === 'PENDING');
+        const totalPayouts = paid.reduce((sum, r) => sum + Number(r.commissionAmount || 0), 0);
+        return {
+            success: true,
+            stats: {
+                total: referrals.length,
+                paid: paid.length,
+                pending: pending.length,
+                totalPayouts,
+            },
+        };
     }
     async updateReferralStatus(adminId, referralId, status, clientIp) {
         const referral = await this.prisma.referral.findUnique({
@@ -1206,22 +1251,140 @@ let AdminService = AdminService_1 = class AdminService {
         });
         if (!referral)
             return { error: 'Referral not found', status: 404 };
+        const upperStatus = status.toUpperCase();
         const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'PAID'];
-        if (!validStatuses.includes(status))
+        if (!validStatuses.includes(upperStatus))
             return { error: 'Invalid status', status: 400 };
         const updated = await this.prisma.referral.update({
             where: { id: referralId },
-            data: { status: status },
+            data: { status: upperStatus },
         });
         await this.prisma.securityEvent.create({
             data: {
                 adminId,
                 action: 'REFERRAL_UPDATE',
-                reason: `Updated referral ${referralId} status to ${status}`,
+                reason: `Updated referral ${referralId} status to ${upperStatus}`,
                 ipAddress: clientIp,
             },
         });
         return { success: true, referral: updated };
+    }
+    async getCampaigns() {
+        const campaigns = await this.prisma.campaign.findMany({
+            orderBy: { createdAt: 'desc' },
+        });
+        const users = await this.prisma.user.findMany({
+            where: { isDeleted: false },
+        });
+        const payments = await this.prisma.payment.findMany({
+            where: { status: 'APPROVED' },
+        });
+        const formatted = campaigns.map((c) => {
+            const campUsers = users.filter((u) => u.partnerId === c.partnerId).length;
+            const revenueVal = payments
+                .filter((p) => p.partnerId === c.partnerId)
+                .reduce((sum, p) => sum + Number(p.amount), 0);
+            return {
+                id: c.id,
+                name: c.name,
+                slug: c.slug,
+                code: c.slug,
+                trackingLink: `/register?campaign=${c.slug}`,
+                users: campUsers,
+                revenue: `₹${Number(revenueVal).toLocaleString('en-IN')}`,
+                deposits: `₹${Number(revenueVal).toLocaleString('en-IN')}`,
+                status: c.isActive ? 'Active' : 'Paused',
+                source: 'Direct',
+                budget: '0',
+                startDate: '',
+                endDate: '',
+            };
+        });
+        return { success: true, campaigns: formatted };
+    }
+    async createCampaign(adminId, body, clientIp) {
+        const { name, code, status } = body;
+        if (!name)
+            return { error: 'Campaign Name is required', status: 400 };
+        const slug = (code || name).toUpperCase().replace(/\s+/g, '_');
+        const partner = await this.prisma.partner.findFirst();
+        if (!partner)
+            return { error: 'No partner found in the system.', status: 400 };
+        const partnerId = body.partnerId || partner.id;
+        const existing = await this.prisma.campaign.findUnique({
+            where: {
+                partnerId_slug: { partnerId, slug },
+            },
+        });
+        if (existing)
+            return { error: 'Campaign slug already exists for this partner', status: 400 };
+        const isActive = status === 'Active';
+        const campaign = await this.prisma.campaign.create({
+            data: {
+                partnerId,
+                name,
+                slug,
+                isActive,
+            },
+        });
+        await this.prisma.securityEvent.create({
+            data: {
+                adminId,
+                action: 'CAMPAIGN_CREATE',
+                reason: `Created campaign ${campaign.id} (${slug})`,
+                ipAddress: clientIp,
+            },
+        });
+        return { success: true, campaign };
+    }
+    async updateCampaign(adminId, id, body, clientIp) {
+        const campaign = await this.prisma.campaign.findUnique({
+            where: { id },
+        });
+        if (!campaign)
+            return { error: 'Campaign not found', status: 404 };
+        const { name, code, status } = body;
+        const data = {};
+        if (name !== undefined)
+            data.name = name;
+        if (code !== undefined) {
+            data.slug = code.toUpperCase().replace(/\s+/g, '_');
+        }
+        if (status !== undefined) {
+            data.isActive = status === 'Active';
+        }
+        const updated = await this.prisma.campaign.update({
+            where: { id },
+            data,
+        });
+        await this.prisma.securityEvent.create({
+            data: {
+                adminId,
+                action: 'CAMPAIGN_UPDATE',
+                reason: `Updated campaign ${id}`,
+                ipAddress: clientIp,
+            },
+        });
+        return { success: true, campaign: updated };
+    }
+    async deleteCampaign(adminId, id, clientIp) {
+        const campaign = await this.prisma.campaign.findUnique({
+            where: { id },
+        });
+        if (!campaign)
+            return { error: 'Campaign not found', status: 404 };
+        await this.prisma.campaign.delete({
+            where: { id },
+        });
+        await this.prisma.securityEvent.create({
+            data: {
+                adminId,
+                action: 'CAMPAIGN_DELETE',
+                reason: `Deleted campaign ${id} (${campaign.slug})`,
+                ipAddress: clientIp,
+            },
+        });
+        return { success: true };
     }
     async createTrade(adminId, body, clientIp) {
         const { userId, pair, type, entry, stopLoss, target } = body;

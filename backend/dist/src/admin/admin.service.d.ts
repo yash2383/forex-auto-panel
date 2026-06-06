@@ -256,16 +256,16 @@ export declare class AdminService implements OnModuleInit {
         user: {
             id: string;
             partnerId: string;
-            status: import("@prisma/client").$Enums.UserStatus;
-            createdAt: Date;
             name: string;
-            updatedAt: Date;
             email: string;
             phone: string | null;
             passwordHash: string;
+            status: import("@prisma/client").$Enums.UserStatus;
             isDeleted: boolean;
             lastLoginAt: Date | null;
             lastLoginIP: string | null;
+            createdAt: Date;
+            updatedAt: Date;
             referralCode: string;
             referredBy: string | null;
             isVerified: boolean;
@@ -297,19 +297,19 @@ export declare class AdminService implements OnModuleInit {
         success: boolean;
         partner: {
             id: string;
-            status: import("@prisma/client").$Enums.PartnerStatus;
-            createdAt: Date;
             name: string;
-            updatedAt: Date;
             email: string;
             passwordHash: string;
+            status: import("@prisma/client").$Enums.PartnerStatus;
             lastLoginAt: Date | null;
             lastLoginIP: string | null;
+            createdAt: Date;
+            updatedAt: Date;
             slug: string;
-            domain: string;
             companyName: string;
             profitSharePct: Prisma.Decimal;
             maxAllowedPct: Prisma.Decimal;
+            domain: string;
             logo: string | null;
         };
         error?: undefined;
@@ -324,21 +324,21 @@ export declare class AdminService implements OnModuleInit {
         success: boolean;
         plan: {
             id: string;
+            name: string;
             status: string;
             createdAt: Date;
-            name: string;
             updatedAt: Date;
             desc: string;
-            weeklyProfit: Prisma.Decimal;
             amount: Prisma.Decimal | null;
-            isActive: boolean;
             slug: string;
+            isActive: boolean;
             subtitle: string;
             capitalLabel: string;
             features: string[];
             btnText: string;
             isPopular: boolean;
             pricingType: string;
+            weeklyProfit: Prisma.Decimal;
             durationDays: number;
             sortOrder: number;
         };
@@ -354,21 +354,21 @@ export declare class AdminService implements OnModuleInit {
         success: boolean;
         plan: {
             id: string;
+            name: string;
             status: string;
             createdAt: Date;
-            name: string;
             updatedAt: Date;
             desc: string;
-            weeklyProfit: Prisma.Decimal;
             amount: Prisma.Decimal | null;
-            isActive: boolean;
             slug: string;
+            isActive: boolean;
             subtitle: string;
             capitalLabel: string;
             features: string[];
             btnText: string;
             isPopular: boolean;
             pricingType: string;
+            weeklyProfit: Prisma.Decimal;
             durationDays: number;
             sortOrder: number;
         };
@@ -594,28 +594,23 @@ export declare class AdminService implements OnModuleInit {
     }>;
     getReferrals(): Promise<{
         success: boolean;
-        referrals: ({
-            referrer: {
-                name: string;
-                email: string;
-            };
-            referredUser: {
-                name: string;
-                email: string;
-            };
-        } & {
+        referrals: {
             id: string;
-            partnerId: string;
-            status: import("@prisma/client").$Enums.ReferralStatus;
-            createdAt: Date;
-            updatedAt: Date;
-            referrerId: string;
-            referredId: string;
-            depositAmount: Prisma.Decimal | null;
-            commissionPct: Prisma.Decimal | null;
-            commissionAmount: Prisma.Decimal | null;
-            paymentId: string | null;
-        })[];
+            referrer: string;
+            user: string;
+            deposit: string;
+            reward: string;
+            status: string;
+        }[];
+    }>;
+    getReferralStats(): Promise<{
+        success: boolean;
+        stats: {
+            total: number;
+            paid: number;
+            pending: number;
+            totalPayouts: number;
+        };
     }>;
     updateReferralStatus(adminId: string, referralId: string, status: string, clientIp: string): Promise<{
         error: string;
@@ -640,6 +635,69 @@ export declare class AdminService implements OnModuleInit {
         error?: undefined;
         status?: undefined;
     }>;
+    getCampaigns(): Promise<{
+        success: boolean;
+        campaigns: {
+            id: string;
+            name: string;
+            slug: string;
+            code: string;
+            trackingLink: string;
+            users: number;
+            revenue: string;
+            deposits: string;
+            status: string;
+            source: string;
+            budget: string;
+            startDate: string;
+            endDate: string;
+        }[];
+    }>;
+    createCampaign(adminId: string, body: any, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        campaign?: undefined;
+    } | {
+        success: boolean;
+        campaign: {
+            id: string;
+            partnerId: string;
+            name: string;
+            createdAt: Date;
+            slug: string;
+            isActive: boolean;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    updateCampaign(adminId: string, id: string, body: any, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+        campaign?: undefined;
+    } | {
+        success: boolean;
+        campaign: {
+            id: string;
+            partnerId: string;
+            name: string;
+            createdAt: Date;
+            slug: string;
+            isActive: boolean;
+        };
+        error?: undefined;
+        status?: undefined;
+    }>;
+    deleteCampaign(adminId: string, id: string, clientIp: string): Promise<{
+        error: string;
+        status: number;
+        success?: undefined;
+    } | {
+        success: boolean;
+        error?: undefined;
+        status?: undefined;
+    }>;
     createTrade(adminId: string, body: any, clientIp: string): Promise<{
         error: string;
         status: number;
@@ -653,15 +711,15 @@ export declare class AdminService implements OnModuleInit {
             status: import("@prisma/client").$Enums.TradeStatus;
             createdAt: Date;
             userId: string;
-            type: import("@prisma/client").$Enums.TradeType;
-            target: Prisma.Decimal;
             ledgerTransactionGroupId: string | null;
             pair: string;
             entryPrice: Prisma.Decimal;
+            exitPrice: Prisma.Decimal;
+            type: import("@prisma/client").$Enums.TradeType;
             currentPrice: Prisma.Decimal;
             quantity: Prisma.Decimal;
-            exitPrice: Prisma.Decimal;
             stopLoss: Prisma.Decimal;
+            target: Prisma.Decimal;
             profit: Prisma.Decimal;
             pnl: Prisma.Decimal;
             closedAt: Date | null;
@@ -685,12 +743,12 @@ export declare class AdminService implements OnModuleInit {
         createdAt: Date;
         updatedAt: Date;
         pair: string;
+        side: string;
         entryPrice: number;
         exitPrice: number;
-        notes: string | null;
-        side: string;
         profitLoss: number;
         tradeDate: Date;
+        notes: string | null;
     }[]>;
     createTradeRecord(body: any): Promise<{
         error: string;
@@ -706,12 +764,12 @@ export declare class AdminService implements OnModuleInit {
             createdAt: Date;
             updatedAt: Date;
             pair: string;
+            side: string;
             entryPrice: number;
             exitPrice: number;
-            notes: string | null;
-            side: string;
             profitLoss: number;
             tradeDate: Date;
+            notes: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -730,12 +788,12 @@ export declare class AdminService implements OnModuleInit {
             createdAt: Date;
             updatedAt: Date;
             pair: string;
+            side: string;
             entryPrice: number;
             exitPrice: number;
-            notes: string | null;
-            side: string;
             profitLoss: number;
             tradeDate: Date;
+            notes: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -765,12 +823,12 @@ export declare class AdminService implements OnModuleInit {
             createdAt: Date;
             updatedAt: Date;
             pair: string;
+            side: string;
             entryPrice: number;
             exitPrice: number;
-            notes: string | null;
-            side: string;
             profitLoss: number;
             tradeDate: Date;
+            notes: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -793,11 +851,10 @@ export declare class AdminService implements OnModuleInit {
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            idempotencyKey: string | null;
-            amount: Prisma.Decimal;
-            paymentType: import("@prisma/client").$Enums.PaymentType;
             planName: string;
+            amount: Prisma.Decimal;
             currency: string;
+            paymentType: import("@prisma/client").$Enums.PaymentType;
             network: string | null;
             txnHash: string | null;
             utr: string | null;
@@ -805,6 +862,7 @@ export declare class AdminService implements OnModuleInit {
             remark: string | null;
             ledgerTransactionGroupId: string | null;
             initiationId: string | null;
+            idempotencyKey: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -823,11 +881,10 @@ export declare class AdminService implements OnModuleInit {
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            idempotencyKey: string | null;
-            amount: Prisma.Decimal;
-            paymentType: import("@prisma/client").$Enums.PaymentType;
             planName: string;
+            amount: Prisma.Decimal;
             currency: string;
+            paymentType: import("@prisma/client").$Enums.PaymentType;
             network: string | null;
             txnHash: string | null;
             utr: string | null;
@@ -835,6 +892,7 @@ export declare class AdminService implements OnModuleInit {
             remark: string | null;
             ledgerTransactionGroupId: string | null;
             initiationId: string | null;
+            idempotencyKey: string | null;
         };
         error?: undefined;
         status?: undefined;
@@ -1193,22 +1251,22 @@ export declare class AdminService implements OnModuleInit {
     }>;
     getInquiries(): Promise<{
         id: string;
+        name: string;
+        email: string;
         status: string;
         createdAt: Date;
-        name: string;
-        subject: string;
         updatedAt: Date;
-        email: string;
+        subject: string;
         message: string;
     }[]>;
     updateInquiryStatus(id: string, status: string): Promise<{
         id: string;
+        name: string;
+        email: string;
         status: string;
         createdAt: Date;
-        name: string;
-        subject: string;
         updatedAt: Date;
-        email: string;
+        subject: string;
         message: string;
     } | {
         error: string;
@@ -1238,17 +1296,17 @@ export declare class AdminService implements OnModuleInit {
             id: string;
             partnerId: string;
             status: string;
-            completedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            planId: string | null;
             amount: Prisma.Decimal;
-            paymentGateway: string | null;
             paymentType: string | null;
+            planId: string | null;
+            paymentGateway: string | null;
             source: string | null;
             checkoutOpenedAt: Date;
             lastActivityAt: Date;
+            completedAt: Date | null;
             processingAt: Date | null;
             followUpStatus: import("@prisma/client").$Enums.FollowUpStatus;
             contactedAt: Date | null;
@@ -1267,17 +1325,17 @@ export declare class AdminService implements OnModuleInit {
             id: string;
             partnerId: string;
             status: string;
-            completedAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
             userId: string;
-            planId: string | null;
             amount: Prisma.Decimal;
-            paymentGateway: string | null;
             paymentType: string | null;
+            planId: string | null;
+            paymentGateway: string | null;
             source: string | null;
             checkoutOpenedAt: Date;
             lastActivityAt: Date;
+            completedAt: Date | null;
             processingAt: Date | null;
             followUpStatus: import("@prisma/client").$Enums.FollowUpStatus;
             contactedAt: Date | null;

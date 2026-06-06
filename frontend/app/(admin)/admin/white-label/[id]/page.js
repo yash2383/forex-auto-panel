@@ -31,8 +31,8 @@ export default function WhiteLabelDetailsPage({ params }) {
     );
   }
 
-  const isViewer = currentUser?.role === "VIEWER";
-  const isManager = currentUser?.role === "MANAGER";
+  const isViewer = false;
+  const isManager = false;
 
   const partnerShare = partner.revenue * (partner.profitShare / 100);
   const adminShare = partner.revenue * (1 - partner.profitShare / 100);

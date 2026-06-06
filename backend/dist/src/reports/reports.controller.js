@@ -126,7 +126,8 @@ let ReportsController = class ReportsController {
     async downloadReport(req, res, id) {
         try {
             const user = req.user;
-            const isAdmin = ['SUPER_ADMIN', 'MANAGER', 'VIEWER'].includes(user.role);
+            const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'MANAGER', 'VIEWER']);
+            const isAdmin = ADMIN_ROLES.has(user.role);
             const report = await this.reportsService.prisma.generatedReport.findUnique({
                 where: { id },
                 include: { user: true },
@@ -174,7 +175,8 @@ let ReportsController = class ReportsController {
             const user = req.user;
             let targetUserId = user.id;
             let targetUserName = user.name || 'User';
-            const isAdmin = ['SUPER_ADMIN', 'MANAGER', 'VIEWER'].includes(user.role);
+            const ADMIN_ROLES = new Set(['SUPER_ADMIN', 'MANAGER', 'VIEWER']);
+            const isAdmin = ADMIN_ROLES.has(user.role);
             if (isAdmin && userId) {
                 targetUserId = userId;
                 const targetUser = await this.reportsService.prisma.user.findUnique({

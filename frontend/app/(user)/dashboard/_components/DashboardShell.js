@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CalendarDays, ChevronDown, Crown, Globe2, Moon, Sun, LogOut, Menu, X } from "lucide-react";
+import { Bell, CalendarDays, ChevronDown, Crown, Globe2, Moon, Sun, LogOut, Menu, X, Lock, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -18,11 +18,17 @@ export default function DashboardShell({ children }) {
   const currentUser = useAdminStore((s) => s.currentUser);
   const payments = useAdminStore((s) => s.payments || []);
   const fetchData = useAdminStore((s) => s.fetchData);
+  const isInitialized = useAdminStore((s) => s.isInitialized);
+
+  // Subscription state from backend API
+  const [activePlan, setActivePlan] = useState(null);
+  const [loadingSub, setLoadingSub] = useState(true);
 
   // Initialize FCM and register device token automatically
   useFcmToken(currentUser);
 
-  const hasActivePlan = payments.some(p => p.status === "Approved");
+  const isAdminOrPartner = currentUser && ["SUPER_ADMIN", "MANAGER", "VIEWER", "PARTNER"].includes(currentUser.role);
+  const hasActivePlan = isAdminOrPartner || (activePlan !== null && activePlan.status === "ACTIVE");
 
   const getWeekRange = () => {
     const today = new Date();
@@ -75,6 +81,37 @@ export default function DashboardShell({ children }) {
     fetchData();
   }, [fetchData]);
 
+  // Auth redirect guard
+  useEffect(() => {
+    if (isInitialized && !currentUser) {
+      window.location.href = "/login";
+    }
+  }, [isInitialized, currentUser]);
+
+  const userId = currentUser?.id;
+
+  // Fetch subscription info
+  useEffect(() => {
+    if (userId) {
+      setLoadingSub(true);
+      apiFetch("/api/user/subscription")
+        .then(async (res) => {
+          if (res.ok) {
+            const data = await res.json();
+            if (data.hasSubscription && data.subscription) {
+              setActivePlan(data.subscription);
+            } else {
+              setActivePlan(null);
+            }
+          }
+        })
+        .catch((err) => console.error("Error fetching subscription:", err))
+        .finally(() => setLoadingSub(false));
+    } else if (isInitialized) {
+      setLoadingSub(false);
+    }
+  }, [fetchData, userId, isInitialized]);
+
   useEffect(() => {
     const currentTheme = document.body.classList.contains("light-theme") ? "light" : "dark";
     setTheme(currentTheme);
@@ -87,6 +124,23 @@ export default function DashboardShell({ children }) {
     localStorage.setItem("tradebot-theme", nextTheme);
     setTheme(nextTheme);
   };
+
+  const isSubscriptionPage = pathname === "/dashboard/subscription";
+  const isSupportPage = pathname === "/dashboard/support";
+  const shouldLock = !hasActivePlan && !isSubscriptionPage && !isSupportPage;
+
+  if (!isInitialized || (currentUser && loadingSub)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#020806]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex h-16 w-16 animate-spin items-center justify-center rounded-2xl border border-green-500/20 bg-green-950/40 text-green-400 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
+            <span className="h-6 w-6 border-2 border-green-400 border-t-transparent rounded-full"></span>
+          </div>
+          <p className="text-sm font-semibold text-neutral-400 tracking-wide animate-pulse">Initializing Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#020806] text-white">
@@ -114,6 +168,7 @@ export default function DashboardShell({ children }) {
             {userNavItems.map((item) => {
               const Icon = item.icon;
               const active = pathname === item.href;
+              const isLockedItem = !hasActivePlan && item.href !== "/dashboard/subscription" && item.href !== "/dashboard/support";
 
               return (
                 <Link
@@ -126,13 +181,15 @@ export default function DashboardShell({ children }) {
                     }`}>
                   <div className="flex items-center gap-3">
                     <Icon className="h-4 w-4" />
-                    {item.label}
+                    <span className={isLockedItem ? "text-neutral-500" : ""}>{item.label}</span>
                   </div>
-                  {item.badge && (
+                  {isLockedItem ? (
+                    <Lock className="h-3.5 w-3.5 text-neutral-500" />
+                  ) : item.badge ? (
                     <span className="flex h-5 items-center justify-center rounded-full bg-green-500/20 px-2 text-[10px] font-bold text-green-300">
                       {item.badge}
                     </span>
-                  )}
+                  ) : null}
                 </Link>
               );
             })}
@@ -145,7 +202,7 @@ export default function DashboardShell({ children }) {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-white truncate">{currentUser?.name || "User"}</p>
-                <p className="text-xs font-semibold text-green-300">
+                <p className={`text-xs font-semibold ${hasActivePlan ? "text-green-300" : "text-neutral-400"}`}>
                   {hasActivePlan ? "Premium Active" : "No Active Plan"}
                 </p>
               </div>
@@ -198,9 +255,83 @@ export default function DashboardShell({ children }) {
             </div>
           </header>
 
-          <div className="space-y-8 px-4 py-8 sm:px-8">{children}</div>
+          <div className="space-y-8 px-4 py-8 sm:px-8">
+            {shouldLock ? (
+              <DashboardLockScreen />
+            ) : (
+              children
+            )}
+          </div>
         </div>
       </div>
     </main>
+  );
+}
+
+function DashboardLockScreen() {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-green-500/20 bg-gradient-to-br from-[#06120e] via-[#030a07] to-[#010503] p-6 md:p-8 shadow-[0_0_50px_-20px_rgba(34,197,94,0.25)] max-w-2xl mx-auto my-8 text-center">
+      {/* Background radial glow */}
+      <div className="absolute -top-20 left-1/2 -translate-x-1/2 h-40 w-40 rounded-full bg-green-500/10 blur-[50px] pointer-events-none"></div>
+      
+      {/* Locked Padlock Visual */}
+      <div className="relative mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl border border-green-500/30 bg-green-500/5 text-green-400 shadow-[0_0_30px_rgba(34,197,94,0.15)]">
+        <span className="absolute inset-0 rounded-xl bg-green-500/5 animate-ping opacity-25"></span>
+        <Lock className="h-8 w-8 text-green-400" />
+      </div>
+
+      <h2 className="text-2xl font-bold tracking-tight text-white animate-pulse">
+        Dashboard Access Locked
+      </h2>
+      <p className="mt-2 text-sm text-neutral-400 leading-relaxed max-w-md mx-auto">
+        Algorithmic trading automation, signal execution, cash balances, and performance metrics require an active plan license.
+      </p>
+
+      {/* Grid: Tighter, cleaner list of restrictions */}
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 text-left max-w-lg mx-auto">
+        <div className="rounded-xl border border-white/5 bg-white/[0.01] p-3.5 flex items-start gap-2.5">
+          <span className="h-2 w-2 rounded-full bg-green-400 mt-1.5 shrink-0 animate-pulse"></span>
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">Live Execution Locked</h4>
+            <p className="text-[11px] text-neutral-500 mt-0.5">Automated robots will not execute trades on your account.</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-white/5 bg-white/[0.01] p-3.5 flex items-start gap-2.5">
+          <span className="h-2 w-2 rounded-full bg-green-400 mt-1.5 shrink-0 animate-pulse"></span>
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">Telemetry & Stats Hidden</h4>
+            <p className="text-[11px] text-neutral-500 mt-0.5">Real-time signals, win rates, and trading logs are disabled.</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-white/5 bg-white/[0.01] p-3.5 flex items-start gap-2.5">
+          <span className="h-2 w-2 rounded-full bg-green-400 mt-1.5 shrink-0 animate-pulse"></span>
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">Wallet Options Disabled</h4>
+            <p className="text-[11px] text-neutral-500 mt-0.5">Deposits and withdrawals are locked until license is activated.</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-white/5 bg-white/[0.01] p-3.5 flex items-start gap-2.5">
+          <span className="h-2 w-2 rounded-full bg-green-400 mt-1.5 shrink-0 animate-pulse"></span>
+          <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">Premium Metrics Suspended</h4>
+            <p className="text-[11px] text-neutral-500 mt-0.5">Growth trackers and distribution histories are restricted.</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8 max-w-xs mx-auto">
+        <Link
+          href="/pricing"
+          className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-green-500 px-6 text-xs font-bold text-black shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:bg-green-400 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        >
+          View Plans
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+
+      <p className="mt-5 text-[10px] text-neutral-600 font-semibold tracking-wide">
+        Already purchased a plan? Verification requests are processed in under 1 hour.
+      </p>
+    </div>
   );
 }

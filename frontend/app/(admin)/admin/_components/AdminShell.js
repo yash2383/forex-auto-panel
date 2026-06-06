@@ -30,7 +30,6 @@ export default function AdminShell({ children }) {
 
   // Load Zustand auth parameters
   const currentUser = useAdminStore((s) => s.currentUser);
-  const setCurrentUserRole = useAdminStore((s) => s.setCurrentUserRole);
   const hasPermission = useAdminStore((s) => s.hasPermission);
   const fetchData = useAdminStore((s) => s.fetchData);
   const searchQuery = useAdminStore((s) => s.searchQuery || "");
@@ -467,20 +466,6 @@ export default function AdminShell({ children }) {
               </div>
               <div className="flex flex-nowrap items-center gap-2 sm:gap-3 overflow-x-auto pb-1 scrollbar-hide w-full lg:w-auto">
                 
-                {/* Role Switcher Selector Dropdown (RBAC Simulator) */}
-                <div className="flex h-11 items-center rounded-lg border border-white/[0.09] bg-[#0b141b] px-3 font-semibold text-xs shadow-inner shrink-0">
-                  <span className="hidden xl:inline text-neutral-400 mr-2 uppercase tracking-wider font-bold">Simulator:</span>
-                  <select 
-                    value={currentUser?.role || ""}
-                    onChange={(e) => setCurrentUserRole(e.target.value)}
-                    className="bg-transparent text-xs font-bold text-green-300 outline-none cursor-pointer pr-1"
-                  >
-                    <option value="SUPER_ADMIN" className="bg-[#0b141b] text-white">Super Admin</option>
-                    <option value="MANAGER" className="bg-[#0b141b] text-white">Manager</option>
-                    <option value="VIEWER" className="bg-[#0b141b] text-white">Viewer</option>
-                  </select>
-                </div>
-
                 <Link href="/" className="inline-flex shrink-0 h-11 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.03] px-3 sm:px-4 text-sm font-bold text-white transition hover:border-green-500/30 hover:text-green-300">
                   <span className="hidden lg:inline">Visit Website</span>
                   <ExternalLink className="h-4 w-4" />

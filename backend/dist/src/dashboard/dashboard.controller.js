@@ -165,7 +165,6 @@ __decorate([
 ], DashboardController.prototype, "settings", null);
 __decorate([
     (0, common_1.Get)('my-payment-status'),
-    (0, roles_guard_1.Roles)('USER'),
     __param(0, (0, common_1.Req)()),
     __param(1, (0, common_1.Res)()),
     __metadata("design:type", Function),

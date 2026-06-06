@@ -5,5 +5,6 @@ export declare const Roles: (...roles: string[]) => import("@nestjs/common").Cus
 export declare class RolesGuard implements CanActivate {
     private reflector;
     constructor(reflector: Reflector);
+    private static readonly ADMIN_ROLES;
     canActivate(context: ExecutionContext): boolean;
 }

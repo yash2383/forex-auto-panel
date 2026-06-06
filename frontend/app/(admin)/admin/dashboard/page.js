@@ -88,7 +88,7 @@ const sectionContent = {
     description: "Manage all registered users, track activity, and control access.",
     metrics: [["Total Users", "12,648"], ["No Deposit Users", "2,184"], ["Active Users", "5,892"], ["VIP Users", "316"]],
     filters: ["No Deposit", "New", "Active", "VIP", "Expired"],
-    headers: ["Name", "Email", "Deposit", "Plan", "Status"],
+    headers: ["Name", "Email", "Campaign", "Deposit", "Plan", "Status"],
   },
   payments: {
     permissionKey: "payments",
@@ -135,10 +135,10 @@ const sectionContent = {
     title: "Campaign Management",
     description: "Create and track marketing campaigns to measure user acquisition.",
     metrics: [["Campaigns", "14"], ["Users", "335"], ["Deposits", "142"], ["Revenue", "$32,500"]],
-    headers: ["Campaign", "Tracking Link", "Users", "Revenue"],
+    headers: ["Campaign", "Users", "Deposits", "Revenue"],
     rows: [
-      ["SUMMER2025", "/register?campaign=SUMMER2025", "120", "$12,000"],
-      ["GOOGLE_ADS", "/register?campaign=GOOGLE_ADS", "80", "$8,500"],
+      ["SUMMER2025", "120", "30", "$12,000"],
+      ["GOOGLE_ADS", "80", "20", "$8,500"],
     ],
   },
   referrals: {
@@ -1056,11 +1056,12 @@ function AdminSectionPage({
       list = list.filter((u) =>
         u.name.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
+        (u.campaign || "Direct").toLowerCase().includes(q) ||
         u.plan.toLowerCase().includes(q) ||
         u.status.toLowerCase().includes(q)
       );
     }
-    rows = list.map((u) => [u.name, u.email, u.deposit, u.plan, u.status, u.id]);
+    rows = list.map((u) => [u.name, u.email, u.campaign || "Direct", u.deposit, u.plan, u.status, u.id]);
   } else if (section.permissionKey === "payments" && section.title !== "Transaction History") {
     let list = payments;
     if (searchQuery) {
@@ -1184,11 +1185,11 @@ function AdminSectionPage({
       const q = searchQuery.toLowerCase();
       list = list.filter((c) =>
         c.name.toLowerCase().includes(q) ||
-        c.trackingLink.toLowerCase().includes(q) ||
+        (c.slug || "").toLowerCase().includes(q) ||
         c.status.toLowerCase().includes(q)
       );
     }
-    rows = list.map((c) => [c.name, c.trackingLink, String(c.users), c.revenue, c.id]);
+    rows = list.map((c) => [c.slug, String(c.users), String(c.deposits || 0), c.revenue, c.id]);
   } else if (section.permissionKey === "referrals") {
     let list = referrals;
     if (searchQuery) {
@@ -2547,11 +2548,182 @@ function AdminSectionPage({
   );
 }
 
+function CampaignDetailsView({ campaignId, showToast }) {
+  const router = useRouter();
+  const campaignDetails = useAdminStore((s) => s.campaignDetails);
+  const campaignUsers = useAdminStore((s) => s.campaignUsers || []);
+  const loading = useAdminStore((s) => s.loadingCampaignUsers);
+  const fetchCampaignUsers = useAdminStore((s) => s.fetchCampaignUsers);
+
+  useEffect(() => {
+    if (campaignId) {
+      fetchCampaignUsers(campaignId);
+    }
+  }, [campaignId, fetchCampaignUsers]);
+
+  if (loading) {
+    return (
+      <section className="space-y-5">
+        <div className={`${adminPanel} p-6`}>
+          <p className="text-xs font-bold uppercase tracking-wider text-green-300">Super Admin</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white">Campaign Details</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-neutral-400">Loading campaign attribution details...</p>
+        </div>
+        <LoadingState message="Loading campaign details..." />
+      </section>
+    );
+  }
+
+  if (!campaignDetails) {
+    return (
+      <section className="space-y-5">
+        <div className={`${adminPanel} p-6`}>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/admin/dashboard?section=campaigns")}
+              className="flex items-center justify-center h-8 w-8 rounded-lg border border-white/[0.08] bg-white/[0.02] text-neutral-400 hover:bg-white/[0.08] hover:text-white transition"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-green-300">Super Admin</p>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Campaign Details</h1>
+            </div>
+          </div>
+        </div>
+        <EmptyState
+          title="Campaign not found"
+          description="The campaign you are looking for does not exist or has been deleted."
+        />
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-6">
+      {/* Header */}
+      <div className={`${adminPanel} p-6`}>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.push("/admin/dashboard?section=campaigns")}
+            className="flex items-center justify-center h-10 w-10 rounded-lg border border-white/[0.08] bg-white/[0.02] text-neutral-400 hover:bg-white/[0.08] hover:text-white transition"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <div className="flex items-center gap-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-green-300">Campaign Details</p>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${
+                campaignDetails.status === "Active"
+                  ? "bg-green-500/10 text-green-300 border-green-500/20"
+                  : "bg-yellow-500/10 text-yellow-300 border-yellow-500/20"
+              }`}>
+                {campaignDetails.status}
+              </span>
+            </div>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">
+              Campaign: {campaignDetails.slug}
+            </h1>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Card 1 */}
+        <div className={`${adminPanel} p-6 relative overflow-hidden group hover:border-green-500/30 transition-all duration-300`}>
+          <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Users Registered</p>
+          <p className="mt-4 text-3xl font-bold text-white tracking-tight">{campaignDetails.usersRegistered}</p>
+          <div className="absolute right-4 top-4 text-neutral-500 opacity-20">
+            <Users className="h-12 w-12" />
+          </div>
+        </div>
+        {/* Card 2 */}
+        <div className={`${adminPanel} p-6 relative overflow-hidden group hover:border-green-500/30 transition-all duration-300`}>
+          <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Approved Deposits</p>
+          <p className="mt-4 text-3xl font-bold text-white tracking-tight">{campaignDetails.approvedDeposits}</p>
+          <div className="absolute right-4 top-4 text-neutral-500 opacity-20">
+            <CheckCircle className="h-12 w-12" />
+          </div>
+        </div>
+        {/* Card 3 */}
+        <div className={`${adminPanel} p-6 relative overflow-hidden group hover:border-green-500/30 transition-all duration-300`}>
+          <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Revenue</p>
+          <p className="mt-4 text-3xl font-bold text-green-400 tracking-tight">{campaignDetails.revenue}</p>
+          <div className="absolute right-4 top-4 text-neutral-500 opacity-20">
+            <DollarSign className="h-12 w-12" />
+          </div>
+        </div>
+        {/* Card 4 */}
+        <div className={`${adminPanel} p-6 relative overflow-hidden group hover:border-green-500/30 transition-all duration-300`}>
+          <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Created Date</p>
+          <p className="mt-4 text-2xl font-bold text-white tracking-tight">{campaignDetails.created}</p>
+          <div className="absolute right-4 top-4 text-neutral-500 opacity-20">
+            <TrendingUp className="h-12 w-12" />
+          </div>
+        </div>
+      </div>
+
+      {/* Users List */}
+      <div className={`${adminPanel} overflow-hidden`}>
+        <div className="border-b border-white/[0.08] px-6 py-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white">Users Joined Through Campaign</h2>
+          <span className="rounded-full bg-white/[0.05] px-2.5 py-0.5 text-xs font-medium text-neutral-300">
+            {campaignUsers.length} Users
+          </span>
+        </div>
+        
+        {campaignUsers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+            <Users className="h-10 w-10 text-neutral-500 mb-3" />
+            <h3 className="text-sm font-semibold text-white">No Users Yet</h3>
+            <p className="mt-1 text-xs text-neutral-400">No users have signed up using this campaign link yet.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-white/[0.08] text-xs font-bold uppercase tracking-wider text-neutral-400 bg-white/[0.01]">
+                  <th className="px-6 py-4">User</th>
+                  <th className="px-6 py-4">Email</th>
+                  <th className="px-6 py-4">Join Date</th>
+                  <th className="px-6 py-4">Deposit</th>
+                  <th className="px-6 py-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5 text-sm text-neutral-300">
+                {campaignUsers.map((u) => (
+                  <tr key={u.id} className="hover:bg-white/[0.02] transition">
+                    <td className="px-6 py-4 font-medium text-white">{u.name}</td>
+                    <td className="px-6 py-4">{u.email}</td>
+                    <td className="px-6 py-4 font-mono text-xs text-neutral-400">{u.joinDate}</td>
+                    <td className="px-6 py-4 font-semibold text-green-300">{u.deposit}</td>
+                    <td className="px-6 py-4">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                        u.status === "Active"
+                          ? "bg-green-500/10 text-green-300"
+                          : "bg-yellow-500/10 text-yellow-300"
+                      }`}>
+                        {u.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sectionKey = searchParams.get("section");
   const filterKey = searchParams.get("filter");
+  const campaignIdParam = searchParams.get("id");
   const section = sectionContent[sectionKey];
 
   useEffect(() => {
@@ -3053,7 +3225,13 @@ export default function DashboardPage() {
 
       {/* Dynamic Content Routing */}
       {section ? (
-        <AdminSectionPage
+        sectionKey === "campaigns" && campaignIdParam ? (
+          <CampaignDetailsView
+            campaignId={campaignIdParam}
+            showToast={showToast}
+          />
+        ) : (
+          <AdminSectionPage
           section={section}
           activeFilter={filterKey || "All"}
           referralListModal={referralListModal}
@@ -3062,7 +3240,12 @@ export default function DashboardPage() {
           onPublish={(id) => { publishTrade(id); showToast("Trade record published"); }}
           onUnpublish={(id) => { unpublishTrade(id); showToast("Trade record unpublished"); }}
           onView={(id) => {
-            if (["notifications", "campaigns", "referrals"].includes(section.permissionKey)) {
+            if (section.permissionKey === "campaigns") {
+              const camp = campaigns.find((c) => c.id === id);
+              if (camp) {
+                router.push(`/admin/dashboard?section=campaigns&id=${camp.slug}`);
+              }
+            } else if (["notifications", "referrals"].includes(section.permissionKey)) {
               openRecordModal(section.permissionKey, "view", id);
             } else if (section.permissionKey === "users") {
               window.location.href = `/admin/users/${id}`;
@@ -3164,6 +3347,7 @@ export default function DashboardPage() {
           }}
           onSaveReferralSettings={saveReferralSettings}
         />
+        )
       ) : (
         <PlatformOverview
           onVerify={async (id) => {

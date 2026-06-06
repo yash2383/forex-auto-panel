@@ -102,6 +102,7 @@ export class AuthController {
       firstName?: string;
       lastName?: string;
       referralCode?: string;
+      campaignCode?: string;
     },
     @Res() res: Response,
   ) {
@@ -113,6 +114,7 @@ export class AuthController {
         firstName,
         lastName,
         referralCode,
+        campaignCode,
       } = body;
       if (!email) {
         return res
@@ -127,6 +129,7 @@ export class AuthController {
         firstName,
         lastName,
         referralCode,
+        campaignCode,
       );
 
       if (result && 'error' in result) {

@@ -91,7 +91,7 @@ export function proxy(req) {
 
   // 6. DEFAULT REDIRECTS FOR GUESTS
   if (!isAuthenticated) {
-    if (path === "/login" || path === "/signup" || path === "/admin/login" || isPublicRoute) {
+    if (path === "/login" || path === "/signup" || path === "/register" || path === "/admin/login" || isPublicRoute) {
       return NextResponse.next();
     }
     return NextResponse.redirect(new URL("/login", req.url));

@@ -435,14 +435,17 @@ export class AuthService {
     firstName?: string,
     lastName?: string,
     referralCode?: string,
+    campaignCode?: string,
   ) {
     const normalizedEmail = email.toLowerCase().trim();
 
-    // 1. Resolve Partner
+    // 1. Resolve Partner and Campaign Code
     const slug = partnerSlug || 'alpha-traders';
     let partner = await this.prisma.partner.findUnique({
       where: { slug },
     });
+
+    let resolvedCampaignCode: string | null = null;
 
     if (!partner) {
       const campaign = await this.prisma.campaign.findFirst({
@@ -452,6 +455,16 @@ export class AuthService {
         partner = await this.prisma.partner.findUnique({
           where: { id: campaign.partnerId },
         });
+        resolvedCampaignCode = campaign.slug;
+      }
+    } else {
+      if (campaignCode) {
+        const campaign = await this.prisma.campaign.findFirst({
+          where: { slug: campaignCode, partnerId: partner.id, isActive: true },
+        });
+        if (campaign) {
+          resolvedCampaignCode = campaign.slug;
+        }
       }
     }
 
@@ -488,7 +501,7 @@ export class AuthService {
         : existingUser.name;
       await this.prisma.user.update({
         where: { id: existingUser.id },
-        data: { name, passwordHash },
+        data: { name, passwordHash, campaignCode: resolvedCampaignCode },
       });
       return await this.handleOtpDispatch(existingUser, partner, otpSettings);
     }
@@ -528,6 +541,7 @@ export class AuthService {
           status: 'NEW',
           referralCode: userReferralCode,
           referredBy: referrerId,
+          campaignCode: resolvedCampaignCode,
           isVerified: false,
         },
       });

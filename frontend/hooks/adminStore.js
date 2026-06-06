@@ -113,6 +113,9 @@ export const useAdminStore = create((set, get) => ({
   loadingReferrals: false,
   loadingCampaigns: false,
   loadingReferralStats: false,
+  campaignDetails: null,
+  campaignUsers: [],
+  loadingCampaignUsers: false,
 
   referralSettings: null,
   initiatedPayments: [],
@@ -275,6 +278,24 @@ export const useAdminStore = create((set, get) => ({
       console.error("fetchCampaigns error:", e);
     } finally {
       set({ loadingCampaigns: false });
+    }
+  },
+
+  fetchCampaignUsers: async (idOrSlug) => {
+    set({ loadingCampaignUsers: true, campaignDetails: null, campaignUsers: [] });
+    try {
+      const res = await apiFetch(`/api/admin/campaigns/${idOrSlug}/users`);
+      if (res.ok) {
+        const data = await res.json();
+        set({
+          campaignDetails: data.campaign,
+          campaignUsers: data.users || [],
+        });
+      }
+    } catch (e) {
+      console.error("fetchCampaignUsers error:", e);
+    } finally {
+      set({ loadingCampaignUsers: false });
     }
   },
 

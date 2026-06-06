@@ -593,6 +593,25 @@ export class AdminController {
     }
   }
 
+  @Get('campaigns/:id/users')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getCampaignUsers(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    try {
+      const result = await this.adminService.getCampaignUsers(id);
+      if (result && 'error' in result)
+        return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Get campaign users error:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
   // --- Trades ---
 
   @Get('trades')

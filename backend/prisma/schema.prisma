@@ -341,6 +341,7 @@ model User {
 
   referralCode   String           @unique
   referredBy     String?
+  campaignCode   String?
 
   isVerified     Boolean          @default(false)
   otpCode        String?

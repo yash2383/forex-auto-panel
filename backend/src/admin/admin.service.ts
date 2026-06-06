@@ -182,6 +182,7 @@ export class AdminService implements OnModuleInit {
         id: u.id,
         name: u.name,
         email: u.email,
+        campaign: u.campaignCode || 'Direct',
         deposit: `₹${balance.toLocaleString('en-IN')}`,
         rawDeposit: balance,
         plan,
@@ -296,14 +297,30 @@ export class AdminService implements OnModuleInit {
       status: p.status === 'ACTIVE' ? 'Active' : 'Suspended',
     }));
 
-    const campaigns = dbCampaigns.map((c) => ({
-      id: c.id,
-      name: c.name,
-      trackingLink: `/register?campaign=${c.slug}`,
-      users: dbUsers.filter((u) => u.partnerId === c.partnerId).length,
-      revenue: `₹${Number(dbPayments.filter((p: any) => p.partnerId === c.partnerId && p.status === 'APPROVED').reduce((sum, p) => sum + Number(p.amount), 0)).toLocaleString('en-IN')}`,
-      status: c.isActive ? 'Active' : 'Inactive',
-    }));
+    const campaigns = dbCampaigns.map((c) => {
+      const campUsers = dbUsers.filter((u) => u.campaignCode === c.slug && u.partnerId === c.partnerId);
+      const usersCount = campUsers.length;
+
+      const campPayments = dbPayments.filter((p: any) => p.status === 'APPROVED' && campUsers.some((u) => u.id === p.userId));
+      const approvedDepositsCount = campPayments.length;
+      const revenueVal = campPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+
+      return {
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        code: c.slug,
+        trackingLink: `/register?campaign=${c.slug}`,
+        users: usersCount,
+        revenue: `₹${Number(revenueVal).toLocaleString('en-IN')}`,
+        deposits: approvedDepositsCount,
+        status: c.isActive ? 'Active' : 'Paused',
+        source: 'Direct',
+        budget: '0',
+        startDate: '',
+        endDate: '',
+      };
+    });
 
     const referrals = dbReferrals.map((r) => {
       const referrerUser = dbUsers.find((u) => u.id === r.referrerId);
@@ -1532,18 +1549,32 @@ export class AdminService implements OnModuleInit {
     });
 
     const users = await this.prisma.user.findMany({
-      where: { isDeleted: false },
-    });
-
-    const payments = await this.prisma.payment.findMany({
-      where: { status: 'APPROVED' },
+      where: {
+        isDeleted: false,
+        campaignCode: { not: null },
+      },
+      include: {
+        payments: {
+          where: {
+            status: 'APPROVED',
+          },
+        },
+      },
     });
 
     const formatted = campaigns.map((c) => {
-      const campUsers = users.filter((u) => u.partnerId === c.partnerId).length;
-      const revenueVal = payments
-        .filter((p) => p.partnerId === c.partnerId)
-        .reduce((sum, p) => sum + Number(p.amount), 0);
+      const campUsers = users.filter((u) => u.campaignCode === c.slug && u.partnerId === c.partnerId);
+      const usersCount = campUsers.length;
+
+      let approvedDepositsCount = 0;
+      let totalRevenue = 0;
+
+      campUsers.forEach((u) => {
+        approvedDepositsCount += u.payments.length;
+        u.payments.forEach((p) => {
+          totalRevenue += Number(p.amount);
+        });
+      });
 
       return {
         id: c.id,
@@ -1551,9 +1582,9 @@ export class AdminService implements OnModuleInit {
         slug: c.slug,
         code: c.slug,
         trackingLink: `/register?campaign=${c.slug}`,
-        users: campUsers,
-        revenue: `₹${Number(revenueVal).toLocaleString('en-IN')}`,
-        deposits: `₹${Number(revenueVal).toLocaleString('en-IN')}`,
+        users: usersCount,
+        revenue: `₹${Number(totalRevenue).toLocaleString('en-IN')}`,
+        deposits: approvedDepositsCount,
         status: c.isActive ? 'Active' : 'Paused',
         source: 'Direct',
         budget: '0',
@@ -1563,6 +1594,74 @@ export class AdminService implements OnModuleInit {
     });
 
     return { success: true, campaigns: formatted };
+  }
+
+  async getCampaignUsers(idOrSlug: string) {
+    const campaign = await this.prisma.campaign.findFirst({
+      where: {
+        OR: [
+          { id: idOrSlug },
+          { slug: idOrSlug },
+        ],
+      },
+    });
+
+    if (!campaign) {
+      return { error: 'Campaign not found', status: 404 };
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        campaignCode: campaign.slug,
+        partnerId: campaign.partnerId,
+        isDeleted: false,
+      },
+      include: {
+        payments: {
+          where: {
+            status: 'APPROVED',
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    const formatted = users.map((u) => {
+      const depositSum = u.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+      const joinDate = u.createdAt.toISOString().split('T')[0];
+
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        joinDate,
+        deposit: `₹${Number(depositSum).toLocaleString('en-IN')}`,
+        status: u.status === 'ACTIVE' || u.status === 'VIP' ? 'Active' : 'Registered',
+      };
+    });
+
+    const createdDate = campaign.createdAt.toISOString().split('T')[0];
+
+    const totalUsers = formatted.length;
+    const totalApprovedDeposits = users.reduce((sum, u) => sum + u.payments.length, 0);
+    const totalRevenue = users.reduce((sum, u) => sum + u.payments.reduce((pSum, p) => pSum + Number(p.amount), 0), 0);
+
+    return {
+      success: true,
+      campaign: {
+        id: campaign.id,
+        name: campaign.name,
+        slug: campaign.slug,
+        status: campaign.isActive ? 'Active' : 'Paused',
+        usersRegistered: totalUsers,
+        approvedDeposits: totalApprovedDeposits,
+        revenue: `₹${Number(totalRevenue).toLocaleString('en-IN')}`,
+        created: createdDate,
+      },
+      users: formatted,
+    };
   }
 
   async createCampaign(adminId: string, body: any, clientIp: string) {

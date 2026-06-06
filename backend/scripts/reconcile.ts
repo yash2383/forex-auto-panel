@@ -29,7 +29,7 @@ async function runReconciliation() {
     const difference = Math.abs(totalDebit - totalCredit);
     if (difference > 0.0001) {
       criticalCount++;
-      console.log(`[CRITICAL] TransactionGroup ${group.id} (${group.type}) is unbalanced! Debits: ₹${totalDebit.toFixed(2)}, Credits: ₹${totalCredit.toFixed(2)} (Diff: ₹${difference.toFixed(2)})`);
+      console.log(`[CRITICAL] TransactionGroup ${group.id} (${group.type}) is unbalanced! Debits: $${totalDebit.toFixed(2)}, Credits: $${totalCredit.toFixed(2)} (Diff: $${difference.toFixed(2)})`);
     }
   }
   if (criticalCount === 0) {
@@ -81,17 +81,17 @@ async function runReconciliation() {
       discrepanciesCount++;
       let errorMsgs = [];
       if (hasDrift) {
-        errorMsgs.push(`Drift detected: Calculated ₹${calculatedBalance.toFixed(2)} vs Cache ₹${realizedBalance.toFixed(2)} (Drift: ₹${drift.toFixed(2)})`);
+        errorMsgs.push(`Drift detected: Calculated $${calculatedBalance.toFixed(2)} vs Cache $${realizedBalance.toFixed(2)} (Drift: $${drift.toFixed(2)})`);
       }
       if (isNegative) {
-        errorMsgs.push(`Negative wallet balance detected: ₹${realizedBalance.toFixed(2)}`);
+        errorMsgs.push(`Negative wallet balance detected: $${realizedBalance.toFixed(2)}`);
       }
 
       console.log(`[ERROR] User: ${user.name} (${user.email}) | ${errorMsgs.join(" | ")}`);
 
       // Auto fix
       if (fixMode && hasDrift) {
-        console.log(`   [FIX] Updating user wallet realizedBalance to calculated: ₹${calculatedBalance.toFixed(2)}`);
+        console.log(`   [FIX] Updating user wallet realizedBalance to calculated: $${calculatedBalance.toFixed(2)}`);
         await prisma.wallet.update({
           where: { id: wallet.id },
           data: {
@@ -101,7 +101,7 @@ async function runReconciliation() {
         });
       }
     } else {
-      console.log(`[OK] User ${user.name} (${user.email}) - Balanced (Balance: ₹${realizedBalance.toLocaleString("en-IN")})`);
+      console.log(`[OK] User ${user.name} (${user.email}) - Balanced (Balance: $${realizedBalance.toLocaleString("en-US")})`);
     }
   }
 

@@ -101,7 +101,7 @@ export class TradeEngineService implements OnModuleInit {
               const group = await tx.transactionGroup.create({
                 data: {
                   type: pnl.isPositive() ? 'TRADE_PROFIT' : 'TRADE_LOSS',
-                  description: `Settle trade ${trade.id} | PnL: ₹${pnl.toFixed(2)}`,
+                  description: `Settle trade ${trade.id} | PnL: $${pnl.toFixed(2)}`,
                   idempotencyKey: `TRADE_SETTLE_${trade.id}`,
                 },
               });
@@ -114,14 +114,14 @@ export class TradeEngineService implements OnModuleInit {
                   accountType: 'USER',
                   entryType: pnl.isPositive() ? 'CREDIT' : 'DEBIT',
                   amount: pnl.abs(),
-                  currency: 'INR',
+                  currency: 'USD',
                 },
               });
             }
           });
 
           this.logger.log(
-            `Closed trade ${trade.id} for ${trade.user.email} with PnL: ₹${pnl.toFixed(4)}`,
+            `Closed trade ${trade.id} for ${trade.user.email} with PnL: $${pnl.toFixed(4)}`,
           );
 
           this.notificationsService
@@ -248,7 +248,7 @@ export class TradeEngineService implements OnModuleInit {
           );
 
         this.logger.log(
-          `Auto-spawned active trade for ${user.email}: ${pair} ${type} at ₹${entryPrice.toFixed(4)}`,
+          `Auto-spawned active trade for ${user.email}: ${pair} ${type} at $${entryPrice.toFixed(4)}`,
         );
       }
     } catch (error: any) {

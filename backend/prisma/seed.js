@@ -130,11 +130,11 @@ async function main() {
   console.log("Seeding users & wallets with initial ledger deposits...");
   const usersToSeed = [
     { name: "Harsh", email: "harsh@mail.com", status: "NEW", balance: 0 },
-    { name: "Rahul", email: "rahul@mail.com", status: "ACTIVE", balance: 4067 }, // $49 INR equiv
-    { name: "Amit", email: "amit@mail.com", status: "VIP", balance: 83000 },    // $1000 INR equiv
-    { name: "Neha", email: "neha@mail.com", status: "ACTIVE", balance: 2407 },   // $29 INR equiv
-    { name: "Priya", email: "priya@mail.com", status: "ACTIVE", balance: 41500 }, // $500 INR equiv
-    { name: "Sam", email: "sam@mail.com", status: "EXPIRED", balance: 2407 },    // $29 INR equiv
+    { name: "Rahul", email: "rahul@mail.com", status: "ACTIVE", balance: 4067 }, // $49 USD equiv
+    { name: "Amit", email: "amit@mail.com", status: "VIP", balance: 83000 },    // $1000 USD equiv
+    { name: "Neha", email: "neha@mail.com", status: "ACTIVE", balance: 2407 },   // $29 USD equiv
+    { name: "Priya", email: "priya@mail.com", status: "ACTIVE", balance: 41500 }, // $500 USD equiv
+    { name: "Sam", email: "sam@mail.com", status: "EXPIRED", balance: 2407 },    // $29 USD equiv
   ];
 
   const seededUsers = [];
@@ -154,7 +154,7 @@ async function main() {
         userId: user.id,
         realizedBalance: u.balance,
         unrealizedBalance: 0,
-        currency: "INR",
+        currency: "USD",
       },
     });
 
@@ -175,7 +175,7 @@ async function main() {
             accountType: "SYSTEM",
             entryType: "DEBIT",
             amount: u.balance,
-            currency: "INR",
+            currency: "USD",
           },
           {
             transactionGroupId: group.id,
@@ -184,7 +184,7 @@ async function main() {
             accountType: "USER",
             entryType: "CREDIT",
             amount: u.balance,
-            currency: "INR",
+            currency: "USD",
           },
         ],
       });
@@ -210,7 +210,7 @@ async function main() {
         partnerId: alphaPartner.id,
         planName: p.plan,
         amount: p.amount,
-        currency: "INR",
+        currency: "USD",
         paymentType: "USDT",
         network: "TRC20",
         txnHash: p.hash,

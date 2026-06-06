@@ -33,6 +33,7 @@ export const adminNavGroups = [
       { icon: Bot, label: "Trades", href: "/admin/dashboard?section=trades" },
       { icon: LineChart, label: "PnL Reports", href: "/admin/dashboard?section=pnl-reports" },
       { icon: DollarSign, label: "Profit Distribution", href: "/admin/profit-distribution" },
+      { icon: Crown, label: "Pricing Plans", href: "/admin/dashboard?section=plans" },
     ],
   },
   {
@@ -57,7 +58,6 @@ export const adminNavGroups = [
     items: [
       { icon: ChartNoAxesCombined, label: "Reports", href: "/admin/dashboard?section=reports" },
       { icon: Settings, label: "Settings", href: "/admin/dashboard?section=settings" },
-      { icon: Crown, label: "Pricing Plans", href: "/admin/dashboard?section=plans" },
     ],
   },
 ];

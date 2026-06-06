@@ -61,7 +61,7 @@ export async function createTransactionGroup(
       accountType: e.accountType,
       entryType: e.entryType,
       amount: Number(e.amount),
-      currency: e.currency || 'INR',
+      currency: e.currency || 'USD',
     })),
   });
 

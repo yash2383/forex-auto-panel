@@ -449,8 +449,8 @@ export class ReportsService {
   /**
    * Fixes vs original broken version:
    * 1. All Prisma data fetched BEFORE entering the PDFDocument Promise — no async inside stream.
-   * 2. No ₹ character — Helvetica is Latin-1 encoded and throws on multi-byte Unicode.
-   *    Using "INR" instead.
+   * 2. No $ character — Helvetica is Latin-1 encoded and throws on multi-byte Unicode.
+   *    Using "USD" instead.
    * 3. No { continued: true } + { align: 'right' } — known pdfkit crash combo.
    *    Using absolute x-coordinate positioning (label@x=50, value@x=340) instead.
    * 4. try/catch wrapping the sync PDF build to properly reject the Promise on errors.
@@ -527,7 +527,7 @@ export class ReportsService {
           .font('Helvetica')
           .fillColor('#86efac')
           .text(
-            `User: ${userName}  ID: ${userId.slice(0, 8)}  Date: ${new Date().toLocaleDateString('en-IN')}`,
+            `User: ${userName}  ID: ${userId.slice(0, 8)}  Date: ${new Date().toLocaleDateString('en-US')}`,
             200,
             54,
             { width: 345, align: 'right', lineBreak: false },
@@ -551,19 +551,19 @@ export class ReportsService {
           drawRow(
             doc,
             'Total P&L',
-            `INR ${tradingData.totalPnL.toLocaleString('en-IN')}`,
+            `USD ${tradingData.totalPnL.toLocaleString('en-US')}`,
           );
           if (tradingData.bestTrade)
             drawRow(
               doc,
               'Best Trade',
-              `${tradingData.bestTrade.pair}  INR+${tradingData.bestTrade.profitLoss}`,
+              `${tradingData.bestTrade.pair}  USD+${tradingData.bestTrade.profitLoss}`,
             );
           if (tradingData.worstTrade)
             drawRow(
               doc,
               'Worst Trade',
-              `${tradingData.worstTrade.pair}  INR${tradingData.worstTrade.profitLoss}`,
+              `${tradingData.worstTrade.pair}  USD${tradingData.worstTrade.profitLoss}`,
             );
           if (tradingData.records.length > 0) {
             drawSection(
@@ -576,7 +576,7 @@ export class ReportsService {
                 .font('Helvetica')
                 .fillColor('#374151')
                 .text(
-                  `${r.tradeDate}   ${r.pair}   ${r.side}   Entry:${r.entryPrice}   Exit:${r.exitPrice}   ${r.result}   P&L:INR${r.profitLoss}`,
+                  `${r.tradeDate}   ${r.pair}   ${r.side}   Entry:${r.entryPrice}   Exit:${r.exitPrice}   ${r.result}   P&L:USD${r.profitLoss}`,
                   { lineBreak: true },
                 );
             });
@@ -594,12 +594,12 @@ export class ReportsService {
           drawRow(
             doc,
             'Total Distributed',
-            `INR ${profitData.totalDistributed.toLocaleString('en-IN')}`,
+            `USD ${profitData.totalDistributed.toLocaleString('en-US')}`,
           );
           drawRow(
             doc,
             'Pending Amount',
-            `INR ${profitData.pendingAmount.toLocaleString('en-IN')}`,
+            `USD ${profitData.pendingAmount.toLocaleString('en-US')}`,
           );
           drawRow(doc, 'Paid Entries', String(profitData.paidCount));
           drawRow(doc, 'Pending Entries', String(profitData.pendingCount));
@@ -607,7 +607,7 @@ export class ReportsService {
             drawRow(
               doc,
               'Last Distribution',
-              new Date(profitData.lastDistribution).toLocaleDateString('en-IN'),
+              new Date(profitData.lastDistribution).toLocaleDateString('en-US'),
             );
           if (profitData.records.length > 0) {
             drawSection(doc, 'Distribution Log');
@@ -617,7 +617,7 @@ export class ReportsService {
                 .font('Helvetica')
                 .fillColor('#374151')
                 .text(
-                  `${r.distributionDate}   ${r.reference}   ${r.type}   INR${r.amount}   ${r.status}`,
+                  `${r.distributionDate}   ${r.reference}   ${r.type}   USD${r.amount}   ${r.status}`,
                 );
             });
           }
@@ -634,27 +634,27 @@ export class ReportsService {
           drawRow(
             doc,
             'Opening Balance',
-            `INR ${walletData.openingBalance.toLocaleString('en-IN')}`,
+            `USD ${walletData.openingBalance.toLocaleString('en-US')}`,
           );
           drawRow(
             doc,
             'Total Deposits',
-            `INR ${walletData.totalDeposits.toLocaleString('en-IN')}`,
+            `USD ${walletData.totalDeposits.toLocaleString('en-US')}`,
           );
           drawRow(
             doc,
             'Profit Credits',
-            `INR ${walletData.profitCredits.toLocaleString('en-IN')}`,
+            `USD ${walletData.profitCredits.toLocaleString('en-US')}`,
           );
           drawRow(
             doc,
             'Total Withdrawals',
-            `INR ${walletData.totalWithdrawals.toLocaleString('en-IN')}`,
+            `USD ${walletData.totalWithdrawals.toLocaleString('en-US')}`,
           );
           drawRow(
             doc,
             'Closing Balance',
-            `INR ${walletData.closingBalance.toLocaleString('en-IN')}`,
+            `USD ${walletData.closingBalance.toLocaleString('en-US')}`,
           );
           if (walletData.deposits.length > 0) {
             drawSection(doc, 'Deposits');
@@ -663,7 +663,7 @@ export class ReportsService {
                 .fontSize(7.5)
                 .font('Helvetica')
                 .fillColor('#374151')
-                .text(`${d.date}   ${d.plan}   ${d.type}   INR${d.amount}`);
+                .text(`${d.date}   ${d.plan}   ${d.type}   USD${d.amount}`);
             });
           }
           if (walletData.withdrawals.length > 0) {
@@ -673,7 +673,7 @@ export class ReportsService {
                 .fontSize(7.5)
                 .font('Helvetica')
                 .fillColor('#374151')
-                .text(`${w.date}   INR${w.amount}   ${w.status}`);
+                .text(`${w.date}   USD${w.amount}   ${w.status}`);
             });
           }
           if (walletData.profitEntries.length > 0) {
@@ -684,7 +684,7 @@ export class ReportsService {
                 .font('Helvetica')
                 .fillColor('#374151')
                 .text(
-                  `${p.date}   ${p.reference}   ${p.type}   INR${p.amount}`,
+                  `${p.date}   ${p.reference}   ${p.type}   USD${p.amount}`,
                 );
             });
           }
@@ -706,28 +706,28 @@ export class ReportsService {
           drawRow(
             doc,
             'Trading P&L',
-            `INR ${taxData.tradingPnL.toLocaleString('en-IN')}`,
+            `USD ${taxData.tradingPnL.toLocaleString('en-US')}`,
           );
           drawRow(
             doc,
             'Distribution Income',
-            `INR ${taxData.distributionIncome.toLocaleString('en-IN')}`,
+            `USD ${taxData.distributionIncome.toLocaleString('en-US')}`,
           );
           drawRow(
             doc,
             'Total Realized Gains (STCG)',
-            `INR ${taxData.totalRealizedGains.toLocaleString('en-IN')}`,
+            `USD ${taxData.totalRealizedGains.toLocaleString('en-US')}`,
           );
           drawRow(doc, 'Applicable Tax Rate', `${taxData.taxRate}%`);
           drawRow(
             doc,
             'Estimated Tax Due',
-            `INR ${taxData.estimatedTax.toLocaleString('en-IN')}`,
+            `USD ${taxData.estimatedTax.toLocaleString('en-US')}`,
           );
           drawRow(
             doc,
             'Net Return After Tax',
-            `INR ${taxData.netReturn.toLocaleString('en-IN')}`,
+            `USD ${taxData.netReturn.toLocaleString('en-US')}`,
           );
           doc.moveDown(1);
           doc

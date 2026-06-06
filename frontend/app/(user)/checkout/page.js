@@ -178,7 +178,7 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
   const { status, plan, planName, amount, remark, adminNote, txnHash, createdAt } = paymentData;
   const adminRemark = remark || adminNote;
   const formattedAmount = amount
-    ? `INR ${Number(amount).toLocaleString("en-IN")}`
+    ? `USD ${Number(amount).toLocaleString("en-US")}`
     : "--";
   const formattedDate = createdAt
     ? new Date(createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })
@@ -757,7 +757,7 @@ export default function CheckoutPage() {
                       <div>
                         <p className="text-xs font-semibold text-neutral-500">Amount to Pay</p>
                         <p className="mt-1 text-3xl font-bold tracking-tight text-green-300">
-                          {pricing ? `₹${pricing.entryFee.toLocaleString()} INR` : "Loading..."}
+                          {pricing ? `$${pricing.entryFee.toLocaleString()} USD` : "Loading..."}
                         </p>
                       </div>
                       <p className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-relaxed text-neutral-400">
@@ -836,7 +836,7 @@ export default function CheckoutPage() {
 
                 <label className="mt-5 block">
                   <span className="text-sm font-semibold text-white">
-                    Deposit Amount ({selectedMethod?.key === "UPI" ? "INR" : "USDT"})
+                    Deposit Amount ({selectedMethod?.key === "UPI" ? "USD" : "USDT"})
                   </span>
                   <input
                     name="amount"
@@ -956,7 +956,7 @@ export default function CheckoutPage() {
                       value={
                         pricing 
                           ? selectedMethod?.key === "UPI"
-                            ? `₹${pricing.entryFee.toLocaleString()} INR`
+                            ? `$${pricing.entryFee.toLocaleString()} USD`
                             : `$${pricing.entryFee.toLocaleString()} USDT`
                           : "Loading..."
                       } 

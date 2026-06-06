@@ -47,7 +47,7 @@ export async function createTransactionGroup(tx, data) {
       accountType: e.accountType, // USER, TENANT, SYSTEM
       entryType: e.entryType,     // DEBIT, CREDIT
       amount: Number(e.amount),
-      currency: e.currency || "INR",
+      currency: e.currency || "USD",
     })),
   });
 

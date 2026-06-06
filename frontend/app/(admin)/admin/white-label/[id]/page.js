@@ -71,7 +71,7 @@ export default function WhiteLabelDetailsPage({ params }) {
               <tr key={`${user.user}-${user.date}`}>
                 <td className="px-4 py-4 font-semibold text-white">{user.user}</td>
                 <td className="px-4 py-4 text-neutral-400">{user.plan}</td>
-                <td className="px-4 py-4 font-semibold text-white">{isViewer ? "Rs ***" : user.payment}</td>
+                <td className="px-4 py-4 font-semibold text-white">{isViewer ? "$ ***" : user.payment}</td>
                 <td className="px-4 py-4 text-neutral-400">{user.date}</td>
               </tr>
             ))}
@@ -85,9 +85,9 @@ export default function WhiteLabelDetailsPage({ params }) {
             rows={transactions.map((transaction) => {
               return (
                 <tr key={`${transaction.amount}-${transaction.date}`}>
-                  <td className="px-4 py-4 font-semibold text-white">{isViewer ? "Rs ***" : transaction.amount}</td>
-                  <td className="px-4 py-4 text-green-300">{(isViewer || isManager) ? "Rs ***" : transaction.adminCut}</td>
-                  <td className="px-4 py-4 text-neutral-400">{isViewer ? "Rs ***" : transaction.wlCut}</td>
+                  <td className="px-4 py-4 font-semibold text-white">{isViewer ? "$ ***" : transaction.amount}</td>
+                  <td className="px-4 py-4 text-green-300">{(isViewer || isManager) ? "$ ***" : transaction.adminCut}</td>
+                  <td className="px-4 py-4 text-neutral-400">{isViewer ? "$ ***" : transaction.wlCut}</td>
                   <td className="px-4 py-4 text-neutral-400">{transaction.date}</td>
                 </tr>
               );

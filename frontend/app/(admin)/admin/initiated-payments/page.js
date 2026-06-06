@@ -60,8 +60,8 @@ export default function InitiatedPaymentsPage() {
     ["Initiated This Week", metricsData?.initiatedWeek || 0],
     ["Pending Follow Ups", metricsData?.pendingFollowUps || 0],
     ["Converted Leads", metricsData?.convertedLeads || 0],
-    ["Abandoned Value", `₹${(metricsData?.abandonedValue || 0).toLocaleString()}`],
-    ["Recovered Revenue", `₹${(metricsData?.recoveredRevenue || 0).toLocaleString()}`],
+    ["Abandoned Value", `$${(metricsData?.abandonedValue || 0).toLocaleString()}`],
+    ["Recovered Revenue", `$${(metricsData?.recoveredRevenue || 0).toLocaleString()}`],
   ];
 
   let filtered = initiatedPayments;
@@ -177,7 +177,7 @@ export default function InitiatedPaymentsPage() {
                       </div>
                     </td>
                     <td className="px-4 py-4 text-xs font-semibold text-neutral-300">{i.plan?.name || "N/A"}</td>
-                    <td className="px-4 py-4 font-mono text-green-300 font-bold">₹{Number(i.amount).toLocaleString()}</td>
+                    <td className="px-4 py-4 font-mono text-green-300 font-bold">${Number(i.amount).toLocaleString()}</td>
                     <td className="px-4 py-4 text-xs text-neutral-300">{i.source || i.paymentGateway}</td>
                     <td className="px-4 py-4 text-xs text-neutral-400 font-mono">
                       {new Date(i.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}

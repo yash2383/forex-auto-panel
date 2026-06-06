@@ -7,7 +7,7 @@ import { useAdminStore } from "../../../hooks/adminStore";
 
 function formatDateTime(dateStr) {
   if (!dateStr) return "Never";
-  return new Date(dateStr).toLocaleString("en-IN", {
+  return new Date(dateStr).toLocaleString("en-US", {
     day: "2-digit",
     month: "short",
     year: "numeric",

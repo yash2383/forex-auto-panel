@@ -215,7 +215,7 @@ export default function InquiriesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4 text-xs text-neutral-400 font-mono">
-                        {new Date(i.createdAt).toLocaleDateString("en-IN")} {new Date(i.createdAt).toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(i.createdAt).toLocaleDateString("en-US")} {new Date(i.createdAt).toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex gap-2 justify-end items-center">

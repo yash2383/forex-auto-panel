@@ -157,7 +157,7 @@ export default function WithdrawalsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 font-mono font-bold text-white">₹{w.amount.toLocaleString()}</td>
+                    <td className="px-4 py-4 font-mono font-bold text-white">${w.amount.toLocaleString()}</td>
                     <td className="px-4 py-4">{w.method}</td>
                     <td className="px-4 py-4">
                       <span className={`rounded-full px-3 py-1 text-xs font-bold border ${

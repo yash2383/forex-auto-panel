@@ -8,6 +8,7 @@ import {
 } from '../common/ledger.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ObservabilityService } from '../observability/observability.service';
+import { sendFcmTopicMessage, unsubscribeFromTopic } from '../notifications/firebase-admin';
 
 @Injectable()
 export class AdminService implements OnModuleInit {
@@ -186,7 +187,7 @@ export class AdminService implements OnModuleInit {
         name: u.name,
         email: u.email,
         campaign: u.campaignCode || 'Direct',
-        deposit: `₹${balance.toLocaleString('en-IN')}`,
+        deposit: `$${balance.toLocaleString('en-US')}`,
         rawDeposit: balance,
         plan,
         status: statusLabel,
@@ -221,7 +222,7 @@ export class AdminService implements OnModuleInit {
           .toUpperCase()
           .slice(0, 2),
         plan: p.planName,
-        amount: `₹${Number(p.amount).toLocaleString('en-IN')}`,
+        amount: `$${Number(p.amount).toLocaleString('en-US')}`,
         rawAmount: Number(p.amount),
         utr: p.utr || '',
         txnHash: p.txnHash || '',
@@ -315,7 +316,7 @@ export class AdminService implements OnModuleInit {
         code: c.slug,
         trackingLink: `/register?campaign=${c.slug}`,
         users: usersCount,
-        revenue: `₹${Number(revenueVal).toLocaleString('en-IN')}`,
+        revenue: `$${Number(revenueVal).toLocaleString('en-US')}`,
         deposits: approvedDepositsCount,
         status: c.isActive ? 'Active' : 'Paused',
         source: 'Direct',
@@ -334,11 +335,11 @@ export class AdminService implements OnModuleInit {
         referrerId: r.referrerId,
         user: referredUser?.name || 'Unknown',
         deposit: r.reward?.depositAmount
-          ? `₹${Number(r.reward.depositAmount).toLocaleString('en-IN')}`
+          ? `$${Number(r.reward.depositAmount).toLocaleString('en-US')}`
           : referredUser?.wallet
-            ? `₹${Number(referredUser.wallet.realizedBalance).toLocaleString('en-IN')}`
-            : '₹0',
-        reward: `₹${Number(r.reward?.commissionAmount || 0).toLocaleString('en-IN')}`,
+            ? `$${Number(referredUser.wallet.realizedBalance).toLocaleString('en-US')}`
+            : '$0',
+        reward: `$${Number(r.reward?.commissionAmount || 0).toLocaleString('en-US')}`,
         status:
           r.status === 'PENDING'
             ? 'Pending'
@@ -471,12 +472,12 @@ export class AdminService implements OnModuleInit {
     const platformStats = {
       totalUsers: totalUsers.toLocaleString(),
       activeUsers: activeUsers.toLocaleString(),
-      totalRevenue: `₹${totalRevenue.toLocaleString('en-IN')}`,
-      totalUserWalletBalance: `₹${totalUserWalletBalance.toLocaleString('en-IN')}`,
-      totalCapital: `₹${totalCapital.toLocaleString('en-IN')}`,
-      activeWalletBalance: `₹${activeWalletBalance.toLocaleString('en-IN')}`,
+      totalRevenue: `$${totalRevenue.toLocaleString('en-US')}`,
+      totalUserWalletBalance: `$${totalUserWalletBalance.toLocaleString('en-US')}`,
+      totalCapital: `$${totalCapital.toLocaleString('en-US')}`,
+      activeWalletBalance: `$${activeWalletBalance.toLocaleString('en-US')}`,
       pendingPayments: pendingPayments.toLocaleString(),
-      totalProfit: `₹${totalProfit.toLocaleString('en-IN')}`,
+      totalProfit: `$${totalProfit.toLocaleString('en-US')}`,
     };
 
     if (dbSettings) {
@@ -732,7 +733,7 @@ export class AdminService implements OnModuleInit {
           availableBalance: isNaN(cleanDeposit) ? 0 : cleanDeposit,
           pendingWithdrawals: 0,
           totalWithdrawn: 0,
-          currency: 'INR',
+          currency: 'USD',
         },
       });
       return u;
@@ -792,6 +793,12 @@ export class AdminService implements OnModuleInit {
             err,
           ),
         );
+        
+      this.prisma.deviceToken.findMany({ where: { userId } }).then(tokens => {
+        tokens.forEach(t => {
+          unsubscribeFromTopic(t.token, 'daily_profit').catch((err: any) => console.error(`Unsubscribe failed for ${t.token}:`, err.message));
+        });
+      }).catch((err: any) => console.error("Failed fetching tokens for unsubscribe:", err.message));
     }
 
     if (deposit !== undefined) {
@@ -830,6 +837,12 @@ export class AdminService implements OnModuleInit {
       where: { id: userId },
       data: { isDeleted: true },
     });
+
+    this.prisma.deviceToken.findMany({ where: { userId } }).then(tokens => {
+      tokens.forEach(t => {
+        unsubscribeFromTopic(t.token, 'daily_profit').catch((err: any) => console.error(`Unsubscribe failed for ${t.token}:`, err.message));
+      });
+    }).catch((err: any) => console.error("Failed fetching tokens for unsubscribe:", err.message));
 
     await this.prisma.securityEvent.create({
       data: {
@@ -1538,11 +1551,11 @@ export class AdminService implements OnModuleInit {
         referrerId: r.referrerId,
         user: referredName,
         deposit: r.reward?.depositAmount
-          ? `₹${Number(r.reward.depositAmount).toLocaleString('en-IN')}`
+          ? `$${Number(r.reward.depositAmount).toLocaleString('en-US')}`
           : r.referredUser?.wallet
-            ? `₹${Number(r.referredUser.wallet.realizedBalance).toLocaleString('en-IN')}`
-            : '₹0',
-        reward: `₹${Number(r.reward?.commissionAmount || 0).toLocaleString('en-IN')}`,
+            ? `$${Number(r.referredUser.wallet.realizedBalance).toLocaleString('en-US')}`
+            : '$0',
+        reward: `$${Number(r.reward?.commissionAmount || 0).toLocaleString('en-US')}`,
         status:
           r.status === 'PENDING'
             ? 'Pending'
@@ -1635,7 +1648,7 @@ export class AdminService implements OnModuleInit {
           accountType: 'SYSTEM',
           entryType: 'DEBIT',
           amount: rewardAmount,
-          currency: qualifyingPayment?.currency || 'INR',
+          currency: qualifyingPayment?.currency || 'USD',
         },
         {
           userId: referral.referrerId,
@@ -1643,7 +1656,7 @@ export class AdminService implements OnModuleInit {
           accountType: 'USER',
           entryType: 'CREDIT',
           amount: rewardAmount,
-          currency: qualifyingPayment?.currency || 'INR',
+          currency: qualifyingPayment?.currency || 'USD',
         },
       ],
     });
@@ -1749,7 +1762,7 @@ export class AdminService implements OnModuleInit {
     if (!qualifyingPayment) {
       this.logger.log({
         event: 'REFERRAL_SKIPPED_NO_QUALIFYING_DEPOSIT',
-        message: `Referred user ${referral.referredId} has no approved payment meeting the minimum deposit of ₹${refSettings.minimumDeposit}.`,
+        message: `Referred user ${referral.referredId} has no approved payment meeting the minimum deposit of $${refSettings.minimumDeposit}.`,
       });
       return;
     }
@@ -2035,7 +2048,7 @@ export class AdminService implements OnModuleInit {
         code: c.slug,
         trackingLink: `/register?campaign=${c.slug}`,
         users: usersCount,
-        revenue: `₹${Number(totalRevenue).toLocaleString('en-IN')}`,
+        revenue: `$${Number(totalRevenue).toLocaleString('en-US')}`,
         deposits: approvedDepositsCount,
         status: c.isActive ? 'Active' : 'Paused',
         source: 'Direct',
@@ -2089,7 +2102,7 @@ export class AdminService implements OnModuleInit {
         name: u.name,
         email: u.email,
         joinDate,
-        deposit: `₹${Number(depositSum).toLocaleString('en-IN')}`,
+        deposit: `$${Number(depositSum).toLocaleString('en-US')}`,
         status: u.status === 'ACTIVE' || u.status === 'VIP' ? 'Active' : 'Registered',
       };
     });
@@ -2109,7 +2122,7 @@ export class AdminService implements OnModuleInit {
         status: campaign.isActive ? 'Active' : 'Paused',
         usersRegistered: totalUsers,
         approvedDeposits: totalApprovedDeposits,
-        revenue: `₹${Number(totalRevenue).toLocaleString('en-IN')}`,
+        revenue: `$${Number(totalRevenue).toLocaleString('en-US')}`,
         created: createdDate,
       },
       users: formatted,
@@ -2300,7 +2313,7 @@ export class AdminService implements OnModuleInit {
         const group = await tx.transactionGroup.create({
           data: {
             type: pnl.isPositive() ? 'TRADE_PROFIT' : 'TRADE_LOSS',
-            description: `Admin closed trade ${trade.id} | PnL: ₹${pnl.toFixed(2)}`,
+            description: `Admin closed trade ${trade.id} | PnL: $${pnl.toFixed(2)}`,
             idempotencyKey: `TRADE_SETTLE_ADMIN_${trade.id}`,
           },
         });
@@ -2313,7 +2326,7 @@ export class AdminService implements OnModuleInit {
             accountType: 'USER',
             entryType: pnl.isPositive() ? 'CREDIT' : 'DEBIT',
             amount: pnl.abs(),
-            currency: 'INR',
+            currency: 'USD',
           },
         });
       }
@@ -2366,13 +2379,19 @@ export class AdminService implements OnModuleInit {
         side,
         entryPrice: Number(entryPrice),
         exitPrice: Number(exitPrice),
-        tradeDate: new Date(tradeDate),
+        tradeDate: tradeDate ? new Date(tradeDate) : new Date(),
         profitLoss: Number(profitLoss),
         result,
         notes: notes || '',
         status: status || 'published',
       },
     });
+
+    if (tradeRecord.result === 'WIN' && tradeRecord.status === 'published' && tradeRecord.profitLoss > 0) {
+      // Auto-trigger profit distribution asynchronously
+      this.distributeTradeProfit(tradeRecord.id).catch(err => console.error("Auto distribution error:", err));
+    }
+
     return { success: true, tradeRecord };
   }
 
@@ -2410,7 +2429,122 @@ export class AdminService implements OnModuleInit {
         status: status ?? existing.status,
       },
     });
+
+    if (!existing.profitDistributed && updated.result === 'WIN' && updated.status === 'published' && updated.profitLoss > 0) {
+      // Auto-trigger profit distribution asynchronously
+      this.distributeTradeProfit(updated.id).catch(err => console.error("Auto distribution error:", err));
+    }
+
     return { success: true, tradeRecord: updated };
+  }
+
+  async distributeTradeProfit(tradeRecordId: string, triggerSource: string = 'AUTO') {
+    const trade = await this.prisma.tradeRecord.findUnique({ where: { id: tradeRecordId } });
+    if (!trade) return { error: 'Trade not found', status: 404 };
+    if (trade.profitDistributed) return { error: 'Profit already distributed', status: 400 };
+    if (trade.result !== 'WIN' && trade.profitLoss <= 0) return { error: 'Trade is not a winning trade', status: 400 };
+    if (trade.status !== 'published') return { error: 'Trade is not published', status: 400 };
+
+    // Claim first (Atomic Guard)
+    const claimed = await this.prisma.tradeRecord.updateMany({
+      where: {
+        id: tradeRecordId,
+        profitDistributed: false
+      },
+      data: {
+        profitDistributed: true
+      }
+    });
+
+    if (claimed.count === 0) {
+      return { error: 'Trade was already distributed in another process', status: 400 };
+    }
+
+    const totalProfit = Number(trade.profitLoss);
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        userPlans: {
+          some: { active: true }
+        }
+      },
+      include: {
+        wallet: true
+      }
+    });
+
+    if (users.length === 0) return { error: 'No eligible users found', status: 400 };
+
+    // Deterministic sorting to ensure remainder always hits the same user order
+    users.sort((a, b) => a.id.localeCompare(b.id));
+
+    const { Prisma } = require('@prisma/client');
+    const n = users.length;
+    const totalProfitDec = new Prisma.Decimal(totalProfit);
+    const baseShare = totalProfitDec.div(n).toDecimalPlaces(4, Prisma.Decimal.ROUND_DOWN);
+    
+    // Check if base share is > 0
+    if (baseShare.lte(0) && totalProfitDec.lte(0)) {
+      return { error: 'Per user profit is too small to distribute', status: 400 };
+    }
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        let distributed = new Prisma.Decimal(0);
+        let sumDistributed = new Prisma.Decimal(0);
+
+        for (let i = 0; i < n; i++) {
+          const user = users[i];
+          if (!user.wallet) continue;
+
+          let shareDec;
+          if (i === n - 1) {
+            shareDec = totalProfitDec.minus(distributed);
+          } else {
+            shareDec = baseShare;
+            distributed = distributed.plus(shareDec);
+          }
+
+          sumDistributed = sumDistributed.plus(shareDec);
+          const share = shareDec.toNumber();
+
+          await tx.wallet.update({
+            where: { userId: user.id },
+            data: {
+              realizedBalance: { increment: share },
+              availableBalance: { increment: share },
+              currentEquity: { increment: share }
+            }
+          });
+        }
+
+        const diff = totalProfitDec.minus(sumDistributed);
+        if (!diff.isZero()) {
+          throw new Error("Distribution mismatch detected");
+        }
+
+        await tx.tradeDistributionLog.create({
+          data: {
+            tradeRecordId: tradeRecordId,
+            totalProfit: totalProfit,
+            userCount: users.length,
+            perUserProfit: baseShare.toNumber(),
+            // triggerSource and executedAt will rely on schema defaults if applied
+          }
+        });
+      }, { timeout: 10000 });
+
+      return { success: true, message: 'Profit distributed successfully' };
+    } catch (error: any) {
+      console.error('Profit distribution failed:', error);
+      // Rollback the claim if distribution fails
+      await this.prisma.tradeRecord.update({
+        where: { id: tradeRecordId },
+        data: { profitDistributed: false }
+      }).catch(err => console.error("Failed to rollback claim", err));
+
+      return { error: error.message || 'Profit distribution failed', status: 500 };
+    }
   }
 
   async deleteTradeRecord(id: string) {
@@ -2433,6 +2567,12 @@ export class AdminService implements OnModuleInit {
       where: { id },
       data: { status },
     });
+
+    if (!existing.profitDistributed && updated.result === 'WIN' && updated.status === 'published' && updated.profitLoss > 0) {
+      // Auto-trigger profit distribution asynchronously
+      this.distributeTradeProfit(updated.id).catch(err => console.error("Auto distribution error:", err));
+    }
+
     return { success: true, tradeRecord: updated };
   }
 
@@ -2982,7 +3122,7 @@ export class AdminService implements OnModuleInit {
                 accountType: 'SYSTEM',
                 entryType: 'DEBIT',
                 amount: profitDist.netProfit,
-                currency: 'INR',
+                currency: 'USD',
               },
               {
                 userId: profitDist.userId,
@@ -2990,7 +3130,7 @@ export class AdminService implements OnModuleInit {
                 accountType: 'USER',
                 entryType: 'CREDIT',
                 amount: profitDist.netProfit,
-                currency: 'INR',
+                currency: 'USD',
               },
             ],
           });
@@ -3089,7 +3229,7 @@ export class AdminService implements OnModuleInit {
                 accountType: 'SYSTEM',
                 entryType: 'DEBIT',
                 amount: updated.netProfit,
-                currency: 'INR',
+                currency: 'USD',
               },
               {
                 userId: updated.userId,
@@ -3097,7 +3237,7 @@ export class AdminService implements OnModuleInit {
                 accountType: 'USER',
                 entryType: 'CREDIT',
                 amount: updated.netProfit,
-                currency: 'INR',
+                currency: 'USD',
               },
             ],
           });
@@ -3257,23 +3397,28 @@ export class AdminService implements OnModuleInit {
 
   async bulkDistributeProfit(adminId: string, clientIp: string, body: any) {
     const dryRun = body.dryRun === true;
-    const requestId = body.requestId;
+    const now = new Date();
+    const weekKey = body.weekKey ?? this.getWeekKey(now);
 
-    if (requestId) {
-      if (this.processedRequestIds.has(requestId)) {
-        return {
-          error: 'This distribution request has already been executed.',
-          status: 400,
-        };
-      }
-    }
+    let distributionLock: any = null;
 
     if (!dryRun) {
-      if (this.isBulkDistributeRunning) {
-        return {
-          error: 'Bulk profit distribution is already in progress.',
-          status: 409,
-        };
+      try {
+        distributionLock = await this.prisma.profitDistributionLock.create({
+          data: {
+            dateKey: weekKey,
+            status: 'RUNNING',
+            startedAt: new Date(),
+          },
+        });
+      } catch (error: any) {
+        if (error.code === 'P2002') {
+          return {
+            error: `Distribution for week ${weekKey} is already running or completed.`,
+            status: 409,
+          };
+        }
+        throw error;
       }
     }
 
@@ -3296,10 +3441,6 @@ export class AdminService implements OnModuleInit {
         status: 400,
       };
     }
-
-    const now = new Date();
-    const weekKey = body.weekKey ?? this.getWeekKey(now);
-
     // 2. Resolve eligible users via UserPlan → Plan
     const activeUserPlans = await this.prisma.userPlan.findMany({
       where: { active: true },
@@ -3426,7 +3567,6 @@ export class AdminService implements OnModuleInit {
     }
 
     if (successCount === 0) {
-      if (requestId) this.processedRequestIds.add(requestId);
       return {
         success: true,
         summary: {
@@ -3506,7 +3646,7 @@ export class AdminService implements OnModuleInit {
                 accountType: 'SYSTEM',
                 entryType: 'DEBIT',
                 amount: payout.netProfit,
-                currency: 'INR',
+                currency: 'USD',
               },
               {
                 userId: payout.userId,
@@ -3514,7 +3654,7 @@ export class AdminService implements OnModuleInit {
                 accountType: 'USER',
                 entryType: 'CREDIT',
                 amount: payout.netProfit,
-                currency: 'INR',
+                currency: 'USD',
               },
             ],
           });
@@ -3543,23 +3683,49 @@ export class AdminService implements OnModuleInit {
           },
         });
 
+        const { Prisma } = require('@prisma/client');
+        let sumCredited = new Prisma.Decimal(0);
+        // We know we updated `totals.net` amount, let's verify
+        for (const payout of eligiblePayouts) {
+          sumCredited = sumCredited.plus(payout.netProfit);
+        }
+        const diff = new Prisma.Decimal(totals.net).minus(sumCredited);
+        if (!diff.isZero()) {
+          throw new Error('Distribution mismatch detected in bulk payout');
+        }
+
         return batch;
       });
 
-      this.isBulkDistributeRunning = false;
-      if (requestId) this.processedRequestIds.add(requestId);
+      if (distributionLock) {
+        await this.prisma.profitDistributionLock.update({
+          where: { id: distributionLock.id },
+          data: { status: 'COMPLETED', endedAt: new Date() }
+        }).catch(err => this.logger.error('Failed to mark lock COMPLETED', err));
+      }
 
-      for (const payout of eligiblePayouts) {
-        this.notificationsService
-          .sendToUser(payout.userId, NotificationEvent.PROFIT_DISTRIBUTED, {
-            amount: +payout.netProfit.toFixed(4),
-          })
-          .catch((err) =>
-            console.error(
-              `PROFIT_DISTRIBUTED notification failed for ${payout.userId}:`,
-              err,
-            ),
-          );
+      try {
+        await sendFcmTopicMessage(
+          'daily_profit',
+          'Daily Profit Credited 💰',
+          'Your trading profits have been successfully distributed.',
+          { type: 'daily_profit', click_action: '/wallet' }
+        );
+
+        await this.prisma.notificationLog.create({
+          data: {
+            type: "TOPIC_BROADCAST",
+            topic: "daily_profit",
+            batchId: result.id,
+            payload: {
+              totalProfit: totals.net,
+              userCount: successCount,
+            },
+            status: "SUCCESS",
+          }
+        });
+      } catch (err: any) {
+        this.logger.error('Failed to send daily profit topic notification', err);
       }
 
       return {
@@ -3579,7 +3745,12 @@ export class AdminService implements OnModuleInit {
         skipped,
       };
     } catch (error: any) {
-      this.isBulkDistributeRunning = false;
+      if (distributionLock) {
+        await this.prisma.profitDistributionLock.update({
+          where: { id: distributionLock.id },
+          data: { status: 'FAILED_RECONCILIATION', endedAt: new Date() }
+        }).catch(err => this.logger.error('Failed to mark lock FAILED', err));
+      }
       console.error('Bulk profit distribution error:', error);
       return {
         success: false,

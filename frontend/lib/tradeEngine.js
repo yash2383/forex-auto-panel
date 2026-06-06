@@ -71,7 +71,7 @@ if (!global.tradeEngineStarted) {
               const group = await tx.transactionGroup.create({
                 data: {
                   type: pnl.isPositive() ? "TRADE_PROFIT" : "TRADE_LOSS",
-                  description: `Settle trade ${trade.id} | PnL: ₹${pnl.toFixed(2)}`,
+                  description: `Settle trade ${trade.id} | PnL: $${pnl.toFixed(2)}`,
                   idempotencyKey: `TRADE_SETTLE_${trade.id}`,
                 },
               });
@@ -84,13 +84,13 @@ if (!global.tradeEngineStarted) {
                   accountType: "USER",
                   entryType: pnl.isPositive() ? "CREDIT" : "DEBIT",
                   amount: pnl.abs(),
-                  currency: "INR",
+                  currency: "USD",
                 },
               });
             }
           });
 
-          console.log(`[TradeEngine] Closed trade ${trade.id} for ${trade.user.email} with PnL: ₹${pnl.toFixed(4)}`);
+          console.log(`[TradeEngine] Closed trade ${trade.id} for ${trade.user.email} with PnL: $${pnl.toFixed(4)}`);
         } else {
           // Just update current price and PnL
           await prisma.trade.update({
@@ -180,7 +180,7 @@ if (!global.tradeEngineStarted) {
           });
         });
 
-        console.log(`[TradeEngine] Auto-spawned active trade for ${user.email}: ${pair} ${type} at ₹${entryPrice.toFixed(4)}`);
+        console.log(`[TradeEngine] Auto-spawned active trade for ${user.email}: ${pair} ${type} at $${entryPrice.toFixed(4)}`);
       }
     } catch (error) {
       console.error("[TradeEngine] Error in auto trading loop:", error);

@@ -109,8 +109,8 @@ export default function ProfitDistributionPage() {
     const uniqueUsersCount = new Set(profitDistributions.map((d) => d.userId)).size;
 
     return [
-      { label: "Total Distributed", value: `₹${totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "text-green-300" },
-      { label: "Total Pending", value: `₹${totalPending.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, icon: Clock, tone: "text-yellow-300" },
+      { label: "Total Distributed", value: `$${totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, icon: DollarSign, tone: "text-green-300" },
+      { label: "Total Pending", value: `$${totalPending.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, icon: Clock, tone: "text-yellow-300" },
       { label: "Total Payout Logs", value: String(totalRecords), icon: Layers, tone: "text-white" },
       { label: "Profit Receivers (Users)", value: String(uniqueUsersCount), icon: Users, tone: "text-cyan-300" },
     ];
@@ -336,7 +336,7 @@ export default function ProfitDistributionPage() {
                     </td>
                     <td className="px-4 py-4 font-medium">{pd.type}</td>
                     <td className="px-4 py-4 font-mono font-bold text-green-300">
-                      ₹{pd.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      ${pd.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-4 py-4">{distDate}</td>
                     <td className="px-4 py-4">
@@ -417,7 +417,7 @@ export default function ProfitDistributionPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-500 uppercase mb-2">Amount (₹)</label>
+                <label className="block text-xs font-semibold text-neutral-500 uppercase mb-2">Amount ($)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -510,7 +510,7 @@ export default function ProfitDistributionPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-neutral-500 uppercase mb-2">Amount (₹)</label>
+                <label className="block text-xs font-semibold text-neutral-500 uppercase mb-2">Amount ($)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -616,11 +616,11 @@ export default function ProfitDistributionPage() {
                 <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 text-center">
                   <p className="text-xs text-neutral-400 uppercase font-semibold">{bulkSummary.dryRun ? "Est. Payout" : "Total Payout"}</p>
                   <p className="mt-2 text-xl font-bold font-mono text-green-300">
-                    ₹{Number(
+                    ${Number(
                       bulkSummary.totalNetProfit ??
                       (bulkSummary.dryRun ? bulkSummary.estimatedAmount : bulkSummary.totalAmount) ??
                       0
-                    ).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    ).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>

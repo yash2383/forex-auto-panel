@@ -1763,7 +1763,7 @@ export default function AdminNotificationsPage() {
                         value={editedTemplate.body || ""}
                         onChange={(e) => setEditedTemplate({ ...editedTemplate, body: e.target.value })}
                         className="w-full h-32 font-mono rounded-lg border border-white/[0.08] bg-black/20 p-3 text-xs text-white outline-none focus:border-green-500/35 transition resize-none"
-                        placeholder="e.g. Your withdrawal of ₹{{amount}} has been approved."
+                        placeholder="e.g. Your withdrawal of ${{amount}} has been approved."
                       />
                     </label>
 

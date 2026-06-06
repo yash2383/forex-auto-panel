@@ -389,7 +389,7 @@ export class AuthService {
                   accountType: 'USER',
                   entryType: 'CREDIT',
                   amount: bonusAmount,
-                  currency: 'INR',
+                  currency: 'USD',
                 },
               });
             }
@@ -571,7 +571,7 @@ export class AuthService {
           availableBalance: 0,
           pendingWithdrawals: 0,
           totalWithdrawn: 0,
-          currency: 'INR',
+          currency: 'USD',
         },
       });
 

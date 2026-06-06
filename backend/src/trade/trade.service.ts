@@ -77,7 +77,7 @@ export class TradeService {
     const balance = user.wallet.realizedBalance;
     if (balance.lessThan(amount)) {
       return {
-        error: `Insufficient wallet balance. Required: ₹${amount}`,
+        error: `Insufficient wallet balance. Required: $${amount}`,
         status: 400,
       };
     }
@@ -229,7 +229,7 @@ export class TradeService {
         const group = await tx.transactionGroup.create({
           data: {
             type: pnl.isPositive() ? 'TRADE_PROFIT' : 'TRADE_LOSS',
-            description: `Manual Settle trade ${trade.id} | PnL: ₹${pnl.toFixed(2)}`,
+            description: `Manual Settle trade ${trade.id} | PnL: $${pnl.toFixed(2)}`,
             idempotencyKey: `TRADE_SETTLE_MANUAL_${trade.id}`,
           },
         });
@@ -242,7 +242,7 @@ export class TradeService {
             accountType: 'USER',
             entryType: pnl.isPositive() ? 'CREDIT' : 'DEBIT',
             amount: pnl.abs(),
-            currency: 'INR',
+            currency: 'USD',
           },
         });
       }

@@ -726,16 +726,16 @@ export default function Home() {
                             {trade.side}
                           </span>
                         </td>
-                        <td className="px-5 py-4 font-mono text-neutral-300">₹{Number(trade.entryPrice).toLocaleString("en-IN")}</td>
-                        <td className="px-5 py-4 font-mono text-neutral-300">₹{Number(trade.exitPrice).toLocaleString("en-IN")}</td>
-                        <td className="px-5 py-4 text-neutral-400">{trade.tradeDate ? new Date(trade.tradeDate).toLocaleDateString("en-IN") : "N/A"}</td>
+                        <td className="px-5 py-4 font-mono text-neutral-300">${Number(trade.entryPrice).toLocaleString("en-US")}</td>
+                        <td className="px-5 py-4 font-mono text-neutral-300">${Number(trade.exitPrice).toLocaleString("en-US")}</td>
+                        <td className="px-5 py-4 text-neutral-400">{trade.tradeDate ? new Date(trade.tradeDate).toLocaleDateString("en-US") : "N/A"}</td>
                         <td className="px-5 py-4">
                           <span className={`inline-flex min-w-12 justify-center rounded-md px-2 py-1 text-xs font-bold ${isWin ? "bg-green-500/10 text-green-300" : "bg-red-500/10 text-red-300"}`}>
                             {trade.result}
                           </span>
                         </td>
                         <td className={`px-5 py-4 text-right font-mono font-semibold ${isWin ? "text-green-300" : "text-red-300"}`}>
-                          {trade.profitLoss >= 0 ? `+₹${trade.profitLoss.toLocaleString("en-IN")}` : `-₹${Math.abs(trade.profitLoss).toLocaleString("en-IN")}`}
+                          {trade.profitLoss >= 0 ? `+$${trade.profitLoss.toLocaleString("en-US")}` : `-$${Math.abs(trade.profitLoss).toLocaleString("en-US")}`}
                         </td>
                       </tr>
                     );

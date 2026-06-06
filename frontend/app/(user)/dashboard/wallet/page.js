@@ -58,7 +58,7 @@ export default function WalletPage() {
     if (wallet && amount > Number(wallet.balance)) {
       setStatus({ 
         type: "error", 
-        message: `Withdrawal limit exceeded. You can only withdraw up to ₹${Number(wallet.balance).toLocaleString("en-IN")} (Available balance).` 
+        message: `Withdrawal limit exceeded. You can only withdraw up to $${Number(wallet.balance).toLocaleString("en-US")} (Available balance).` 
       });
       return;
     }
@@ -87,7 +87,7 @@ export default function WalletPage() {
       if (res.ok) {
         setStatus({
           type: "success",
-          message: `Withdrawal request for ₹${amount.toLocaleString("en-IN")} has been submitted successfully.`
+          message: `Withdrawal request for $${amount.toLocaleString("en-US")} has been submitted successfully.`
         });
         setWithdrawAmount("");
         setAccountDetails("");
@@ -173,37 +173,37 @@ export default function WalletPage() {
       <section className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-3 mt-6">
         <div className="rounded-2xl border border-white/10 bg-[#07100d]/95 p-5 shadow-[0_0_35px_-24px_rgba(34,197,94,0.45)] relative overflow-hidden">
           <p className="text-sm text-green-400 font-medium">Total Balance</p>
-          <p className="mt-4 text-3xl font-extrabold text-green-300">₹{totalBalance.toLocaleString("en-IN")}</p>
+          <p className="mt-4 text-3xl font-extrabold text-green-300">${totalBalance.toLocaleString("en-US")}</p>
           <p className="mt-2 text-xs text-neutral-500">Available Balance + Reward Balance</p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#07100d]/95 p-5 relative overflow-hidden">
           <div className="absolute right-0 top-0 h-16 w-16 bg-emerald-500/5 blur-xl"></div>
           <p className="text-sm text-emerald-400 font-medium">Available Balance</p>
-          <p className="mt-4 text-3xl font-extrabold text-emerald-300">₹{availableBalance.toLocaleString("en-IN")}</p>
+          <p className="mt-4 text-3xl font-extrabold text-emerald-300">${availableBalance.toLocaleString("en-US")}</p>
           <p className="mt-2 text-xs text-neutral-500">Realized funds available for immediate withdrawal</p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#07100d]/95 p-5 relative overflow-hidden">
           <div className="absolute right-0 top-0 h-16 w-16 bg-teal-500/5 blur-xl"></div>
           <p className="text-sm text-teal-400 font-medium">Reward Balance</p>
-          <p className="mt-4 text-3xl font-extrabold text-teal-300">₹{rewardBalance.toLocaleString("en-IN")}</p>
+          <p className="mt-4 text-3xl font-extrabold text-teal-300">${rewardBalance.toLocaleString("en-US")}</p>
           <p className="mt-2 text-xs text-neutral-500">Referral, campaign, and bonus earnings</p>
         </div>
         <div className="rounded-2xl border border-yellow-500/15 bg-[#07100d]/95 p-5 shadow-[0_0_35px_-24px_rgba(234,179,8,0.2)] relative overflow-hidden">
           <div className="absolute right-0 top-0 h-16 w-16 bg-yellow-500/5 blur-xl"></div>
           <p className="text-sm text-yellow-400 font-medium">Pending Withdrawals</p>
-          <p className="mt-4 text-3xl font-extrabold text-yellow-300">₹{pendingWithdrawals.toLocaleString("en-IN")}</p>
+          <p className="mt-4 text-3xl font-extrabold text-yellow-300">${pendingWithdrawals.toLocaleString("en-US")}</p>
           <p className="mt-2 text-xs text-neutral-500">Reserved balance locked in review</p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#07100d]/95 p-5 relative overflow-hidden">
           <div className="absolute right-0 top-0 h-16 w-16 bg-white/5 blur-xl"></div>
           <p className="text-sm text-neutral-400 font-medium">Current Equity</p>
-          <p className="mt-4 text-3xl font-extrabold text-white">₹{currentEquity.toLocaleString("en-IN")}</p>
+          <p className="mt-4 text-3xl font-extrabold text-white">${currentEquity.toLocaleString("en-US")}</p>
           <p className="mt-2 text-xs text-neutral-500">Total account value</p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#07100d]/95 p-5 relative overflow-hidden">
           <div className="absolute right-0 top-0 h-16 w-16 bg-white/5 blur-xl"></div>
           <p className="text-sm text-neutral-400 font-medium">Total Withdrawn</p>
-          <p className="mt-4 text-3xl font-extrabold text-neutral-300">₹{totalWithdrawn.toLocaleString("en-IN")}</p>
+          <p className="mt-4 text-3xl font-extrabold text-neutral-300">${totalWithdrawn.toLocaleString("en-US")}</p>
           <p className="mt-2 text-xs text-neutral-500">Cumulative processed payouts history</p>
         </div>
       </section>
@@ -217,9 +217,9 @@ export default function WalletPage() {
           
           <form onSubmit={handleWithdrawSubmit} className="mt-5 space-y-5">
             <div>
-              <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider">Withdrawal Amount (₹)</label>
+              <label className="block text-xs font-semibold text-neutral-500 uppercase tracking-wider">Withdrawal Amount ($)</label>
               <div className="relative mt-2 rounded-xl border border-white/10 bg-white/[0.02] focus-within:border-green-500/35 transition">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500 font-bold">₹</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-500 font-bold">$</span>
                 <input 
                   type="number"
                   placeholder="Enter amount"
@@ -343,7 +343,7 @@ export default function WalletPage() {
                   withdrawals.map((w, index) => (
                     <tr key={index} className="hover:bg-white/[0.01] transition">
                       <td className="py-4 px-2 font-mono font-bold text-white text-xs">{w.withdrawalId}</td>
-                      <td className="py-4 px-2 font-mono font-bold text-white">₹{w.amount.toLocaleString("en-IN")}</td>
+                      <td className="py-4 px-2 font-mono font-bold text-white">${w.amount.toLocaleString("en-US")}</td>
                       <td className="py-4 px-2 text-xs capitalize">{w.method ? w.method.replace("_", " ") : "Bank Transfer"}</td>
                       <td className="py-4 px-2">{getStatusBadge(w.status)}</td>
                       <td className="py-4 px-2 text-xs text-neutral-500">{new Date(w.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>

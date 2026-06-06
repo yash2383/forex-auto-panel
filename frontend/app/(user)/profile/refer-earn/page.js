@@ -72,9 +72,9 @@ export default function ReferEarnPage() {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "INR",
+      currency: "USD",
     }).format(amount || 0);
   };
 
@@ -281,7 +281,7 @@ export default function ReferEarnPage() {
                           </td>
                           <td className="px-6 py-4 font-medium">{ref.plan}</td>
                           <td className="px-6 py-4">
-                            {new Date(ref.joinDate).toLocaleDateString("en-IN", {
+                            {new Date(ref.joinDate).toLocaleDateString("en-US", {
                               day: "2-digit", month: "short", year: "numeric"
                             })}
                           </td>
@@ -360,7 +360,7 @@ export default function ReferEarnPage() {
                   {earnings.map((earn) => (
                     <tr key={earn.id} className="transition hover:bg-white/[0.02]">
                       <td className="px-6 py-4">
-                        {new Date(earn.date).toLocaleDateString("en-IN", {
+                        {new Date(earn.date).toLocaleDateString("en-US", {
                           day: "2-digit", month: "short", year: "numeric"
                         })}
                       </td>

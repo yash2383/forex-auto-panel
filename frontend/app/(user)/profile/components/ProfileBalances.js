@@ -3,9 +3,9 @@
 import { Wallet, Coins, Gift } from "lucide-react";
 
 function formatCurrency(amount) {
-  return new Intl.NumberFormat("en-IN", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: "INR",
+    currency: "USD",
     minimumFractionDigits: 2,
   }).format(amount || 0);
 }

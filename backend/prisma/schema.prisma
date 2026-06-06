@@ -725,11 +725,29 @@ model TradeRecord {
   tradeDate   DateTime
   notes       String?  @default("")
   status      String   @default("published")
+  profitDistributed Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  distributionLog TradeDistributionLog?
+
   @@index([tradeDate])
   @@index([status])
+}
+
+model TradeDistributionLog {
+  id              String   @id @default(cuid())
+  tradeRecordId   String   @unique
+
+  totalProfit     Decimal  @db.Decimal(18, 4)
+  userCount       Int
+  perUserProfit   Decimal  @db.Decimal(18, 4)
+
+  status          String   @default("COMPLETED")
+
+  createdAt       DateTime @default(now())
+
+  tradeRecord     TradeRecord @relation(fields: [tradeRecordId], references: [id], onDelete: Cascade)
 }
 
 model ProfitDistribution {
@@ -1263,5 +1281,28 @@ model ReferralReward {
   paidAt             DateTime?
   status             String
   createdAt          DateTime       @default(now())
+}
+
+model NotificationLog {
+  id            String   @id @default(cuid())
+  type          String   // e.g. "TOPIC_BROADCAST"
+  topic         String?
+  batchId       String?
+  payload       Json
+  status        String   // "SUCCESS" / "FAILED"
+  attemptCount  Int      @default(1)
+  lastAttemptAt DateTime?
+  createdAt     DateTime @default(now())
+
+  @@unique([batchId, type])
+}
+
+model ProfitDistributionLock {
+  id                 String   @id @default(cuid())
+  dateKey            String   @unique // e.g. '2023-10-25' or 'WEEK-42-2023'
+  status             String   // RUNNING | COMPLETED | FAILED_RECONCILIATION
+  startedAt          DateTime @default(now())
+  endedAt            DateTime?
+  lastProcessedIndex Int      @default(0)
 }
 

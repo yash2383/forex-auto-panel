@@ -101,3 +101,63 @@ export async function sendFcmMessage(
     data: cleanedData,
   });
 }
+
+export async function subscribeToTopic(token: string, topic: string) {
+  const app = initializeFirebaseAdmin();
+  if (!app) {
+    console.warn(`[FCM Simulation] Subscribing token ${token.substring(0, 8)}... to topic ${topic}`);
+    return { success: true };
+  }
+
+  try {
+    return await admin.messaging(app).subscribeToTopic([token], topic);
+  } catch (error) {
+    console.error(`Failed to subscribe token to topic ${topic}:`, error);
+    throw error;
+  }
+}
+
+export async function unsubscribeFromTopic(token: string, topic: string) {
+  const app = initializeFirebaseAdmin();
+  if (!app) {
+    console.warn(`[FCM Simulation] Unsubscribing token ${token.substring(0, 8)}... from topic ${topic}`);
+    return { success: true };
+  }
+  
+  try {
+    return await admin.messaging(app).unsubscribeFromTopic([token], topic);
+  } catch (error) {
+    console.error(`Failed to unsubscribe token from topic ${topic}:`, error);
+    throw error;
+  }
+}
+
+export async function sendFcmTopicMessage(
+  topic: string,
+  title: string,
+  body: string,
+  data: Record<string, string> = {},
+) {
+  const app = initializeFirebaseAdmin();
+
+  if (!app) {
+    console.log(
+      `[FCM SIMULATION] Send Push to Topic: ${topic} Title: "${title}", Body: "${body}"`,
+    );
+    return { success: true, messageId: 'simulated-topic-msg-id-' + Date.now() };
+  }
+
+  const cleanedData: Record<string, string> = {};
+  for (const [key, val] of Object.entries(data)) {
+    cleanedData[key] = String(val);
+  }
+
+  return admin.messaging(app).send({
+    topic,
+    notification: {
+      title,
+      body,
+    },
+    data: cleanedData,
+  });
+}

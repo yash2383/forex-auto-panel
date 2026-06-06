@@ -272,7 +272,7 @@ export class InvestmentService {
       // 2. Validate amount limits
       if (amount < Number(plan.minAmount) || amount > Number(plan.maxAmount)) {
         throw new BadRequestException(
-          `Investment amount must be between ₹${Number(plan.minAmount).toLocaleString()} and ₹${Number(
+          `Investment amount must be between $${Number(plan.minAmount).toLocaleString()} and $${Number(
             plan.maxAmount,
           ).toLocaleString()}.`,
         );
@@ -306,13 +306,13 @@ export class InvestmentService {
             accountType: 'USER',
             entryType: 'DEBIT',
             amount,
-            currency: wallet.currency || 'INR',
+            currency: wallet.currency || 'USD',
           },
           {
             accountType: 'SYSTEM',
             entryType: 'CREDIT',
             amount,
-            currency: wallet.currency || 'INR',
+            currency: wallet.currency || 'USD',
           },
         ],
       });

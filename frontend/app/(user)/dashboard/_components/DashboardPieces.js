@@ -23,7 +23,7 @@ const formatPrice = (value) => {
 const formatPastPnL = (pnlValue, result) => {
   const numericVal = Number(pnlValue);
   if (!Number.isFinite(numericVal)) return "";
-  const formattedVal = `${numericVal >= 0 ? "+" : "-"}₹${Math.abs(numericVal).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  const formattedVal = `${numericVal >= 0 ? "+" : "-"}$${Math.abs(numericVal).toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
   
   if (result === "WIN") {
     return (
@@ -79,7 +79,7 @@ const LiveTradeRow = ({ trade }) => {
 
   const isProfit = livePnl >= 0;
   const pnlTone = isProfit ? "text-green-300" : "text-red-300";
-  const pnlText = `${isProfit ? "+" : "-"}₹${Math.abs(livePnl).toLocaleString("en-IN")} (${isProfit ? "+" : ""}${livePct.toFixed(1)}%)`;
+  const pnlText = `${isProfit ? "+" : "-"}$${Math.abs(livePnl).toLocaleString("en-US")} (${isProfit ? "+" : ""}${livePct.toFixed(1)}%)`;
 
   return (
     <tr className="hover:bg-white/[0.03]">

@@ -128,8 +128,8 @@ export default function PastTradesPage() {
       const points = Math.abs(exit - entry) * (entry > 1000 ? 10 : entry > 100 ? 100 : 10000);
 
       const formattedPnl = trade.profitLoss >= 0
-        ? `+₹${trade.profitLoss.toLocaleString("en-IN")}`
-        : `-₹${Math.abs(trade.profitLoss).toLocaleString("en-IN")}`;
+        ? `+$${trade.profitLoss.toLocaleString("en-US")}`
+        : `-$${Math.abs(trade.profitLoss).toLocaleString("en-US")}`;
 
       const dateStr = trade.tradeDate ? new Date(trade.tradeDate).toLocaleDateString("en-US", {
         month: "short",
@@ -184,7 +184,7 @@ export default function PastTradesPage() {
     return [
       {
         label: "Total PnL",
-        value: `${totalPnlVal >= 0 ? "+" : "-"}₹${Math.abs(totalPnlVal).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        value: `${totalPnlVal >= 0 ? "+" : "-"}$${Math.abs(totalPnlVal).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         detail: isSubscribed ? "Calculated from all trade records" : "Showing stats for 10 trades",
         align: "left",
         positive: totalPnlVal >= 0,

@@ -27,7 +27,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
       NotificationChannel.TOAST,
     ],
     title: 'Payment Submitted',
-    body: 'Your payment of ₹{{amount}} has been submitted and is under review.',
+    body: 'Your payment of ${{amount}} has been submitted and is under review.',
   },
   [NotificationEvent.PAYMENT_APPROVED]: {
     category: NotificationCategory.PAYMENT,
@@ -40,7 +40,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
       NotificationChannel.TOAST,
     ],
     title: 'Payment Approved ✅',
-    body: 'Your payment of ₹{{amount}} has been approved. Your account is now active.',
+    body: 'Your payment of ${{amount}} has been approved. Your account is now active.',
   },
   [NotificationEvent.PAYMENT_REJECTED]: {
     category: NotificationCategory.PAYMENT,
@@ -53,7 +53,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
       NotificationChannel.TOAST,
     ],
     title: 'Payment Rejected ❌',
-    body: 'Your payment of ₹{{amount}} was rejected. Please contact support for details.',
+    body: 'Your payment of ${{amount}} was rejected. Please contact support for details.',
   },
 
   // ── DEPOSITS ──────────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
       NotificationChannel.TOAST,
     ],
     title: 'Deposit Confirmed ✅',
-    body: '₹{{amount}} has been credited to your account.',
+    body: '${{amount}} has been credited to your account.',
   },
   [NotificationEvent.DEPOSIT_REJECTED]: {
     category: NotificationCategory.PAYMENT,
@@ -81,7 +81,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
       NotificationChannel.TOAST,
     ],
     title: 'Deposit Rejected ❌',
-    body: 'Your deposit of ₹{{amount}} was rejected. Reason: {{reason}}.',
+    body: 'Your deposit of ${{amount}} was rejected. Reason: {{reason}}.',
   },
 
   // ── WITHDRAWALS ───────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
       NotificationChannel.TOAST,
     ],
     title: 'Withdrawal Requested',
-    body: 'Your withdrawal request of ₹{{amount}} is being processed.',
+    body: 'Your withdrawal request of ${{amount}} is being processed.',
   },
   [NotificationEvent.WITHDRAWAL_APPROVED]: {
     category: NotificationCategory.WITHDRAWAL,
@@ -108,7 +108,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
       NotificationChannel.TOAST,
     ],
     title: 'Withdrawal Approved ✅',
-    body: 'Your withdrawal of ₹{{amount}} has been approved and will be transferred shortly.',
+    body: 'Your withdrawal of ${{amount}} has been approved and will be transferred shortly.',
   },
   [NotificationEvent.WITHDRAWAL_REJECTED]: {
     category: NotificationCategory.WITHDRAWAL,
@@ -121,7 +121,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
       NotificationChannel.TOAST,
     ],
     title: 'Withdrawal Rejected ❌',
-    body: 'Your withdrawal of ₹{{amount}} was rejected. Reason: {{reason}}.',
+    body: 'Your withdrawal of ${{amount}} was rejected. Reason: {{reason}}.',
   },
 
   // ── TRADES ────────────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
     severity: NotificationSeverity.INFO,
     channels: [NotificationChannel.BELL, NotificationChannel.SOCKET],
     title: 'Trade Opened',
-    body: 'Your {{type}} trade on {{pair}} has been opened at ₹{{entryPrice}}.',
+    body: 'Your {{type}} trade on {{pair}} has been opened at ${{entryPrice}}.',
   },
   [NotificationEvent.TRADE_CLOSED]: {
     category: NotificationCategory.TRADE,
@@ -155,7 +155,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
       NotificationChannel.TOAST,
     ],
     title: 'Trade Closed',
-    body: 'Your trade on {{pair}} has been closed. P&L: ₹{{pnl}}.',
+    body: 'Your trade on {{pair}} has been closed. P&L: ${{pnl}}.',
   },
   [NotificationEvent.TRADE_CANCELLED]: {
     category: NotificationCategory.TRADE,
@@ -175,7 +175,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
       NotificationChannel.TOAST,
     ],
     title: '🎯 Take Profit Hit!',
-    body: 'Take profit reached on {{pair}}. Profit: ₹{{profit}}.',
+    body: 'Take profit reached on {{pair}}. Profit: ${{profit}}.',
   },
   [NotificationEvent.STOP_LOSS_HIT]: {
     category: NotificationCategory.TRADE,
@@ -187,7 +187,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
       NotificationChannel.TOAST,
     ],
     title: '⚠️ Stop Loss Hit',
-    body: 'Stop loss triggered on {{pair}}. Loss: ₹{{loss}}.',
+    body: 'Stop loss triggered on {{pair}}. Loss: ${{loss}}.',
   },
   [NotificationEvent.SIGNAL_UPDATED]: {
     category: NotificationCategory.TRADE,
@@ -210,7 +210,7 @@ export const EVENT_REGISTRY: Record<NotificationEvent, EventDefinition> = {
       NotificationChannel.TOAST,
     ],
     title: '💰 Profit Credited!',
-    body: 'Weekly profit of ₹{{amount}} has been credited to your wallet.',
+    body: 'Weekly profit of ${{amount}} has been credited to your wallet.',
   },
 
   // ── PLANS ─────────────────────────────────────────────────────────────────

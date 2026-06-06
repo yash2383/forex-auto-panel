@@ -29,6 +29,7 @@ import {
 } from '@prisma/client';
 import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { NotificationsService } from './notifications.service';
+import { subscribeToTopic } from './firebase-admin';
 
 export enum BroadcastAction {
   APPROVE = 'APPROVE',
@@ -367,6 +368,12 @@ export class NotificationsController {
           lastUsedAt: new Date(),
         },
       });
+
+      try {
+        await subscribeToTopic(token, 'daily_profit');
+      } catch (err: any) {
+        console.error('Failed to subscribe to daily_profit topic:', err.message);
+      }
 
       return res.json({ success: true, device });
     } catch (error: any) {

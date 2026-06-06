@@ -67,15 +67,15 @@ export const partners = [
 ];
 
 export const partnerUsers = [
-  { user: "Harsh Mehta", plan: "Premium", payment: "Rs 10,000", date: "May 25, 2026" },
-  { user: "Rahul Sharma", plan: "Basic", payment: "Rs 4,900", date: "May 23, 2026" },
-  { user: "Amit Verma", plan: "Premium", payment: "Rs 25,000", date: "May 21, 2026" },
+  { user: "Harsh Mehta", plan: "Premium", payment: "$ 10,000", date: "May 25, 2026" },
+  { user: "Rahul Sharma", plan: "Basic", payment: "$ 4,900", date: "May 23, 2026" },
+  { user: "Amit Verma", plan: "Premium", payment: "$ 25,000", date: "May 21, 2026" },
 ];
 
 export const transactions = [
-  { amount: "Rs 10,000", adminCut: "Rs 3,000", wlCut: "Rs 3,000", date: "May 25, 2026" },
-  { amount: "Rs 4,900", adminCut: "Rs 1,470", wlCut: "Rs 1,470", date: "May 23, 2026" },
-  { amount: "Rs 25,000", adminCut: "Rs 7,500", wlCut: "Rs 7,500", date: "May 21, 2026" },
+  { amount: "$ 10,000", adminCut: "$ 3,000", wlCut: "$ 3,000", date: "May 25, 2026" },
+  { amount: "$ 4,900", adminCut: "$ 1,470", wlCut: "$ 1,470", date: "May 23, 2026" },
+  { amount: "$ 25,000", adminCut: "$ 7,500", wlCut: "$ 7,500", date: "May 21, 2026" },
 ];
 
 export const earningsSummary = [

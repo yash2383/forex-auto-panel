@@ -23,7 +23,7 @@ import {
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 const fmt = (n) =>
-  `₹${Number(n || 0).toLocaleString("en-IN", {
+  `$${Number(n || 0).toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -508,7 +508,7 @@ export default function ReportsPage() {
               {profitData.lastDistribution && (
                 <StatRow
                   label="Last Distribution"
-                  value={new Date(profitData.lastDistribution).toLocaleDateString("en-IN", {
+                  value={new Date(profitData.lastDistribution).toLocaleDateString("en-US", {
                     day: "numeric",
                     month: "short",
                     year: "numeric",
@@ -714,7 +714,7 @@ export default function ReportsPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-white truncate">{item.fileName}</p>
                       <p className="text-xs text-neutral-500 mt-0.5">
-                        {new Date(item.createdAt).toLocaleString("en-IN", {
+                        {new Date(item.createdAt).toLocaleString("en-US", {
                           day: "numeric",
                           month: "short",
                           year: "numeric",

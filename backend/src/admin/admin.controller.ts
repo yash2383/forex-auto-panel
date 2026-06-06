@@ -680,6 +680,24 @@ export class AdminController {
     }
   }
 
+  @Post('trades/:id/distribute')
+  @Roles('SUPER_ADMIN', 'MANAGER')
+  async distributeTradeProfit(@Param('id') id: string, @Res() res: Response) {
+    try {
+      const result = await this.adminService.distributeTradeProfit(id);
+      // distributeTradeProfit returns undefined if early exit conditions met
+      if (!result) return res.status(400).json({ message: 'Trade is not eligible for distribution or already distributed' });
+      if ('error' in result)
+        return res.status(result.status || 400).json({ message: result.error });
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Distribute trade profit error:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
   @Patch('trades/:id/publish')
   @Roles('SUPER_ADMIN', 'MANAGER')
   async publishTradeRecord(@Param('id') id: string, @Res() res: Response) {

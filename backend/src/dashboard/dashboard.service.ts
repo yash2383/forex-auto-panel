@@ -137,7 +137,7 @@ export class DashboardService {
       payments: payments.map((p: any) => ({
         id: p.id,
         plan: p.planName,
-        amount: `₹${Number(p.amount).toLocaleString('en-IN')}`,
+        amount: `$${Number(p.amount).toLocaleString('en-US')}`,
         txnHash: p.txnHash || 'N/A',
         utr: p.utr || 'N/A',
         network: p.network || 'N/A',
@@ -161,7 +161,7 @@ export class DashboardService {
       })),
       withdrawals: withdrawals.map((w: any) => ({
         id: w.id,
-        amount: `₹${Number(w.amount).toLocaleString('en-IN')}`,
+        amount: `$${Number(w.amount).toLocaleString('en-US')}`,
         date: w.createdAt.toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
@@ -514,7 +514,7 @@ export class DashboardService {
             partnerId: targetPartnerId,
             planName,
             amount: Number(amount),
-            currency: 'INR',
+            currency: 'USD',
             paymentType: paymentType || 'USDT',
             network: network || null,
             txnHash: finalTxnHash || null,
@@ -689,7 +689,7 @@ export class DashboardService {
 
         if (available < requestAmount) {
           throw new Error(
-            `Insufficient funds. Available: ₹${available.toLocaleString('en-IN')}`,
+            `Insufficient funds. Available: $${available.toLocaleString('en-US')}`,
           );
         }
 
@@ -703,7 +703,7 @@ export class DashboardService {
             userId,
             partnerId,
             amount: requestAmount,
-            currency: 'INR',
+            currency: 'USD',
             status: 'PENDING',
             method: 'Bank Transfer',
           },

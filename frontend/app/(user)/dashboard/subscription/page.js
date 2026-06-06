@@ -87,7 +87,7 @@ export default function SubscriptionPage() {
               <div className="flex-1 text-sm text-neutral-300">
                 <span className="font-bold text-white">Upgrade Request Under Review:</span> You have submitted a payment of{" "}
                 <span className="font-semibold text-white">
-                  ₹{Number(pending.amount).toLocaleString("en-IN")}
+                  ${Number(pending.amount).toLocaleString("en-US")}
                 </span>{" "}
                 for the <span className="font-semibold text-white">{pending.planName}</span>. We are reviewing it.
               </div>
@@ -119,7 +119,7 @@ export default function SubscriptionPage() {
               <div className="rounded-xl border border-white/5 bg-white/[0.01] p-4">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Plan Amount</p>
                 <strong className="mt-1 block text-lg text-white font-mono">
-                  ₹{Number(sub.amount).toLocaleString("en-IN")}
+                  ${Number(sub.amount).toLocaleString("en-US")}
                 </strong>
               </div>
               <div className="rounded-xl border border-white/5 bg-white/[0.01] p-4">
@@ -170,7 +170,7 @@ export default function SubscriptionPage() {
   // Render State 2: Verification Pending (submitted payment but no active subscription yet)
   if (pending) {
     const formattedAmount = pending.amount
-      ? `₹${Number(pending.amount).toLocaleString("en-IN")}`
+      ? `$${Number(pending.amount).toLocaleString("en-US")}`
       : "—";
 
     return (

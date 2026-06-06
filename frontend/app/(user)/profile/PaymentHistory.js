@@ -13,15 +13,15 @@ const statusConfig = {
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-IN", {
+  return new Date(dateStr).toLocaleDateString("en-US", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
 }
 
-function formatCurrency(amount, currency = "INR") {
-  if (currency === "INR") return `₹${Number(amount).toLocaleString("en-IN")}`;
+function formatCurrency(amount, currency = "USD") {
+  if (currency === "USD") return `$${Number(amount).toLocaleString("en-US")}`;
   return `$${Number(amount).toLocaleString("en-US")}`;
 }
 

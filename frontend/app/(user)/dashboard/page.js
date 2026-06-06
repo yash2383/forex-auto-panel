@@ -21,7 +21,7 @@ function PnLWidget({ stats, wallet }) {
           <h2 className="mt-3 text-sm font-medium text-neutral-400">Withdrawable Balance (Cash Account)</h2>
           <div className="mt-2 flex flex-wrap items-baseline gap-3">
             <span className="text-4xl font-extrabold tracking-tight text-white font-mono">
-              ₹{realizedBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${realizedBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
             <span className="inline-flex items-center gap-0.5 text-sm font-bold text-green-300">
               <ArrowUpRight className="h-4 w-4" />
@@ -33,7 +33,7 @@ function PnLWidget({ stats, wallet }) {
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-center min-w-[110px] backdrop-blur">
             <p className="text-xs text-neutral-500 font-semibold">Total PnL</p>
             <p className={`mt-1 text-lg font-bold ${totalProfit >= 0 ? "text-green-300" : "text-red-400"}`}>
-              {totalProfit >= 0 ? "+" : ""}₹{totalProfit.toLocaleString("en-IN")}
+              {totalProfit >= 0 ? "+" : ""}${totalProfit.toLocaleString("en-US")}
             </p>
           </div>
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-center min-w-[110px] backdrop-blur">
@@ -66,14 +66,14 @@ function ProfitOverviewWidget({ summary }) {
           <div>
             <p className="text-xs text-neutral-500 font-semibold">Total Profit Earned</p>
             <p className="text-2xl font-extrabold text-white font-mono mt-0.5">
-              +₹{totalProfit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              +${totalProfit.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
           <div className="flex justify-between items-center pt-2 border-t border-white/5">
             <div>
               <p className="text-[10px] text-neutral-500 font-semibold uppercase tracking-wider">Pending Profit</p>
               <p className="text-sm font-bold text-yellow-300 font-mono mt-0.5">
-                ₹{pendingProfit.toLocaleString("en-IN")}
+                ${pendingProfit.toLocaleString("en-US")}
               </p>
             </div>
             <div className="text-right">
@@ -157,9 +157,9 @@ export default function DashboardPage() {
 
 
   const userStats = [
-    { label: "Total Profit", value: `₹${(stats?.totalProfit || 0).toLocaleString("en-IN")}`, sub: "Settled returns pool", tone: "text-green-300" },
-    { label: "Unrealized PnL", value: `${(stats?.unrealizedPnL || 0) >= 0 ? "+" : ""}₹${(stats?.unrealizedPnL || 0).toLocaleString("en-IN")}`, sub: "Floating live trades profit", tone: "text-green-300", isLive: true },
-    { label: "Realized PnL", value: `₹${(stats?.realizedPnL || 0).toLocaleString("en-IN")}`, sub: "Settled past trades profit", tone: "text-white" },
+    { label: "Total Profit", value: `$${(stats?.totalProfit || 0).toLocaleString("en-US")}`, sub: "Settled returns pool", tone: "text-green-300" },
+    { label: "Unrealized PnL", value: `${(stats?.unrealizedPnL || 0) >= 0 ? "+" : ""}$${(stats?.unrealizedPnL || 0).toLocaleString("en-US")}`, sub: "Floating live trades profit", tone: "text-green-300", isLive: true },
+    { label: "Realized PnL", value: `$${(stats?.realizedPnL || 0).toLocaleString("en-US")}`, sub: "Settled past trades profit", tone: "text-white" },
     { label: "Win Rate", value: `${stats?.winRate || "72.91"}%`, sub: "Execution accuracy", tone: "text-green-300" },
     { label: "Active Trades", value: String(stats?.activeTradesCount || 0), sub: "Running robot strategies", tone: "text-neutral-200" },
   ];
@@ -234,7 +234,7 @@ export default function DashboardPage() {
                 const pnlTone = isWin ? "text-green-300" : isBe ? "text-yellow-300" : "text-red-300";
                 
                 const rawPnlVal = trade.rawPnl;
-                const formattedVal = `${rawPnlVal >= 0 ? "+" : "-"}₹${Math.abs(Math.round(rawPnlVal)).toLocaleString("en-IN")}`;
+                const formattedVal = `${rawPnlVal >= 0 ? "+" : "-"}$${Math.abs(Math.round(rawPnlVal)).toLocaleString("en-US")}`;
 
                 return (
                   <tr key={trade.id} className="hover:bg-white/[0.025]">
@@ -244,10 +244,10 @@ export default function DashboardPage() {
                         {trade.side}
                       </span>
                     </td>
-                    <td className="px-4 py-5 font-mono text-neutral-200 font-semibold">₹{trade.entry.toLocaleString()}</td>
-                    <td className="px-4 py-5 font-mono text-neutral-200 font-semibold">₹{trade.exit.toLocaleString()}</td>
-                    <td className="px-4 py-5 font-mono text-neutral-200">₹{trade.target.toLocaleString()}</td>
-                    <td className="px-4 py-5 font-mono text-red-300">₹{trade.stopLoss.toLocaleString()}</td>
+                    <td className="px-4 py-5 font-mono text-neutral-200 font-semibold">${trade.entry.toLocaleString()}</td>
+                    <td className="px-4 py-5 font-mono text-neutral-200 font-semibold">${trade.exit.toLocaleString()}</td>
+                    <td className="px-4 py-5 font-mono text-neutral-200">${trade.target.toLocaleString()}</td>
+                    <td className="px-4 py-5 font-mono text-red-300">${trade.stopLoss.toLocaleString()}</td>
                     <td className="px-4 py-5 text-neutral-200">
                       <span className="block">{trade.date}</span>
                     </td>

@@ -173,7 +173,7 @@ const sectionContent = {
     permissionKey: "payments",
     title: "Transaction History",
     description: "Full ledger of all deposits and withdrawal requests across the platform.",
-    metrics: [["Total Volume", "₹1,12,100"], ["Deposits", "6"], ["Withdrawals", "4"], ["Pending Withdrawals", "1"]],
+    metrics: [["Total Volume", "$1,12,100"], ["Deposits", "6"], ["Withdrawals", "4"], ["Pending Withdrawals", "1"]],
     filters: ["All", "Deposit", "Withdrawal", "Pending", "Completed", "Rejected"],
     headers: ["Txn ID", "User", "Type", "Amount", "Method", "Ref / UTR", "Status", "Date"],
   },
@@ -916,8 +916,8 @@ function AdminSectionPage({
     ];
 
     if (pk === "pnl-reports" && pnlReports) return [
-      ["Total PnL",    `₹${pnlReports.overview.totalPnl.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`],
-      ["User-wise Avg",pnlReports.overview.winningTrades > 0 ? `₹${pnlReports.overview.averageWin}` : "₹0"],
+      ["Total PnL",    `$${pnlReports.overview.totalPnl.toLocaleString("en-US", { minimumFractionDigits: 2 })}`],
+      ["User-wise Avg",pnlReports.overview.winningTrades > 0 ? `$${pnlReports.overview.averageWin}` : "$0"],
       ["Profit Factor",pnlReports.overview.profitFactor],
       ["Win Rate",     `${pnlReports.overview.winRate}%`],
     ];
@@ -945,7 +945,7 @@ function AdminSectionPage({
         ["Pending",  pending.toLocaleString()],
         ["Approved", approved.toLocaleString()],
         ["Rejected", rejected.toLocaleString()],
-        ["Revenue",  `₹${revenue.toLocaleString("en-IN")}`],
+        ["Revenue",  `$${revenue.toLocaleString("en-US")}`],
       ];
     }
 
@@ -955,7 +955,7 @@ function AdminSectionPage({
       const pending     = transactions.filter((t) => t.status === "Pending").length;
       const volume      = transactions.reduce((sum, t) => sum + (t.rawAmount || t.amount || 0), 0);
       return [
-        ["Total Volume",       `₹${volume.toLocaleString("en-IN")}`],
+        ["Total Volume",       `$${volume.toLocaleString("en-US")}`],
         ["Deposits",           deposits.length.toLocaleString()],
         ["Withdrawals",        withdrawalsTx.length.toLocaleString()],
         ["Pending Withdrawals",pending.toLocaleString()],
@@ -992,7 +992,7 @@ function AdminSectionPage({
           ["Total Referrals", (referralStats.total || 0).toLocaleString()],
           ["Paid",            (referralStats.paid || 0).toLocaleString()],
           ["Pending",         (referralStats.pending || 0).toLocaleString()],
-          ["Payouts",         `₹${(referralStats.totalPayouts || 0).toLocaleString("en-IN")}`],
+          ["Payouts",         `$${(referralStats.totalPayouts || 0).toLocaleString("en-US")}`],
         ];
       }
       const paid    = referrals.filter((r) => r.status === "Paid").length;
@@ -1005,7 +1005,7 @@ function AdminSectionPage({
         ["Total Referrals", referrals.length.toLocaleString()],
         ["Paid",            paid.toLocaleString()],
         ["Pending",         pending.toLocaleString()],
-        ["Payouts",         `₹${totalCommission.toLocaleString("en-IN")}`],
+        ["Payouts",         `$${totalCommission.toLocaleString("en-US")}`],
       ];
     }
 
@@ -1047,7 +1047,7 @@ function AdminSectionPage({
   if (section.permissionKey === "users") {
     let list = users;
     if (activeFilter === "No Deposit") {
-      list = users.filter((u) => u.deposit === "$0" || u.deposit === "₹0" || u.plan === "None");
+      list = users.filter((u) => u.deposit === "$0" || u.deposit === "$0" || u.plan === "None");
     } else if (activeFilter !== "All") {
       list = users.filter((u) => u.status === activeFilter);
     }
@@ -1103,11 +1103,11 @@ function AdminSectionPage({
     rows = list.map((t) => [
       t.pair,
       t.side,
-      `₹${Number(t.entryPrice).toLocaleString("en-IN")}`,
-      `₹${Number(t.exitPrice).toLocaleString("en-IN")}`,
-      t.tradeDate ? new Date(t.tradeDate).toLocaleDateString("en-IN") : "N/A",
+      `$${Number(t.entryPrice).toLocaleString("en-US")}`,
+      `$${Number(t.exitPrice).toLocaleString("en-US")}`,
+      t.tradeDate ? new Date(t.tradeDate).toLocaleDateString("en-US") : "N/A",
       t.result,
-      t.profitLoss >= 0 ? `+₹${t.profitLoss.toLocaleString("en-IN")}` : `-₹${Math.abs(t.profitLoss).toLocaleString("en-IN")}`,
+      t.profitLoss >= 0 ? `+$${t.profitLoss.toLocaleString("en-US")}` : `-$${Math.abs(t.profitLoss).toLocaleString("en-US")}`,
       t.status,
       t.id
     ]);
@@ -1154,7 +1154,7 @@ function AdminSectionPage({
     rows = list.map((r) => {
       const isPdf = r.fileName.toLowerCase().endsWith(".pdf");
       const date = new Date(r.createdAt);
-      const dateStr = date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+      const dateStr = date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
       return [
         r.fileName,
         r.userName,
@@ -1224,7 +1224,7 @@ function AdminSectionPage({
     rows = list.map(w => [
       w.withdrawalId,
       w.userName,
-      `₹${w.amount.toLocaleString()}`,
+      `$${w.amount.toLocaleString()}`,
       w.method,
       w.status,
       w.date,
@@ -1254,7 +1254,7 @@ function AdminSectionPage({
       t.id,
       `${t.userName}`,
       t.type,
-      `₹${t.amount.toLocaleString()}`,
+      `$${t.amount.toLocaleString()}`,
       t.method,
       t.txRef,
       t.status,
@@ -1824,7 +1824,7 @@ function AdminSectionPage({
                               const plColor = tradeItem.profitLoss >= 0 ? "text-green-300 font-bold" : "text-red-300 font-bold";
                               return (
                                 <td key={idx} className={`px-4 py-4 font-mono ${plColor}`}>
-                                  {tradeItem.profitLoss >= 0 ? `+₹${tradeItem.profitLoss.toLocaleString("en-IN")}` : `-₹${Math.abs(tradeItem.profitLoss).toLocaleString("en-IN")}`}
+                                  {tradeItem.profitLoss >= 0 ? `+$${tradeItem.profitLoss.toLocaleString("en-US")}` : `-$${Math.abs(tradeItem.profitLoss).toLocaleString("en-US")}`}
                                 </td>
                               );
                             }
@@ -1864,7 +1864,7 @@ function AdminSectionPage({
                               return (
                                 <td key={idx} className={`px-4 py-4 font-mono font-bold ${txnItem.type === "Deposit" ? "text-green-300" : "text-red-300"
                                   }`}>
-                                  {txnItem.type === "Deposit" ? "+" : "-"}₹{txnItem.amount.toLocaleString()}
+                                  {txnItem.type === "Deposit" ? "+" : "-"}${txnItem.amount.toLocaleString()}
                                 </td>
                               );
                             }
@@ -2315,7 +2315,7 @@ function AdminSectionPage({
               </label>
 
               <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-neutral-400">Minimum Eligible Deposit (₹)</span>
+                <span className="mb-2 block text-xs font-semibold text-neutral-400">Minimum Eligible Deposit ($)</span>
                 <input
                   type="number"
                   value={refMinDeposit}
@@ -2474,11 +2474,11 @@ function AdminSectionPage({
                 <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 text-center">
                   <p className="text-xs text-neutral-400 uppercase font-semibold">{bulkSummary.dryRun ? "Est. Payout" : "Total Payout"}</p>
                   <p className="mt-2 text-xl font-bold font-mono text-green-300">
-                    ₹{Number(
+                    ${Number(
                       bulkSummary.totalNetProfit ??
                       (bulkSummary.dryRun ? bulkSummary.estimatedAmount : bulkSummary.totalAmount) ??
                       0
-                    ).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    ).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>
@@ -2901,7 +2901,7 @@ export default function DashboardPage() {
   // NOTIFICATIONS / CAMPAIGNS / REFERRALS MODAL STATE
   const [recordModal, setRecordModal] = useState({ type: null, mode: "add", id: "" });
   const [notificationForm, setNotificationForm] = useState({ audience: "", message: "", channel: "In-app", status: "Draft" });
-  const [campaignForm, setCampaignForm] = useState({ name: "", source: "", code: "", budget: "", startDate: "", endDate: "", status: "Active", trackingLink: "", users: 0, deposits: "₹0", revenue: "₹0" });
+  const [campaignForm, setCampaignForm] = useState({ name: "", source: "", code: "", budget: "", startDate: "", endDate: "", status: "Active", trackingLink: "", users: 0, deposits: "$0", revenue: "$0" });
   const [referralForm, setReferralForm] = useState({ referrer: "", user: "", deposit: "$0", reward: "$0", status: "Pending" });
 
   const handleAddUserSubmit = (e) => {
@@ -3110,7 +3110,7 @@ export default function DashboardPage() {
 
   const resetRecordForms = () => {
     setNotificationForm({ audience: "", message: "", channel: "In-app", status: "Draft" });
-    setCampaignForm({ name: "", source: "", code: "", budget: "", startDate: "", endDate: "", status: "Active", trackingLink: "", users: 0, deposits: "₹0", revenue: "₹0" });
+    setCampaignForm({ name: "", source: "", code: "", budget: "", startDate: "", endDate: "", status: "Active", trackingLink: "", users: 0, deposits: "$0", revenue: "$0" });
     setReferralForm({ referrer: "", user: "", deposit: "$0", reward: "$0", status: "Pending" });
   };
 
@@ -3125,8 +3125,8 @@ export default function DashboardPage() {
       setCampaignForm(item ? {
         ...item,
         users: item.users ?? 0,
-        revenue: item.revenue ?? "₹0",
-        deposits: item.deposits ?? "₹0",
+        revenue: item.revenue ?? "$0",
+        deposits: item.deposits ?? "$0",
         source: item.source ?? "",
         code: item.code ?? item.slug ?? "",
         budget: item.budget ?? "",
@@ -3142,8 +3142,8 @@ export default function DashboardPage() {
         status: "Active",
         trackingLink: "",
         users: 0,
-        deposits: "₹0",
-        revenue: "₹0"
+        deposits: "$0",
+        revenue: "$0"
       });
     }
     if (type === "referrals") {
@@ -3768,11 +3768,11 @@ export default function DashboardPage() {
                   </div>
                   <div className="bg-black/25 p-3 rounded-xl border border-white/5">
                     <span className="block text-xs text-neutral-500 uppercase font-semibold">Deposits</span>
-                    <span className="block mt-1 text-sm font-bold text-white">{campaignForm.deposits || "₹0"}</span>
+                    <span className="block mt-1 text-sm font-bold text-white">{campaignForm.deposits || "$0"}</span>
                   </div>
                   <div className="bg-black/25 p-3 rounded-xl border border-white/5">
                     <span className="block text-xs text-neutral-500 uppercase font-semibold">Revenue</span>
-                    <span className="block mt-1 text-sm font-bold text-white">{campaignForm.revenue || "₹0"}</span>
+                    <span className="block mt-1 text-sm font-bold text-white">{campaignForm.revenue || "$0"}</span>
                   </div>
                 </div>
               </>
@@ -3866,22 +3866,22 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-3 gap-2 border-t border-white/[0.06] pt-3">
                     <div>
                       <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Current Equity</p>
-                      <p className="font-mono text-white mt-1">₹{Number(withdrawal.currentEquity || 0).toLocaleString("en-IN")}</p>
+                      <p className="font-mono text-white mt-1">${Number(withdrawal.currentEquity || 0).toLocaleString("en-US")}</p>
                     </div>
                     <div>
                       <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Available Balance</p>
-                      <p className="font-mono text-white mt-1">₹{Number(withdrawal.availableBalance || 0).toLocaleString("en-IN")}</p>
+                      <p className="font-mono text-white mt-1">${Number(withdrawal.availableBalance || 0).toLocaleString("en-US")}</p>
                     </div>
                     <div>
                       <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Pending Reserved</p>
-                      <p className="font-mono text-white mt-1">₹{Number(withdrawal.pendingWithdrawals || 0).toLocaleString("en-IN")}</p>
+                      <p className="font-mono text-white mt-1">${Number(withdrawal.pendingWithdrawals || 0).toLocaleString("en-US")}</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 border-t border-white/[0.06] pt-3">
                     <div>
                       <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Requested Amount</p>
-                      <p className="font-mono text-lg font-bold text-red-300 mt-1">₹{Number(withdrawal.rawAmount || 0).toLocaleString("en-IN")}</p>
+                      <p className="font-mono text-lg font-bold text-red-300 mt-1">${Number(withdrawal.rawAmount || 0).toLocaleString("en-US")}</p>
                     </div>
                     <div>
                       <p className="text-xs text-neutral-500 font-semibold uppercase tracking-wider">Method</p>
@@ -4038,7 +4038,7 @@ export default function DashboardPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="block text-xs font-semibold text-neutral-400 mb-2">Entry Fee / Deposit (INR)</span>
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Entry Fee / Deposit (USD)</span>
                 <input type="number" required={planPricingType === "FIXED"} disabled={planPricingType === "FLEXIBLE"} min="0" value={planPricingType === "FLEXIBLE" ? "" : planAmount} onChange={(e) => setPlanAmount(e.target.value)} placeholder={planPricingType === "FLEXIBLE" ? "Flexible Pricing" : "0"} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:opacity-40" />
               </label>
             </div>
@@ -4119,7 +4119,7 @@ export default function DashboardPage() {
                 </select>
               </label>
               <label className="block">
-                <span className="block text-xs font-semibold text-neutral-400 mb-2">Entry Fee / Deposit (INR)</span>
+                <span className="block text-xs font-semibold text-neutral-400 mb-2">Entry Fee / Deposit (USD)</span>
                 <input type="number" required={editPlanPricingType === "FIXED"} disabled={editPlanPricingType === "FLEXIBLE"} min="0" value={editPlanPricingType === "FLEXIBLE" ? "" : editPlanAmount} onChange={(e) => setEditPlanAmount(e.target.value)} placeholder={editPlanPricingType === "FLEXIBLE" ? "Flexible Pricing" : "0"} className="h-11 w-full rounded-lg border border-white/[0.08] bg-black/10 px-3 text-sm text-white outline-none focus:border-green-500/50 disabled:opacity-40" />
               </label>
             </div>

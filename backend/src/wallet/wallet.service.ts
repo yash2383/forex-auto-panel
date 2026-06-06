@@ -84,7 +84,7 @@ export class WalletService {
       const available = Number(wallet.availableBalance);
       if (available < amount) {
         throw new BadRequestException(
-          `Insufficient available funds. Available: ₹${available.toLocaleString('en-IN')}`,
+          `Insufficient available funds. Available: $${available.toLocaleString('en-US')}`,
         );
       }
 
@@ -117,7 +117,7 @@ export class WalletService {
           userId,
           partnerId,
           amount: new Prisma.Decimal(amount),
-          currency: wallet.currency || 'INR',
+          currency: wallet.currency || 'USD',
           status: 'PENDING',
           method,
           accountDetails: detailsStr,

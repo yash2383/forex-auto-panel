@@ -42,8 +42,8 @@ function formatDateTime(dateStr) {
   });
 }
 
-function formatCurrency(amount, currency = "INR") {
-  if (currency === "INR") return `₹${Number(amount).toLocaleString("en-IN")}`;
+function formatCurrency(amount, currency = "USD") {
+  if (currency === "USD") return `$${Number(amount).toLocaleString("en-US")}`;
   return `$${Number(amount).toLocaleString("en-US")}`;
 }
 

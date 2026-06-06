@@ -93,7 +93,7 @@ export default function ReferAndEarnCard({ profile, stats }) {
             <IndianRupee className="mx-auto mb-2 h-6 w-6 text-green-400" />
             <div className="text-xs font-semibold uppercase tracking-wider text-green-500">Rewards Earned</div>
             <div className="mt-1 text-2xl font-bold text-green-400 font-mono">
-              ₹{rewardsEarned.toLocaleString()}
+              ${rewardsEarned.toLocaleString()}
             </div>
           </div>
         </div>

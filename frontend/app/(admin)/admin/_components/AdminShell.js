@@ -307,7 +307,7 @@ export default function AdminShell({ children }) {
                     <p className="font-semibold text-white">{t.userName} ({t.type})</p>
                     <p className="text-xs text-neutral-500">{t.method} - {t.txRef || "N/A"}</p>
                   </div>
-                  <span className="text-xs text-red-400 font-mono">₹{t.amount.toLocaleString()}</span>
+                  <span className="text-xs text-red-400 font-mono">${t.amount.toLocaleString()}</span>
                 </div>
               ))}
             </div>

@@ -13,7 +13,7 @@ const statusColors = {
 
 function formatDate(dateStr) {
   if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-IN", {
+  return new Date(dateStr).toLocaleDateString("en-US", {
     day: "2-digit",
     month: "short",
     year: "numeric",

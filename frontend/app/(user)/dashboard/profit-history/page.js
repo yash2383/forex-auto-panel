@@ -54,21 +54,21 @@ export default function ProfitHistoryPage() {
       {
         icon: TrendingUp,
         label: "Total Profit Earned",
-        value: `+₹${total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+        value: `+$${total.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
         sub: "Lifetime settled distributions",
         tone: "text-green-300",
       },
       {
         icon: Calendar,
         label: "This Month",
-        value: `+₹${monthly.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+        value: `+$${monthly.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
         sub: "Earned in current month",
         tone: "text-green-300",
       },
       {
         icon: Clock3,
         label: "Pending Profit",
-        value: `₹${pending.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+        value: `$${pending.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
         sub: "Awaiting next distribution cycle",
         tone: "text-yellow-300",
       },
@@ -182,7 +182,7 @@ export default function ProfitHistoryPage() {
                     <td className="px-5 py-4 text-neutral-300">{dateStr}</td>
                     <td className="px-5 py-4 font-medium text-white">{item.type}</td>
                     <td className="px-5 py-4 font-mono font-bold text-green-300">
-                      +₹{item.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                      +${item.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-5 py-4">
                       <span

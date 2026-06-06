@@ -651,8 +651,8 @@ function PendingPaymentsTable({ onVerify, onApprove, onReject }) {
                     <span className="block select-all text-amber-300">{payment.txnHash}</span>
                     <span className="text-[10px] text-neutral-500">Network: {payment.network || "TRC20"}</span>
                     {payment.screenshot && (
-                      <a href={payment.screenshot} target="_blank" className="mt-2 inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] p-1.5 text-[10px] font-bold text-green-300 hover:bg-white/[0.08]">
-                        <img src={payment.screenshot} alt="Payment proof preview" className="h-10 w-10 rounded object-cover" />
+                      <a href={payment.screenshot.startsWith('http') ? payment.screenshot : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}${payment.screenshot.startsWith('/') ? '' : '/'}${payment.screenshot}`} target="_blank" className="mt-2 inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] p-1.5 text-[10px] font-bold text-green-300 hover:bg-white/[0.08]">
+                        <img src={payment.screenshot.startsWith('http') ? payment.screenshot : `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}${payment.screenshot.startsWith('/') ? '' : '/'}${payment.screenshot}`} alt="Payment proof preview" className="h-10 w-10 rounded object-cover" />
                         View Screenshot
                       </a>
                     )}

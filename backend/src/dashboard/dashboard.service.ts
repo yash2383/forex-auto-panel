@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationEvent, Prisma } from '@prisma/client';
+import { writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
 
 @Injectable()
 export class DashboardService {
@@ -267,6 +269,28 @@ export class DashboardService {
       remark,
     } = body;
 
+    let finalScreenshot = screenshot || null;
+    if (screenshot && screenshot.startsWith('data:image/')) {
+      try {
+        const matches = screenshot.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const type = matches[1];
+          const data = matches[2];
+          const ext = type.split('/')[1] || 'png';
+          const buffer = Buffer.from(data, 'base64');
+          const uploadDir = join(process.cwd(), 'uploads');
+          if (!existsSync(uploadDir)) {
+            mkdirSync(uploadDir, { recursive: true });
+          }
+          const fileName = `screenshot-${Date.now()}-${Math.random().toString(36).substring(2, 11)}.${ext}`;
+          writeFileSync(join(uploadDir, fileName), buffer);
+          finalScreenshot = `/uploads/${fileName}`;
+        }
+      } catch (err) {
+        console.error('Error saving screenshot:', err);
+      }
+    }
+
     let finalTxnHash = txnHash ? String(txnHash).trim().toUpperCase() : null;
     let finalUtr = utr ? String(utr).trim().toUpperCase() : null;
 
@@ -519,7 +543,7 @@ export class DashboardService {
             network: network || null,
             txnHash: finalTxnHash || null,
             utr: finalUtr || null,
-            screenshot: screenshot || null,
+            screenshot: finalScreenshot,
             remark: remark || null,
             status: 'PENDING',
             initiationId: initiationId || null,

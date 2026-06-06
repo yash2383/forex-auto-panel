@@ -528,7 +528,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     return () => {
-      if (screenshotPreview) URL.revokeObjectURL(screenshotPreview);
+      // no-op for base64
     };
   }, [screenshotPreview]);
 
@@ -544,9 +544,12 @@ export default function CheckoutPage() {
   const handleScreenshotChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (screenshotPreview) URL.revokeObjectURL(screenshotPreview);
     setScreenshotName(file.name);
-    setScreenshotPreview(URL.createObjectURL(file));
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setScreenshotPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   if (planError) {

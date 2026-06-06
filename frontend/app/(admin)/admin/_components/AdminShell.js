@@ -474,10 +474,18 @@ export default function AdminShell({ children }) {
                 <DateRangePicker />
                 <button
                   onClick={toggleTheme}
-                  className="flex shrink-0 h-11 w-11 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.03] text-white transition hover:bg-white/[0.08]"
+                  className="flex shrink-0 h-[40px] w-[76px] items-center rounded-full border border-white/[0.09] bg-black/20 p-1 transition-all relative cursor-pointer"
                   aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
                 >
-                  {theme === "light" ? <Sun className="h-5 w-5 text-yellow-500" /> : <Moon className="h-5 w-5" />}
+                  <div
+                    className={`absolute h-8 w-8 rounded-full bg-green-500 transition-transform duration-300 ease-in-out ${
+                      theme === "light" ? "translate-x-0" : "translate-x-[36px]"
+                    }`}
+                  />
+                  <div className="relative z-10 flex w-full items-center justify-between px-1.5 pointer-events-none">
+                    <Sun className={`h-4 w-4 transition-colors ${theme === "light" ? "text-black" : "text-neutral-400"}`} />
+                    <Moon className={`h-4 w-4 transition-colors ${theme === "dark" ? "text-black" : "text-neutral-400"}`} />
+                  </div>
                 </button>
                 <NotificationDropdown />
                 <div className="relative shrink-0">

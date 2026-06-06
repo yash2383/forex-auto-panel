@@ -8,6 +8,7 @@ import { userNavItems } from "./dashboardData";
 import { useAdminStore } from "../../../../hooks/adminStore";
 import { apiFetch } from "../../../../lib/apiFetch";
 import NotificationDropdown from "../../components/NotificationDropdown";
+import DateRangePicker from "../../components/DateRangePicker";
 import { useFcmToken } from "../../../../hooks/useFcmToken";
 
 export default function DashboardShell({ children }) {
@@ -237,12 +238,7 @@ export default function DashboardShell({ children }) {
                   <Globe2 className="h-4 w-4" />
                   Visit Website
                 </Link>
-
-                <button className="hidden h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white md:flex">
-                  <CalendarDays className="h-4 w-4" />
-                  {getWeekRange()}
-                  <ChevronDown className="h-4 w-4 text-neutral-500" />
-                </button>
+                <DateRangePicker />
                 <button
                   onClick={toggleTheme}
                   className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white transition hover:bg-white/[0.08]"

@@ -148,7 +148,10 @@ export class AdminService implements OnModuleInit {
       this.prisma.partner.findMany({ orderBy: { createdAt: 'desc' } }),
       this.prisma.systemSettings.findFirst(),
       this.prisma.campaign.findMany({ orderBy: { createdAt: 'desc' } }),
-      this.prisma.referral.findMany({ orderBy: { createdAt: 'desc' } }),
+      this.prisma.referral.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: { reward: true },
+      }),
       this.prisma.admin.findMany({ orderBy: { createdAt: 'desc' } }),
       this.prisma.withdrawal.findMany({
         include: { user: { include: { wallet: true } } },
@@ -322,25 +325,40 @@ export class AdminService implements OnModuleInit {
       };
     });
 
-    const referrals = dbReferrals.map((r) => {
+    const referrals = dbReferrals.map((r: any) => {
       const referrerUser = dbUsers.find((u) => u.id === r.referrerId);
       const referredUser = dbUsers.find((u) => u.id === r.referredId);
       return {
         id: r.id,
         referrer: referrerUser?.name || 'Unknown',
+        referrerId: r.referrerId,
         user: referredUser?.name || 'Unknown',
-        deposit: r.depositAmount
-          ? `₹${Number(r.depositAmount).toLocaleString('en-IN')}`
+        deposit: r.reward?.depositAmount
+          ? `₹${Number(r.reward.depositAmount).toLocaleString('en-IN')}`
           : referredUser?.wallet
             ? `₹${Number(referredUser.wallet.realizedBalance).toLocaleString('en-IN')}`
             : '₹0',
-        reward: `₹${Number(r.commissionAmount || 0).toLocaleString('en-IN')}`,
+        reward: `₹${Number(r.reward?.commissionAmount || 0).toLocaleString('en-IN')}`,
         status:
           r.status === 'PENDING'
             ? 'Pending'
             : r.status === 'PAID'
               ? 'Paid'
-              : 'Cancelled',
+              : r.status === 'APPROVED'
+                ? 'Approved'
+                : r.status === 'REJECTED'
+                  ? 'Rejected'
+                  : 'Cancelled',
+        rewardDetails: r.reward ? {
+          planName: r.reward.planName,
+          depositAmount: Number(r.reward.depositAmount || 0),
+          platformFeePercent: Number(r.reward.platformFeePercent || 0),
+          platformFeeAmount: Number(r.reward.platformFeeAmount || 0),
+          referralRate: Number(r.reward.referralRate || 0),
+          commissionAmount: Number(r.reward.commissionAmount || 0),
+          approvedAt: r.reward.approvedAt,
+          paidAt: r.reward.paidAt,
+        } : null,
       };
     });
 
@@ -648,6 +666,8 @@ export class AdminService implements OnModuleInit {
         weeklyProfit: Number(p.weeklyProfit ?? 0),
         durationDays: Number(p.durationDays ?? 0),
         pricingType: p.pricingType || 'FIXED',
+        platformFeePercent: Number(p.platformFeePercent ?? 4.00),
+        referralEligible: !!p.referralEligible,
       })),
       referralSettings: dbReferralSettings,
       generatedReports,
@@ -900,6 +920,8 @@ export class AdminService implements OnModuleInit {
       durationDays,
       pricingType,
       slug,
+      platformFeePercent,
+      referralEligible,
     } = body;
     if (!name || !subtitle || !capitalLabel || !desc)
       return {
@@ -920,6 +942,17 @@ export class AdminService implements OnModuleInit {
       };
     }
 
+    const platformFeePctVal =
+      platformFeePercent !== undefined && platformFeePercent !== null && platformFeePercent !== ''
+        ? Number(platformFeePercent)
+        : 4.00;
+    if (platformFeePctVal < 0 || platformFeePctVal > 100) {
+      return {
+        error: 'Platform fee percentage must be between 0 and 100.',
+        status: 400,
+      };
+    }
+
     const plan = await this.prisma.plan.create({
       data: {
         name,
@@ -935,6 +968,8 @@ export class AdminService implements OnModuleInit {
         pricingType: typeOfPricing,
         weeklyProfit: Number(weeklyProfit) || 5,
         durationDays: Number(durationDays) || 30,
+        platformFeePercent: platformFeePctVal,
+        referralEligible: referralEligible !== undefined ? !!referralEligible : true,
       },
     });
 
@@ -978,6 +1013,17 @@ export class AdminService implements OnModuleInit {
       };
     }
 
+    const platformFeePctVal =
+      body.platformFeePercent !== undefined && body.platformFeePercent !== null && body.platformFeePercent !== ''
+        ? Number(body.platformFeePercent)
+        : undefined;
+    if (platformFeePctVal !== undefined && (platformFeePctVal < 0 || platformFeePctVal > 100)) {
+      return {
+        error: 'Platform fee percentage must be between 0 and 100.',
+        status: 400,
+      };
+    }
+
     const updatedPlan = await this.prisma.plan.update({
       where: { id: planId },
       data: {
@@ -1006,6 +1052,8 @@ export class AdminService implements OnModuleInit {
           body.durationDays !== undefined
             ? Number(body.durationDays)
             : Number(plan.durationDays),
+        platformFeePercent: platformFeePctVal !== undefined ? platformFeePctVal : undefined,
+        referralEligible: body.referralEligible !== undefined ? !!body.referralEligible : undefined,
       },
     });
 
@@ -1371,6 +1419,9 @@ export class AdminService implements OnModuleInit {
       allowMultipleDeposits,
       commissionPayoutMode,
       maxReferralCommission,
+      requireActiveSubscription,
+      requireReferrerDeposit,
+      signupBonus,
     } = body;
 
     const existing = await this.prisma.referralSettings.findFirst();
@@ -1407,6 +1458,18 @@ export class AdminService implements OnModuleInit {
                 ? Number(maxReferralCommission)
                 : null
               : existing.maxReferralCommission,
+          requireActiveSubscription:
+            requireActiveSubscription !== undefined
+              ? Boolean(requireActiveSubscription)
+              : existing.requireActiveSubscription,
+          requireReferrerDeposit:
+            requireReferrerDeposit !== undefined
+              ? Boolean(requireReferrerDeposit)
+              : existing.requireReferrerDeposit,
+          signupBonus:
+            signupBonus !== undefined
+              ? Number(signupBonus)
+              : existing.signupBonus,
         },
       });
     } else {
@@ -1429,6 +1492,9 @@ export class AdminService implements OnModuleInit {
           maxReferralCommission: maxReferralCommission
             ? Number(maxReferralCommission)
             : null,
+          requireActiveSubscription: requireActiveSubscription !== undefined ? Boolean(requireActiveSubscription) : true,
+          requireReferrerDeposit: requireReferrerDeposit !== undefined ? Boolean(requireReferrerDeposit) : true,
+          signupBonus: signupBonus !== undefined ? Number(signupBonus) : 100.0,
         },
       });
     }
@@ -1449,14 +1515,16 @@ export class AdminService implements OnModuleInit {
     const referrals = await this.prisma.referral.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
-        referrer: { select: { name: true, email: true } },
+        referrer: { select: { id: true, name: true, email: true } },
         referredUser: {
           select: {
+            id: true,
             name: true,
             email: true,
             wallet: { select: { realizedBalance: true } },
           },
         },
+        reward: true,
       },
     });
 
@@ -1467,13 +1535,14 @@ export class AdminService implements OnModuleInit {
       return {
         id: r.id,
         referrer: referrerName,
+        referrerId: r.referrerId,
         user: referredName,
-        deposit: r.depositAmount
-          ? `₹${Number(r.depositAmount).toLocaleString('en-IN')}`
+        deposit: r.reward?.depositAmount
+          ? `₹${Number(r.reward.depositAmount).toLocaleString('en-IN')}`
           : r.referredUser?.wallet
             ? `₹${Number(r.referredUser.wallet.realizedBalance).toLocaleString('en-IN')}`
             : '₹0',
-        reward: `₹${Number(r.commissionAmount || 0).toLocaleString('en-IN')}`,
+        reward: `₹${Number(r.reward?.commissionAmount || 0).toLocaleString('en-IN')}`,
         status:
           r.status === 'PENDING'
             ? 'Pending'
@@ -1484,6 +1553,16 @@ export class AdminService implements OnModuleInit {
                 : r.status === 'REJECTED'
                   ? 'Rejected'
                   : 'Cancelled',
+        rewardDetails: r.reward ? {
+          planName: r.reward.planName,
+          depositAmount: Number(r.reward.depositAmount || 0),
+          platformFeePercent: Number(r.reward.platformFeePercent || 0),
+          platformFeeAmount: Number(r.reward.platformFeeAmount || 0),
+          referralRate: Number(r.reward.referralRate || 0),
+          commissionAmount: Number(r.reward.commissionAmount || 0),
+          approvedAt: r.reward.approvedAt,
+          paidAt: r.reward.paidAt,
+        } : null,
       };
     });
 
@@ -1491,11 +1570,13 @@ export class AdminService implements OnModuleInit {
   }
 
   async getReferralStats() {
-    const referrals = await this.prisma.referral.findMany();
-    const paid = referrals.filter((r) => r.status === 'PAID');
+    const referrals = await this.prisma.referral.findMany({
+      include: { reward: true },
+    });
+    const paid = referrals.filter((r) => r.status === 'PAID' || r.status === 'APPROVED');
     const pending = referrals.filter((r) => r.status === 'PENDING');
     const totalPayouts = paid.reduce(
-      (sum, r) => sum + Number(r.commissionAmount || 0),
+      (sum, r) => sum + Number(r.reward?.commissionAmount || 0),
       0,
     );
 
@@ -1510,6 +1591,258 @@ export class AdminService implements OnModuleInit {
     };
   }
 
+  private async creditReferralReward(
+    tx: any,
+    referral: any,
+    rewardAmount: number,
+    qualifyingPayment: any,
+    adminId?: string,
+  ) {
+    // 1. Credit referrer wallet
+    const referrerWallet = await tx.wallet.findUnique({
+      where: { userId: referral.referrerId },
+    });
+    if (referrerWallet) {
+      await tx.wallet.update({
+        where: { id: referrerWallet.id },
+        data: {
+          realizedBalance: { increment: rewardAmount },
+          availableBalance: { increment: rewardAmount },
+          currentEquity: { increment: rewardAmount },
+        },
+      });
+    }
+
+    // 2. Create WalletLedger credit entry
+    await tx.walletLedger.create({
+      data: {
+        userId: referral.referrerId,
+        type: 'REFERRAL_COMMISSION',
+        entryType: 'CREDIT',
+        amount: rewardAmount,
+        referenceId: referral.id,
+        note: `Referral commission from deposit by ${qualifyingPayment?.user?.email || referral.referredUser?.email || 'referred user'}`,
+      },
+    });
+
+    // 3. Create double-entry ledger group
+    await createTransactionGroup(tx, {
+      type: 'REFERRAL_PAYOUT',
+      description: `Referral commission payout | Referral: ${referral.id}`,
+      idempotencyKey: `REF_COMMISSION_${referral.id}`,
+      entries: [
+        {
+          accountType: 'SYSTEM',
+          entryType: 'DEBIT',
+          amount: rewardAmount,
+          currency: qualifyingPayment?.currency || 'INR',
+        },
+        {
+          userId: referral.referrerId,
+          partnerId: referral.partnerId,
+          accountType: 'USER',
+          entryType: 'CREDIT',
+          amount: rewardAmount,
+          currency: qualifyingPayment?.currency || 'INR',
+        },
+      ],
+    });
+
+    // 4. Create financial event
+    await tx.financialEvent.create({
+      data: {
+        eventType: 'REFERRAL_APPROVED',
+        userId: referral.referrerId,
+        actorId: adminId,
+        referenceId: referral.id,
+        metadata: {
+          depositUserId: referral.referredId,
+          amount: rewardAmount,
+          autoApproved: !adminId,
+        },
+      },
+    });
+  }
+
+  private async processReferralReward(
+    tx: any,
+    referralId: string,
+    adminId?: string,
+  ) {
+    const referral = await tx.referral.findUnique({
+      where: { id: referralId },
+      include: {
+        reward: true,
+        referrer: { include: { wallet: true } },
+        referredUser: {
+          include: {
+            payments: {
+              where: { status: 'APPROVED' },
+              orderBy: { createdAt: 'desc' },
+              include: { initiation: { include: { plan: true } } },
+            },
+          },
+        },
+      },
+    });
+
+    if (!referral) throw new Error('Referral record not found');
+
+    // If a reward already exists and is APPROVED or PAID, do not allow reprocessing.
+    if (referral.reward) {
+      if (referral.reward.status === 'APPROVED' || referral.reward.status === 'PAID') {
+        return; // Already processed
+      }
+    }
+
+    const refSettings = await tx.referralSettings.findFirst();
+    if (!refSettings) {
+      throw new Error('Referral settings not configured.');
+    }
+
+    if (!refSettings.enabled) {
+      return; // Referral program is disabled
+    }
+
+    // 1. Verify if referrer meets conditions if required
+    if (refSettings.requireActiveSubscription) {
+      const referrerActivePlan = await tx.userPlan.findFirst({
+        where: {
+          userId: referral.referrerId,
+          active: true,
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: new Date() } }
+          ]
+        },
+      });
+      if (!referrerActivePlan) {
+        this.logger.log({
+          event: 'REFERRAL_SKIPPED_INACTIVE_REFERRER',
+          message: `Referrer ${referral.referrerId} does not have an active plan. Referral commission skipped.`,
+        });
+        return;
+      }
+    }
+
+    if (refSettings.requireReferrerDeposit) {
+      const referrerDeposits = await tx.payment.findFirst({
+        where: {
+          userId: referral.referrerId,
+          status: 'APPROVED',
+        },
+      });
+      if (!referrerDeposits) {
+        this.logger.log({
+          event: 'REFERRAL_SKIPPED_NO_REFERRER_DEPOSIT',
+          message: `Referrer ${referral.referrerId} has no approved deposits. Referral commission skipped.`,
+        });
+        return;
+      }
+    }
+
+    // 2. Find the qualifying deposit/payment of the referred user
+    const qualifyingPayment = referral.referredUser.payments.find(
+      (p: any) => Number(p.amount) >= Number(refSettings.minimumDeposit)
+    );
+
+    if (!qualifyingPayment) {
+      this.logger.log({
+        event: 'REFERRAL_SKIPPED_NO_QUALIFYING_DEPOSIT',
+        message: `Referred user ${referral.referredId} has no approved payment meeting the minimum deposit of ₹${refSettings.minimumDeposit}.`,
+      });
+      return;
+    }
+
+    // 3. Resolve the plan details for platform fee percent
+    const resolvedPlan = qualifyingPayment.initiation?.plan ?? await tx.plan.findFirst({
+      where: { name: { equals: qualifyingPayment.planName, mode: 'insensitive' } }
+    });
+
+    if (resolvedPlan && !resolvedPlan.referralEligible) {
+      this.logger.log({
+        event: 'REFERRAL_SKIPPED_PLAN_INELIGIBLE',
+        message: `Plan ${resolvedPlan.name} is not eligible for referral commissions.`,
+      });
+      return;
+    }
+
+    const platformFeePercent = resolvedPlan ? Number(resolvedPlan.platformFeePercent) : 4.00;
+    const commissionRate = Number(refSettings.commissionRate ?? 10);
+    
+    const sysSettings = await tx.systemSettings.findFirst();
+    const bonusMultiplier = Number(sysSettings?.referralBonusMultiplier ?? 100) / 100;
+
+    // Calculate reward: Reward = DepositAmount * PlanFee% * ReferralCommission% * multiplier
+    const depositAmount = Number(qualifyingPayment.amount);
+    const platformFeeAmount = depositAmount * (platformFeePercent / 100);
+    const baseCommission = platformFeeAmount * (commissionRate / 100);
+    const rewardAmount = baseCommission * bonusMultiplier;
+
+    // Status: Use auto-approve setting if not specified by status transition
+    const autoApprove = refSettings.autoApprove ?? false;
+    const finalStatus = autoApprove ? 'APPROVED' : 'PENDING';
+
+    // 4. Create or update ReferralReward snapshot
+    let rewardRecord = referral.reward;
+    if (rewardRecord) {
+      rewardRecord = await tx.referralReward.update({
+        where: { id: referral.reward.id },
+        data: {
+          paymentId: qualifyingPayment.id,
+          planId: resolvedPlan?.id || null,
+          planName: resolvedPlan?.name || qualifyingPayment.planName,
+          depositAmount,
+          platformFeePercent,
+          platformFeeAmount,
+          referralRate: commissionRate,
+          commissionAmount: rewardAmount,
+          status: finalStatus,
+        },
+      });
+    } else {
+      rewardRecord = await tx.referralReward.create({
+        data: {
+          referralId: referral.id,
+          paymentId: qualifyingPayment.id,
+          planId: resolvedPlan?.id || null,
+          planName: resolvedPlan?.name || qualifyingPayment.planName,
+          depositAmount,
+          platformFeePercent,
+          platformFeeAmount,
+          referralRate: commissionRate,
+          commissionAmount: rewardAmount,
+          status: finalStatus,
+        },
+      });
+    }
+
+    // Update Referral status matching the reward status
+    await tx.referral.update({
+      where: { id: referral.id },
+      data: { status: finalStatus as any },
+    });
+
+    if (finalStatus === 'APPROVED') {
+      await this.creditReferralReward(tx, referral, rewardAmount, qualifyingPayment, adminId);
+      
+      await tx.referral.update({
+        where: { id: referral.id },
+        data: { status: 'APPROVED' },
+      });
+
+      await tx.referralReward.update({
+        where: { referralId: referral.id },
+        data: {
+          status: 'APPROVED',
+          approvedBy: adminId || 'SYSTEM',
+          approvedAt: new Date(),
+          paidAt: new Date(),
+        },
+      });
+    }
+  }
+
   async updateReferralStatus(
     adminId: string,
     referralId: string,
@@ -1518,6 +1851,7 @@ export class AdminService implements OnModuleInit {
   ) {
     const referral = await this.prisma.referral.findUnique({
       where: { id: referralId },
+      include: { reward: true },
     });
     if (!referral) return { error: 'Referral not found', status: 404 };
 
@@ -1526,10 +1860,123 @@ export class AdminService implements OnModuleInit {
     if (!validStatuses.includes(upperStatus))
       return { error: 'Invalid status', status: 400 };
 
-    const updated = await this.prisma.referral.update({
-      where: { id: referralId },
-      data: { status: upperStatus as any },
-    });
+    // Block: PAID or APPROVED -> PENDING, PAID or APPROVED -> APPROVED/PAID if already credited
+    const isAlreadyCredited = referral.status === 'APPROVED' || referral.status === 'PAID';
+    if (isAlreadyCredited) {
+      return { error: 'Paid/Approved referrals are immutable.', status: 400 };
+    }
+
+    if (upperStatus === 'APPROVED' || upperStatus === 'PAID') {
+      // Consolidate payout logic
+      await this.prisma.$transaction(async (tx: any) => {
+        // Run processReferralReward but force approval flow
+        await tx.referral.update({
+          where: { id: referralId },
+          data: { status: 'PENDING' },
+        });
+        
+        const ref = await tx.referral.findUnique({
+          where: { id: referralId },
+          include: {
+            reward: true,
+            referrer: { include: { wallet: true } },
+            referredUser: {
+              include: {
+                payments: {
+                  where: { status: 'APPROVED' },
+                  orderBy: { createdAt: 'desc' },
+                  include: { initiation: { include: { plan: true } } },
+                },
+              },
+            },
+          },
+        });
+        
+        const refSettings = await tx.referralSettings.findFirst();
+        const qualifyingPayment = ref.referredUser.payments.find(
+          (p: any) => Number(p.amount) >= Number(refSettings?.minimumDeposit ?? 1000)
+        );
+        
+        if (!qualifyingPayment) {
+          throw new Error('Referred user has no approved deposits to calculate commission.');
+        }
+
+        const resolvedPlan = qualifyingPayment.initiation?.plan ?? await tx.plan.findFirst({
+          where: { name: { equals: qualifyingPayment.planName, mode: 'insensitive' } }
+        });
+
+        const platformFeePercent = resolvedPlan ? Number(resolvedPlan.platformFeePercent) : 4.00;
+        const commissionRate = Number(refSettings?.commissionRate ?? 10);
+        const sysSettings = await tx.systemSettings.findFirst();
+        const bonusMultiplier = Number(sysSettings?.referralBonusMultiplier ?? 100) / 100;
+
+        const depositAmount = Number(qualifyingPayment.amount);
+        const platformFeeAmount = depositAmount * (platformFeePercent / 100);
+        const baseCommission = platformFeeAmount * (commissionRate / 100);
+        const rewardAmount = baseCommission * bonusMultiplier;
+
+        let rewardRecord = ref.reward;
+        if (rewardRecord) {
+          rewardRecord = await tx.referralReward.update({
+            where: { id: ref.reward.id },
+            data: {
+              paymentId: qualifyingPayment.id,
+              planId: resolvedPlan?.id || null,
+              planName: resolvedPlan?.name || qualifyingPayment.planName,
+              depositAmount,
+              platformFeePercent,
+              platformFeeAmount,
+              referralRate: commissionRate,
+              commissionAmount: rewardAmount,
+              status: upperStatus,
+              approvedBy: adminId,
+              approvedAt: new Date(),
+              paidAt: new Date(),
+            },
+          });
+        } else {
+          rewardRecord = await tx.referralReward.create({
+            data: {
+              referralId: ref.id,
+              paymentId: qualifyingPayment.id,
+              planId: resolvedPlan?.id || null,
+              planName: resolvedPlan?.name || qualifyingPayment.planName,
+              depositAmount,
+              platformFeePercent,
+              platformFeeAmount,
+              referralRate: commissionRate,
+              commissionAmount: rewardAmount,
+              status: upperStatus,
+              approvedBy: adminId,
+              approvedAt: new Date(),
+              paidAt: new Date(),
+            },
+          });
+        }
+
+        await this.creditReferralReward(tx, ref, rewardAmount, qualifyingPayment, adminId);
+
+        await tx.referral.update({
+          where: { id: referralId },
+          data: { status: upperStatus as any },
+        });
+
+        await tx.referralReward.update({
+          where: { referralId },
+          data: {
+            status: upperStatus,
+            approvedBy: adminId,
+            approvedAt: new Date(),
+            paidAt: new Date(),
+          },
+        });
+      });
+    } else {
+      await this.prisma.referral.update({
+        where: { id: referralId },
+        data: { status: upperStatus as any },
+      });
+    }
 
     await this.prisma.securityEvent.create({
       data: {
@@ -1538,6 +1985,11 @@ export class AdminService implements OnModuleInit {
         reason: `Updated referral ${referralId} status to ${upperStatus}`,
         ipAddress: clientIp,
       },
+    });
+
+    const updated = await this.prisma.referral.findUnique({
+      where: { id: referralId },
+      include: { reward: true },
     });
 
     return { success: true, referral: updated };
@@ -2094,150 +2546,34 @@ export class AdminService implements OnModuleInit {
       }
 
       // -------------------------------------------------------
-      // Referral commission engine (uses ReferralSettings & ReferralReward protection)
+      // Referral commission engine
       // -------------------------------------------------------
       if (payment.user.referredBy) {
-        // 1. Verify if the referrer has an active subscription plan (active UserPlan that has not expired)
-        const referrerActivePlan = await tx.userPlan.findFirst({
+        // Find or create the Referral relationship
+        let referral = await tx.referral.findFirst({
           where: {
-            userId: payment.user.referredBy,
-            active: true,
-            OR: [
-              { expiresAt: null },
-              { expiresAt: { gt: new Date() } }
-            ]
+            referredId: payment.userId,
+            referrerId: payment.user.referredBy,
           },
         });
-
-        if (!referrerActivePlan) {
-          this.logger.log({
-            event: 'REFERRAL_SKIPPED_INACTIVE_REFERRER',
-            message: `Referrer ${payment.user.referredBy} does not have an active plan. Referral commission skipped.`,
+        if (!referral) {
+          referral = await tx.referral.create({
+            data: {
+              partnerId: payment.partnerId,
+              referrerId: payment.user.referredBy,
+              referredId: payment.userId,
+              status: 'PENDING',
+            },
           });
-        } else {
-          // 2. Prevent duplicate referral rewards by checking ReferralReward
-          const existingReward = await tx.referralReward.findUnique({
-            where: { paymentId: paymentId },
+        }
+        
+        try {
+          await this.processReferralReward(tx, referral.id, adminId);
+        } catch (err: any) {
+          this.logger.error({
+            event: 'REFERRAL_PROCESSING_FAILED',
+            message: `Failed to process referral reward for referral ${referral.id}: ${err.message}`,
           });
-
-          if (existingReward) {
-            this.logger.log({
-              event: 'REFERRAL_SKIPPED_DUPLICATE',
-              message: `Referral reward for payment ${paymentId} has already been paid. Skipping duplicate reward.`,
-            });
-          } else {
-            const refSettings = await tx.referralSettings.findFirst();
-            if (!refSettings) {
-              this.logger.error({
-                event: 'REFERRAL_SETTINGS_MISSING',
-                message:
-                  'ReferralSettings configuration is missing in the database. Skipping commission payment.',
-              });
-              this.observabilityService.increment('referral_commission_validation_failures_total');
-            } else {
-              const commissionRate = Number(refSettings.commissionRate ?? 10);
-              if (commissionRate < 0 || commissionRate > 100) {
-                this.observabilityService.increment('referral_commission_validation_failures_total');
-                throw new Error(
-                  `[REFERRAL_ERROR] Invalid referral commission rate: ${commissionRate}%`,
-                );
-              }
-
-              const refEnabled = refSettings.enabled ?? false;
-              const minDeposit = Number(refSettings.minimumDeposit ?? 1000);
-              const autoApprove = refSettings.autoApprove ?? false;
-
-              const sysSettings = await tx.systemSettings.findFirst();
-              const bonusMultiplier = Number(sysSettings?.referralBonusMultiplier ?? 100) / 100; // 100% = 1.0 factor
-
-              if (refEnabled && amountVal >= minDeposit) {
-                // Calculate referral reward:
-                // Platform fee = payment.amount * 4%
-                const platformFee = amountVal * 0.04;
-                const baseCommission = platformFee * (commissionRate / 100);
-                const reward = baseCommission * bonusMultiplier;
-                const refStatus = autoApprove ? 'APPROVED' : 'PENDING';
-
-                // Create Referral record (for logs and backwards compat)
-                const referral = await tx.referral.create({
-                  data: {
-                    partnerId: payment.partnerId,
-                    referrerId: payment.user.referredBy,
-                    referredId: payment.userId,
-                    depositAmount: amountVal,
-                    commissionPct: commissionRate,
-                    commissionAmount: reward,
-                    paymentId: payment.id,
-                    status: refStatus,
-                  },
-                });
-
-                // Create ReferralReward record to prevent duplicate payouts
-                await tx.referralReward.create({
-                  data: {
-                    paymentId: payment.id,
-                    referrerId: payment.user.referredBy,
-                    referredUserId: payment.userId,
-                    amount: reward,
-                    status: refStatus,
-                  },
-                });
-
-                this.observabilityService.increment('referral_commission_awarded_total');
-                this.observabilityService.increment('referral_commission_amount_total', {}, reward);
-
-                if (autoApprove) {
-                  // Credit referrer wallet immediately
-                  await tx.walletLedger.create({
-                    data: {
-                      userId: payment.user.referredBy,
-                      type: 'REFERRAL_COMMISSION',
-                      entryType: 'CREDIT',
-                      amount: reward,
-                      referenceId: referral.id,
-                      note: `Referral commission from deposit by ${payment.user.email}`,
-                    },
-                  });
-
-                  await createTransactionGroup(tx, {
-                    type: 'REFERRAL_PAYOUT',
-                    description: `Auto-approved referral commission | Referral: ${referral.id}`,
-                    idempotencyKey: `REF_COMMISSION_${referral.id}`,
-                    entries: [
-                      {
-                        accountType: 'SYSTEM',
-                        entryType: 'DEBIT',
-                        amount: reward,
-                        currency: payment.currency,
-                      },
-                      {
-                        userId: payment.user.referredBy,
-                        partnerId: payment.partnerId,
-                        accountType: 'USER',
-                        entryType: 'CREDIT',
-                        amount: reward,
-                        currency: payment.currency,
-                      },
-                    ],
-                  });
-
-                  await tx.financialEvent.create({
-                    data: {
-                      eventType: 'REFERRAL_APPROVED',
-                      userId: payment.user.referredBy,
-                      actorId: adminId,
-                      referenceId: referral.id,
-                      metadata: {
-                        depositUserId: payment.userId,
-                        amount: reward,
-                        autoApproved: true,
-                      },
-                    },
-                  });
-                }
-              }
-            }
-          }
         }
       }
 

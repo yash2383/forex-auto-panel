@@ -23,10 +23,23 @@ export class WalletService {
       throw new NotFoundException('Wallet not found');
     }
 
+    const rewards = await this.prisma.referralReward.findMany({
+      where: {
+        referral: { referrerId: userId },
+        status: { in: ['APPROVED', 'PAID'] }
+      },
+    });
+    const rewardBalance = rewards.reduce((sum, r) => sum + Number(r.commissionAmount), 0);
+    const totalBalance = Number(wallet.availableBalance);
+    const availableBalance = Math.max(0, totalBalance - rewardBalance);
+
     return {
       realizedBalance: Number(wallet.realizedBalance),
       currentEquity: Number(wallet.currentEquity),
-      availableBalance: Number(wallet.availableBalance),
+      availableBalance: totalBalance, // Original value for backwards compatibility
+      balance: availableBalance, // Separate non-reward available balance
+      rewardBalance,
+      totalBalance,
       pendingWithdrawals: Number(wallet.pendingWithdrawals),
       totalWithdrawn: Number(wallet.totalWithdrawn),
       currency: wallet.currency,

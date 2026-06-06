@@ -343,14 +343,13 @@ export class NotificationsController {
           .json({ message: 'Token is required' });
       }
 
-      // Atomic upsert keyed on token (@unique in schema).
-      // Eliminates the findFirst→update/create TOCTOU race where two
-      // simultaneous requests for the same token could both pass the
-      // findFirst check and then collide on the unique constraint.
+      const isAdmin = ['SUPER_ADMIN', 'MANAGER', 'VIEWER'].includes(user.role);
+
       const device = await this.prisma.deviceToken.upsert({
         where: { token },
         update: {
-          userId: user.id,
+          userId: isAdmin ? null : user.id,
+          adminId: isAdmin ? user.id : null,
           platform: platform || 'Web',
           browser: browser || 'Unknown',
           isActive: true,
@@ -359,7 +358,8 @@ export class NotificationsController {
         },
         create: {
           token,
-          userId: user.id,
+          userId: isAdmin ? null : user.id,
+          adminId: isAdmin ? user.id : null,
           platform: platform || 'Web',
           browser: browser || 'Unknown',
           isActive: true,
@@ -370,10 +370,13 @@ export class NotificationsController {
 
       return res.json({ success: true, device });
     } catch (error: any) {
-      console.error('Register device token error:', error);
+      console.error('FCM REGISTER ERROR:', error);
       return res
         .status(HttpStatus.INTERNAL_SERVER_ERROR)
-        .json({ message: 'Internal server error' });
+        .json({ 
+          message: error.message,
+          stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+        });
     }
   }
 

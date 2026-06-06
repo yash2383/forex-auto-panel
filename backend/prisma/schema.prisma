@@ -283,6 +283,7 @@ model Admin {
 
   // Notification relations
   notifications           Notification[]
+  deviceTokens            DeviceToken[]
   broadcastsCreated       NotificationBroadcast[] @relation("BroadcastCreated")
   broadcastsApproved      NotificationBroadcast[] @relation("BroadcastApproved")
   broadcastsCancelled     NotificationBroadcast[] @relation("BroadcastCancelled")
@@ -598,10 +599,6 @@ model Referral {
   partnerId         String
   referrerId        String         // User sharing link
   referredId        String         // Target registered user
-  depositAmount     Decimal?       @db.Decimal(18, 4)
-  commissionPct     Decimal?       @db.Decimal(5, 2)
-  commissionAmount  Decimal?       @db.Decimal(18, 4)
-  paymentId         String?
   status            ReferralStatus @default(PENDING)
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
@@ -609,6 +606,7 @@ model Referral {
   // Relations
   referrer          User           @relation("ReferrerToReferral", fields: [referrerId], references: [id])
   referredUser      User           @relation("ReferredToReferral", fields: [referredId], references: [id])
+  reward            ReferralReward?
 
   // Indexes
   @@index([partnerId])
@@ -626,6 +624,9 @@ model ReferralSettings {
   allowMultipleDeposits     Boolean  @default(false)
   commissionPayoutMode      String   @default("PENDING")
   maxReferralCommission     Decimal? @db.Decimal(18, 4)
+  requireActiveSubscription Boolean  @default(true)
+  requireReferrerDeposit    Boolean  @default(true)
+  signupBonus               Decimal  @default(100.00) @db.Decimal(18, 4)
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
 }
@@ -697,12 +698,14 @@ model Plan {
   status       String   @default("Active")
   isPopular    Boolean  @default(false)
   
-  amount        Decimal?  @db.Decimal(18, 4)
-  pricingType   String    @default("FIXED") @db.VarChar(20)
-  weeklyProfit  Decimal   @default(5) @db.Decimal(5, 2)
-  durationDays  Int       @default(30)
-  sortOrder     Int       @default(0)
-  isActive      Boolean   @default(true)
+  amount             Decimal?  @db.Decimal(18, 4)
+  pricingType        String    @default("FIXED") @db.VarChar(20)
+  weeklyProfit       Decimal   @default(5) @db.Decimal(5, 2)
+  durationDays       Int       @default(30)
+  sortOrder          Int       @default(0)
+  isActive           Boolean   @default(true)
+  platformFeePercent Decimal   @default(4.00) @db.Decimal(5, 2)
+  referralEligible   Boolean   @default(true)
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -876,7 +879,8 @@ model OtpSettings {
 
 model DeviceToken {
   id           String   @id @default(cuid())
-  userId       String
+  userId       String?
+  adminId      String?
   token        String   @unique
   browser      String?
   platform     String?
@@ -885,8 +889,10 @@ model DeviceToken {
   lastUsedAt   DateTime?
   createdAt    DateTime @default(now())
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  admin        Admin?   @relation(fields: [adminId], references: [id], onDelete: Cascade)
   @@index([userId])
+  @@index([adminId])
   @@index([platform])
   @@index([isActive])
 }
@@ -1241,12 +1247,21 @@ model FinancialEvent {
 // ==========================================
 
 model ReferralReward {
-  id             String   @id @default(cuid())
-  paymentId      String   @unique
-  referrerId     String
-  referredUserId String
-  amount         Decimal  @db.Decimal(18, 4)
-  status         String
-  createdAt      DateTime @default(now())
+  id                 String         @id @default(cuid())
+  referralId         String         @unique
+  referral           Referral       @relation(fields: [referralId], references: [id], onDelete: Cascade)
+  paymentId          String?        @unique
+  planId             String?
+  planName           String?
+  depositAmount      Decimal?       @db.Decimal(18, 4)
+  platformFeePercent Decimal?       @db.Decimal(5, 2)
+  platformFeeAmount  Decimal?       @db.Decimal(18, 4)
+  referralRate       Decimal?       @db.Decimal(5, 2)
+  commissionAmount   Decimal        @db.Decimal(18, 4)
+  approvedBy         String?        // Admin ID
+  approvedAt         DateTime?
+  paidAt             DateTime?
+  status             String
+  createdAt          DateTime       @default(now())
 }
 

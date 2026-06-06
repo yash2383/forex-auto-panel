@@ -55,11 +55,10 @@ export default function WalletPage() {
       setStatus({ type: "error", message: "Please enter a valid positive withdrawal amount." });
       return;
     }
-    
-    if (wallet && amount > Number(wallet.availableBalance)) {
+    if (wallet && amount > Number(wallet.balance)) {
       setStatus({ 
         type: "error", 
-        message: `Withdrawal limit exceeded. You can only withdraw up to ₹${Number(wallet.availableBalance).toLocaleString("en-IN")} (Available balance).` 
+        message: `Withdrawal limit exceeded. You can only withdraw up to ₹${Number(wallet.balance).toLocaleString("en-IN")} (Available balance).` 
       });
       return;
     }
@@ -155,7 +154,9 @@ export default function WalletPage() {
     );
   }
 
-  const availableBalance = wallet ? Number(wallet.availableBalance) : 0;
+  const availableBalance = wallet ? Number(wallet.balance) : 0;
+  const rewardBalance = wallet ? Number(wallet.rewardBalance) : 0;
+  const totalBalance = wallet ? Number(wallet.totalBalance) : 0;
   const pendingWithdrawals = wallet ? Number(wallet.pendingWithdrawals) : 0;
   const currentEquity = wallet ? Number(wallet.currentEquity) : 0;
   const totalWithdrawn = wallet ? Number(wallet.totalWithdrawn) : 0;
@@ -169,11 +170,23 @@ export default function WalletPage() {
       </PageIntro>
 
       {/* Account Balance Summary Cards */}
-      <section className="grid gap-5 sm:grid-cols-2 md:grid-cols-4 mt-6">
+      <section className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-3 mt-6">
         <div className="rounded-2xl border border-white/10 bg-[#07100d]/95 p-5 shadow-[0_0_35px_-24px_rgba(34,197,94,0.45)] relative overflow-hidden">
-          <p className="text-sm text-green-400 font-medium">Available Balance</p>
-          <p className="mt-4 text-3xl font-extrabold text-green-300">₹{availableBalance.toLocaleString("en-IN")}</p>
+          <p className="text-sm text-green-400 font-medium">Total Balance</p>
+          <p className="mt-4 text-3xl font-extrabold text-green-300">₹{totalBalance.toLocaleString("en-IN")}</p>
+          <p className="mt-2 text-xs text-neutral-500">Available Balance + Reward Balance</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-[#07100d]/95 p-5 relative overflow-hidden">
+          <div className="absolute right-0 top-0 h-16 w-16 bg-emerald-500/5 blur-xl"></div>
+          <p className="text-sm text-emerald-400 font-medium">Available Balance</p>
+          <p className="mt-4 text-3xl font-extrabold text-emerald-300">₹{availableBalance.toLocaleString("en-IN")}</p>
           <p className="mt-2 text-xs text-neutral-500">Realized funds available for immediate withdrawal</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-[#07100d]/95 p-5 relative overflow-hidden">
+          <div className="absolute right-0 top-0 h-16 w-16 bg-teal-500/5 blur-xl"></div>
+          <p className="text-sm text-teal-400 font-medium">Reward Balance</p>
+          <p className="mt-4 text-3xl font-extrabold text-teal-300">₹{rewardBalance.toLocaleString("en-IN")}</p>
+          <p className="mt-2 text-xs text-neutral-500">Referral, campaign, and bonus earnings</p>
         </div>
         <div className="rounded-2xl border border-yellow-500/15 bg-[#07100d]/95 p-5 shadow-[0_0_35px_-24px_rgba(234,179,8,0.2)] relative overflow-hidden">
           <div className="absolute right-0 top-0 h-16 w-16 bg-yellow-500/5 blur-xl"></div>
@@ -185,7 +198,7 @@ export default function WalletPage() {
           <div className="absolute right-0 top-0 h-16 w-16 bg-white/5 blur-xl"></div>
           <p className="text-sm text-neutral-400 font-medium">Current Equity</p>
           <p className="mt-4 text-3xl font-extrabold text-white">₹{currentEquity.toLocaleString("en-IN")}</p>
-          <p className="mt-2 text-xs text-neutral-500">Total cash balance + unrealized trading margin</p>
+          <p className="mt-2 text-xs text-neutral-500">Total account value</p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-[#07100d]/95 p-5 relative overflow-hidden">
           <div className="absolute right-0 top-0 h-16 w-16 bg-white/5 blur-xl"></div>

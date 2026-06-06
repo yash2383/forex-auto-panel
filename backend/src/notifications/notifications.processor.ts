@@ -135,7 +135,13 @@ export class PushProcessor {
     if (!userId) return;
 
     const tokens = await this.prisma.deviceToken.findMany({
-      where: { userId, isActive: true },
+      where: { 
+        OR: [
+          { userId },
+          { adminId: userId }
+        ],
+        isActive: true 
+      },
     });
 
     if (tokens.length === 0) {

@@ -324,13 +324,29 @@ export class AuthService {
           });
 
           if (pendingReferral) {
-            // Give a flat registration referral bonus of ₹100
-            const bonusAmount = 100;
+            const bonusAmount = Number(refSettings.signupBonus ?? 100);
             await tx.referral.update({
               where: { id: pendingReferral.id },
               data: {
                 status: 'PAID',
+              },
+            });
+
+            await tx.referralReward.create({
+              data: {
+                referralId: pendingReferral.id,
+                paymentId: null,
+                planId: null,
+                planName: 'Signup Bonus',
+                depositAmount: null,
+                platformFeePercent: null,
+                platformFeeAmount: null,
+                referralRate: null,
                 commissionAmount: bonusAmount,
+                status: 'PAID',
+                approvedBy: 'SYSTEM',
+                approvedAt: new Date(),
+                paidAt: new Date(),
               },
             });
 

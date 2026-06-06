@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Copy, Gift, Hexagon, Share2, Users, CheckCircle, Clock, ShieldAlert, Award, Wallet, DollarSign } from "lucide-react";
+import { useEffect, useState, Fragment } from "react";
+import { Copy, Gift, Hexagon, Share2, Users, CheckCircle, Clock, ShieldAlert, Award, Wallet, DollarSign, ChevronDown, ChevronUp } from "lucide-react";
 import { apiFetch } from "../../../../lib/apiFetch";
 
 export default function ReferEarnPage() {
@@ -12,6 +12,7 @@ export default function ReferEarnPage() {
 
   const [copiedCode, setCopiedCode] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [expandedRefId, setExpandedRefId] = useState(null);
 
   useEffect(() => {
     const fetchReferralData = async () => {
@@ -23,8 +24,14 @@ export default function ReferEarnPage() {
         ]);
 
         if (statsRes.ok) setData(await statsRes.json());
-        if (refsRes.ok) setReferrals(await refsRes.json());
-        if (earningsRes.ok) setEarnings(await earningsRes.json());
+        if (refsRes.ok) {
+          const res = await refsRes.json();
+          setReferrals(Array.isArray(res) ? res : (res.referrals || []));
+        }
+        if (earningsRes.ok) {
+          const res = await earningsRes.json();
+          setEarnings(Array.isArray(res) ? res : (res.earnings || []));
+        }
       } catch (err) {
         console.error("Referral fetch error:", err);
       }
@@ -175,7 +182,7 @@ export default function ReferEarnPage() {
         </div>
 
         {/* Statistics Grid */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:gap-6">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
           <div className="rounded-2xl border border-white/5 bg-[#0B1110] p-5">
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-neutral-400">
               <Users className="h-5 w-5" />
@@ -184,25 +191,32 @@ export default function ReferEarnPage() {
             <p className="mt-1 text-2xl font-bold text-white">{data?.stats?.totalReferrals || 0}</p>
           </div>
           <div className="rounded-2xl border border-white/5 bg-[#0B1110] p-5">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 text-green-400">
-              <CheckCircle className="h-5 w-5" />
-            </div>
-            <p className="text-xs font-medium text-neutral-500">Active Referrals</p>
-            <p className="mt-1 text-2xl font-bold text-white">{data?.stats?.activeReferrals || 0}</p>
-          </div>
-          <div className="rounded-2xl border border-white/5 bg-[#0B1110] p-5">
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-400">
               <Clock className="h-5 w-5" />
             </div>
             <p className="text-xs font-medium text-neutral-500">Pending Referrals</p>
             <p className="mt-1 text-2xl font-bold text-white">{data?.stats?.pendingReferrals || 0}</p>
           </div>
+          <div className="rounded-2xl border border-white/5 bg-[#0B1110] p-5">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/10 text-green-400">
+              <CheckCircle className="h-5 w-5" />
+            </div>
+            <p className="text-xs font-medium text-neutral-500">Approved Referrals</p>
+            <p className="mt-1 text-2xl font-bold text-white">{data?.stats?.approvedReferrals || 0}</p>
+          </div>
           <div className="rounded-2xl border border-green-500/20 bg-green-950/20 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-green-500/20 text-green-400">
               <Award className="h-5 w-5" />
             </div>
-            <p className="text-xs font-medium text-neutral-400">Total Rewards Earned</p>
+            <p className="text-xs font-medium text-neutral-400">Total Earned</p>
             <p className="mt-1 text-2xl font-bold text-green-400">{formatCurrency(data?.stats?.totalRewardsEarned)}</p>
+          </div>
+          <div className="rounded-2xl border border-white/5 bg-[#0B1110] p-5">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-yellow-500/10 text-yellow-400">
+              <Clock className="h-5 w-5" />
+            </div>
+            <p className="text-xs font-medium text-neutral-500">Pending Rewards</p>
+            <p className="mt-1 text-2xl font-bold text-white">{formatCurrency(data?.stats?.pendingRewards)}</p>
           </div>
           <div className="rounded-2xl border border-white/5 bg-[#0B1110] p-5">
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/10 text-blue-400">
@@ -244,24 +258,77 @@ export default function ReferEarnPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {referrals.map((ref) => (
-                    <tr key={ref.id} className="transition hover:bg-white/[0.02]">
-                      <td className="px-6 py-4">
-                        <p className="font-medium text-white">{ref.referredUser.name}</p>
-                        <p className="text-[11px] text-neutral-500">{ref.referredUser.email}</p>
-                      </td>
-                      <td className="px-6 py-4 font-medium">{ref.plan}</td>
-                      <td className="px-6 py-4">
-                        {new Date(ref.joinDate).toLocaleDateString("en-IN", {
-                          day: "2-digit", month: "short", year: "numeric"
-                        })}
-                      </td>
-                      <td className="px-6 py-4">{getStatusBadge(ref.status)}</td>
-                      <td className="px-6 py-4 text-right font-bold text-green-400">
-                        {formatCurrency(ref.commission)}
-                      </td>
-                    </tr>
-                  ))}
+                  {referrals.map((ref) => {
+                    const isExpanded = expandedRefId === ref.id;
+                    return (
+                      <Fragment key={ref.id}>
+                        <tr 
+                          className="transition hover:bg-white/[0.02] cursor-pointer"
+                          onClick={() => setExpandedRefId(isExpanded ? null : ref.id)}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              {isExpanded ? (
+                                <ChevronUp className="h-4 w-4 text-neutral-500 shrink-0" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4 text-neutral-500 shrink-0" />
+                              )}
+                              <div>
+                                <p className="font-medium text-white">{ref.referredUser.name}</p>
+                                <p className="text-[11px] text-neutral-500">{ref.referredUser.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 font-medium">{ref.plan}</td>
+                          <td className="px-6 py-4">
+                            {new Date(ref.joinDate).toLocaleDateString("en-IN", {
+                              day: "2-digit", month: "short", year: "numeric"
+                            })}
+                          </td>
+                          <td className="px-6 py-4">{getStatusBadge(ref.status)}</td>
+                          <td className="px-6 py-4 text-right font-bold text-green-400">
+                            {formatCurrency(ref.commission)}
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan={5} className="bg-black/40 px-6 py-4 border-t border-b border-white/5">
+                              <div className="grid grid-cols-2 gap-4 sm:grid-cols-5 text-xs">
+                                <div>
+                                  <p className="text-neutral-500 font-medium uppercase tracking-wider">Deposit Amount</p>
+                                  <p className="mt-1 font-bold text-white text-sm">
+                                    {ref.depositAmount ? formatCurrency(ref.depositAmount) : 'N/A'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-neutral-500 font-medium uppercase tracking-wider">Platform Fee %</p>
+                                  <p className="mt-1 font-bold text-white text-sm">
+                                    {ref.platformFeePercent != null ? `${ref.platformFeePercent}%` : 'N/A'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-neutral-500 font-medium uppercase tracking-wider">Platform Fee Amount</p>
+                                  <p className="mt-1 font-bold text-white text-sm">
+                                    {ref.platformFeeAmount != null ? formatCurrency(ref.platformFeeAmount) : 'N/A'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-neutral-500 font-medium uppercase tracking-wider">Referral Rate</p>
+                                  <p className="mt-1 font-bold text-white text-sm">
+                                    {ref.referralRate != null ? `${ref.referralRate}%` : 'N/A'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-neutral-500 font-medium uppercase tracking-wider">Reward</p>
+                                  <p className="mt-1 font-bold text-green-400 text-sm">{formatCurrency(ref.commission)}</p>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             )}

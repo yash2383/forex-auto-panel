@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Hexagon } from "lucide-react";
 import { apiFetch } from "../../../lib/apiFetch";
 import ProfileHero from "./components/ProfileHero";
+import ProfileBalances from "./components/ProfileBalances";
 import AccountDetails from "./components/AccountDetails";
 import SubscriptionCard from "./components/SubscriptionCard";
 import VerificationStatus from "./components/VerificationStatus";
@@ -90,6 +91,9 @@ export default function ProfilePage() {
       <div className="mx-auto max-w-4xl space-y-8">
         {/* Profile Hero section */}
         <ProfileHero profile={profile} />
+
+        {/* Profile Balances */}
+        <ProfileBalances profile={profile} />
 
         <div className="space-y-8">
           {/* Subscription status */}

@@ -68,13 +68,34 @@ async function registerTokenWithBackend(token) {
  *  6. Handles token refresh — re-registers when FCM rotates the token
  *  7. Handles foreground messages via SW showNotification
  */
-export function useFcmToken() {
+export function useFcmToken(user) {
   const tokenRegistered = useRef(false);
 
   useEffect(() => {
     // SSR guard
     if (typeof window === "undefined") return;
     if (tokenRegistered.current) return;
+
+    // Check if user is authenticated before attempting FCM initialization
+    // If 'user' prop is not passed, try to check localStorage as fallback
+    let isAuthenticated = !!(user && user.id);
+    if (!isAuthenticated) {
+      try {
+        const userStr = localStorage.getItem('tradebot-user');
+        if (userStr) {
+          const storedUser = JSON.parse(userStr);
+          if (storedUser && storedUser.token) {
+            isAuthenticated = true;
+          }
+        }
+      } catch (e) {
+        // Ignore parse error
+      }
+    }
+
+    if (!isAuthenticated) {
+      return; // IMPORTANT GUARD: Do not run FCM without valid auth
+    }
 
     let unsubscribeTokenRefresh = null;
 
@@ -205,5 +226,5 @@ export function useFcmToken() {
         unsubscribeTokenRefresh();
       }
     };
-  }, []);
+  }, [user]);
 }

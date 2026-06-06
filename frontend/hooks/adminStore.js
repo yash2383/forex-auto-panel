@@ -108,6 +108,8 @@ export const useAdminStore = create((set, get) => ({
   currentUser: null,
   searchQuery: "",
   setSearchQuery: (query) => set({ searchQuery: query }),
+  dateRange: { start: null, end: null },
+  setDateRange: (range) => set({ dateRange: range }),
 
   referralStats: null,
   loadingReferrals: false,

@@ -8,6 +8,7 @@ import { adminNavGroups } from "./adminData";
 import { useAdminStore } from "../../../../hooks/adminStore";
 import { apiFetch } from "../../../../lib/apiFetch";
 import NotificationDropdown from "../../../(user)/components/NotificationDropdown";
+import DateRangePicker from "../../../(user)/components/DateRangePicker";
 
 export default function AdminShell({ children }) {
   const pathname = usePathname();
@@ -464,16 +465,13 @@ export default function AdminShell({ children }) {
                   </>
                 )}
               </div>
-              <div className="flex flex-nowrap items-center gap-2 sm:gap-3 overflow-x-auto pb-1 scrollbar-hide w-full lg:w-auto">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
                 
-                <Link href="/" className="inline-flex shrink-0 h-11 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.03] px-3 sm:px-4 text-sm font-bold text-white transition hover:border-green-500/30 hover:text-green-300">
+                <Link href="/" className="inline-flex h-11 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.03] px-3 sm:px-4 text-sm font-bold text-white transition hover:border-green-500/30 hover:text-green-300">
                   <span className="hidden lg:inline">Visit Website</span>
                   <ExternalLink className="h-4 w-4" />
                 </Link>
-                <button className="hidden xl:flex shrink-0 h-11 items-center gap-2 rounded-lg border border-white/[0.09] bg-white/[0.03] px-4 text-sm text-white">
-                  <CalendarDays className="h-4 w-4" />
-                  May 19, 2025 - May 25, 2025
-                </button>
+                <DateRangePicker />
                 <button
                   onClick={toggleTheme}
                   className="flex shrink-0 h-11 w-11 items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.03] text-white transition hover:bg-white/[0.08]"

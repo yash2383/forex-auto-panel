@@ -59,6 +59,16 @@ export class UserService {
       };
     }
 
+    const rewards = await this.prisma.referralReward.findMany({
+      where: {
+        referral: { referrerId: userId },
+        status: { in: ['APPROVED', 'PAID'] }
+      },
+    });
+    const rewardBalance = rewards.reduce((sum, r) => sum + Number(r.commissionAmount), 0);
+    const totalBalance = user.wallet ? Number(user.wallet.realizedBalance) : 0;
+    const balance = Math.max(0, totalBalance - rewardBalance);
+
     return {
       id: user.id,
       name: user.name,
@@ -67,7 +77,10 @@ export class UserService {
       status: user.status,
       createdAt: user.createdAt,
       lastLoginAt: user.lastLoginAt,
-      walletBalance: user.wallet ? Number(user.wallet.realizedBalance) : 0,
+      walletBalance: totalBalance, // keeping for backwards compatibility
+      balance,
+      rewardBalance,
+      totalBalance,
       activePlan,
     };
   }
@@ -199,11 +212,22 @@ export class UserService {
   }
 
   async getReferralStats(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { wallet: true }
+    });
     if (!user) return { error: 'User not found', status: 404 };
 
-    const totalReferrals = await this.prisma.user.count({
-      where: { referredBy: userId },
+    const totalReferrals = await this.prisma.referral.count({
+      where: { referrerId: userId },
+    });
+
+    const pendingReferrals = await this.prisma.referral.count({
+      where: { referrerId: userId, status: 'PENDING' },
+    });
+
+    const approvedReferrals = await this.prisma.referral.count({
+      where: { referrerId: userId, status: { in: ['APPROVED', 'PAID'] } },
     });
 
     const activeReferrals = await this.prisma.userPlan.count({
@@ -217,10 +241,24 @@ export class UserService {
       }
     });
 
-    const approvedRewards = await this.prisma.referralReward.findMany({
-      where: { referrerId: userId, status: 'APPROVED' },
+    // approved and paid rewards
+    const rewards = await this.prisma.referralReward.findMany({
+      where: {
+        referral: { referrerId: userId },
+      },
     });
-    const rewardsEarned = approvedRewards.reduce((sum, r) => sum + Number(r.amount), 0);
+
+    const totalRewardsEarned = rewards
+      .filter(r => r.status === 'APPROVED' || r.status === 'PAID')
+      .reduce((sum, r) => sum + Number(r.commissionAmount), 0);
+
+    const paidRewards = rewards
+      .filter(r => r.status === 'PAID')
+      .reduce((sum, r) => sum + Number(r.commissionAmount), 0);
+
+    const approvedRewardsVal = rewards
+      .filter(r => r.status === 'APPROVED')
+      .reduce((sum, r) => sum + Number(r.commissionAmount), 0);
 
     // Calculate pending rewards from pending/verified payments of referred users
     const pendingPayments = await this.prisma.payment.findMany({
@@ -228,7 +266,9 @@ export class UserService {
         user: { referredBy: userId },
         status: { in: ['PENDING', 'VERIFIED'] }
       },
-      select: { amount: true }
+      include: {
+        initiation: { include: { plan: true } }
+      }
     });
 
     const refSettings = await this.prisma.referralSettings.findFirst();
@@ -237,22 +277,35 @@ export class UserService {
     const bonusMultiplier = Number(sysSettings?.referralBonusMultiplier ?? 100);
 
     let pendingRewards = 0;
-    pendingPayments.forEach(p => {
+    for (const p of pendingPayments) {
       const amt = Number(p.amount);
-      const platformFee = amt * 0.04;
+      const resolvedPlan = p.initiation?.plan ?? await this.prisma.plan.findFirst({
+        where: { name: { equals: p.planName, mode: 'insensitive' } }
+      });
+      const platformFeePercent = resolvedPlan ? Number(resolvedPlan.platformFeePercent) : 4.00;
+      const platformFee = amt * (platformFeePercent / 100);
       const reward = (platformFee * commissionRate * (bonusMultiplier / 100)) / 100;
       pendingRewards += reward;
-    });
+    }
+
+    const referralLink = `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000'}/register?ref=${user.referralCode}`;
 
     return {
       referralCode: user.referralCode,
+      referralLink,
       stats: {
         totalReferrals,
+        pendingReferrals,
+        approvedReferrals,
         activeReferrals,
-        totalEarnings: rewardsEarned, // profile page backwards-compat
+        totalEarnings: totalRewardsEarned, // profile page backwards-compat
         pendingEarnings: pendingRewards, // profile page backwards-compat
-        rewardsEarned,
+        rewardsEarned: totalRewardsEarned,
+        totalRewardsEarned,
         pendingRewards,
+        availableBalance: user.wallet ? Number(user.wallet.realizedBalance) : 0,
+        paidRewards,
+        approvedRewards: approvedRewardsVal,
       },
     };
   }
@@ -315,31 +368,33 @@ export class UserService {
   }
 
   async getReferrals(userId: string) {
-    const users = await this.prisma.user.findMany({
-      where: { referredBy: userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-        payments: {
-          where: { status: 'APPROVED' },
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: { planName: true, amount: true },
+    const referrals = await this.prisma.referral.findMany({
+      where: { referrerId: userId },
+      include: {
+        referredUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
         },
+        reward: true,
       },
       orderBy: { createdAt: 'desc' },
     });
 
     return {
-      referrals: users.map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        joinDate: u.createdAt,
-        plan: u.payments[0]?.planName || 'None',
-        depositAmount: u.payments[0] ? Number(u.payments[0].amount) : 0,
+      referrals: referrals.map((r) => ({
+        id: r.id,
+        referredUser: { name: r.referredUser.name, email: r.referredUser.email },
+        plan: r.reward?.planName || 'None',
+        joinDate: r.createdAt,
+        status: r.status,
+        depositAmount: r.reward?.depositAmount ? Number(r.reward.depositAmount) : 0,
+        platformFeePercent: r.reward?.platformFeePercent ? Number(r.reward.platformFeePercent) : null,
+        platformFeeAmount: r.reward?.platformFeeAmount ? Number(r.reward.platformFeeAmount) : null,
+        referralRate: r.reward?.referralRate ? Number(r.reward.referralRate) : null,
+        commission: Number(r.reward?.commissionAmount || 0),
       })),
     };
   }
@@ -347,7 +402,10 @@ export class UserService {
   async getReferralEarnings(userId: string) {
     const earnings = await this.prisma.referral.findMany({
       where: { referrerId: userId },
-      include: { referredUser: { select: { name: true, email: true } } },
+      include: {
+        referredUser: { select: { name: true, email: true } },
+        reward: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -356,9 +414,10 @@ export class UserService {
         id: e.id,
         date: e.createdAt,
         referredUser: e.referredUser.name,
-        depositAmount: Number(e.depositAmount || 0),
-        commissionPct: Number(e.commissionPct || 0),
-        commissionAmount: Number(e.commissionAmount || 0),
+        depositAmount: Number(e.reward?.depositAmount || 0),
+        commissionPct: Number(e.reward?.referralRate || 0),
+        commissionAmount: Number(e.reward?.commissionAmount || 0),
+        amount: Number(e.reward?.commissionAmount || 0), // maps to earn.amount in frontend
         status: e.status,
       })),
     };

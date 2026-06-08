@@ -2,6 +2,7 @@
 
 import { Bell, CalendarDays, ChevronDown, Crown, Globe2, Moon, Sun, LogOut, Menu, X, Lock, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { userNavItems } from "./dashboardData";
@@ -26,7 +27,7 @@ export default function DashboardShell({ children }) {
   const [loadingSub, setLoadingSub] = useState(true);
 
   // Initialize FCM and register device token automatically
-  useFcmToken(currentUser);
+  useFcmToken();
 
   const isAdminOrPartner = currentUser && ["SUPER_ADMIN", "MANAGER", "VIEWER", "PARTNER"].includes(currentUser.role);
   const hasActivePlan = isAdminOrPartner || (activePlan !== null && activePlan.status === "ACTIVE");
@@ -157,7 +158,14 @@ export default function DashboardShell({ children }) {
         <aside className={`fixed inset-y-0 left-0 z-50 w-[300px] flex flex-col border-r border-white/10 bg-[#05100c]/95 transform transition-transform duration-300 lg:static lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
           <div className="flex h-20 items-center justify-between border-b border-white/10 px-7">
             <div className="flex items-center gap-3">
-              <span className="h-9 w-9 bg-[url('/forex.png')] bg-contain bg-center bg-no-repeat"></span>
+              <Image
+                src="/forex.png"
+                alt="Forex Logo"
+                width={1536}
+                height={1024}
+                className="h-9 w-auto object-contain"
+                priority
+              />
               <span className="text-2xl font-bold tracking-tight">Tradebot</span>
             </div>
             <button className="lg:hidden text-neutral-400 hover:text-white" onClick={() => setIsSidebarOpen(false)}>

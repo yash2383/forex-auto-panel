@@ -221,18 +221,18 @@ export default function NotificationDropdown() {
 
       {/* Floating Dropdown Dialog */}
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 sm:w-96 rounded-2xl border border-white/10 bg-[#0b141b]/95 p-1 shadow-2xl backdrop-blur-xl z-50 animate-[fadeIn_0.15s_ease-out]">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-            <div>
+        <div className="fixed lg:absolute top-20 lg:top-auto left-4 right-4 lg:left-auto lg:right-0 mt-0 lg:mt-3 w-auto lg:w-96 rounded-2xl border border-white/10 bg-[#0b141b]/95 p-1 shadow-2xl backdrop-blur-xl z-50 animate-[fadeIn_0.15s_ease-out]">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 gap-2">
+            <div className="min-w-0">
               <h3 className="text-sm font-bold text-white">Notifications</h3>
-              <p className="text-[10px] text-neutral-400 font-semibold mt-0.5">
+              <p className="text-[10px] text-neutral-400 font-semibold mt-0.5 truncate">
                 {unreadCount > 0 ? `You have ${unreadCount} unread alert${unreadCount > 1 ? 's' : ''}` : "All caught up!"}
               </p>
             </div>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
-                className="flex items-center gap-1 text-[10px] font-bold text-green-400 hover:text-green-300 transition cursor-pointer px-2 py-1 rounded bg-green-500/10"
+                className="flex items-center gap-1 text-[10px] font-bold text-green-400 hover:text-green-300 transition cursor-pointer px-2 py-1 rounded bg-green-500/10 shrink-0"
               >
                 <Check className="h-3 w-3" />
                 Mark all read

@@ -3,6 +3,7 @@ import { apiFetch } from "../../../lib/apiFetch";
 
 import { Eye, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAdminStore } from "../../../hooks/adminStore";
@@ -425,7 +426,16 @@ export default function AuthPage({ mode }) {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(34,197,94,0.38),transparent_38%),linear-gradient(to_bottom,rgba(5,5,5,0.15),rgba(5,5,5,0.94))]"></div>
           <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(34,197,94,0.16),transparent_45%,rgba(20,184,166,0.12))]"></div>
 
-          <Link href="/" className="absolute left-5 top-5 z-10 inline-flex h-10 w-[142px] bg-[url('/forex.png')] bg-contain bg-left bg-no-repeat"></Link>
+          <Link href="/" className="absolute left-5 top-5 z-10 inline-flex">
+            <Image
+              src="/forex.png"
+              alt="Forex Logo"
+              width={1536}
+              height={1024}
+              className="h-10 w-auto object-contain"
+              priority
+            />
+          </Link>
 
           <div className="relative z-10 flex min-h-[260px] items-end justify-center px-5 pb-8 pt-20 text-center lg:min-h-full lg:px-12 lg:pb-28">
             <div className="w-full max-w-sm">

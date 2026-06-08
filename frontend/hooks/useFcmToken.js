@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { app } from "../lib/firebase";
 import { apiFetch } from "../lib/apiFetch";
+import { useAdminStore } from "./adminStore";
 
 /**
  * Waits for a service worker registration to reach "activated" state.
@@ -50,6 +51,9 @@ async function registerTokenWithBackend(token) {
     console.log("[FCM] ✅ Device token registered with backend.");
     return true;
   } else {
+    if (res.status === 401) {
+      return false;
+    }
     const err = await res.json().catch(() => ({}));
     console.error("[FCM] Backend token registration failed:", err.message);
     return false;
@@ -68,34 +72,26 @@ async function registerTokenWithBackend(token) {
  *  6. Handles token refresh — re-registers when FCM rotates the token
  *  7. Handles foreground messages via SW showNotification
  */
-export function useFcmToken(user) {
-  const tokenRegistered = useRef(false);
+export function useFcmToken() {
+  const tokenRegisteredForUser = useRef(null);
+  const currentUser = useAdminStore((s) => s.currentUser);
+  const isInitialized = useAdminStore((s) => s.isInitialized);
 
   useEffect(() => {
     // SSR guard
     if (typeof window === "undefined") return;
-    if (tokenRegistered.current) return;
 
-    // Check if user is authenticated before attempting FCM initialization
-    // If 'user' prop is not passed, try to check localStorage as fallback
-    let isAuthenticated = !!(user && user.id);
-    if (!isAuthenticated) {
-      try {
-        const userStr = localStorage.getItem('tradebot-user');
-        if (userStr) {
-          const storedUser = JSON.parse(userStr);
-          if (storedUser && storedUser.token) {
-            isAuthenticated = true;
-          }
-        }
-      } catch (e) {
-        // Ignore parse error
-      }
+    // Only proceed if the auth store is initialized
+    if (!isInitialized) return;
+
+    // If there is no authenticated user, reset registration flag and return
+    if (!currentUser || !currentUser.id) {
+      tokenRegisteredForUser.current = null;
+      return;
     }
 
-    if (!isAuthenticated) {
-      return; // IMPORTANT GUARD: Do not run FCM without valid auth
-    }
+    // Guard to prevent double registration if already registered for this user
+    if (tokenRegisteredForUser.current === currentUser.id) return;
 
     let unsubscribeTokenRefresh = null;
 
@@ -141,17 +137,15 @@ export function useFcmToken(user) {
         });
 
         if (!token) {
-          console.warn(
-            "[FCM] getToken() returned null. Check: VAPID key correct? SW active? Notifications allowed?"
-          );
+          console.error("No FCM token received");
           return;
         }
-        console.log("[FCM] Token obtained:", token.substring(0, 20) + "...");
+        console.log("FCM Token:", token);
 
         // ── 6. Register token with backend ────────────────────────────────
         const registered = await registerTokenWithBackend(token);
         if (registered) {
-          tokenRegistered.current = true;
+          tokenRegisteredForUser.current = currentUser.id;
         }
 
         // ── 7. Token refresh listener ─────────────────────────────────────
@@ -163,6 +157,10 @@ export function useFcmToken(user) {
 
         const refreshToken = async () => {
           try {
+            // Check auth state still valid before attempting rotation check
+            const storeState = useAdminStore.getState();
+            if (!storeState.currentUser?.id) return;
+
             const refreshedToken = await getToken(messaging, {
               vapidKey,
               serviceWorkerRegistration: registration,
@@ -214,6 +212,15 @@ export function useFcmToken(user) {
           }
         });
       } catch (err) {
+        if (
+          err?.message?.includes("permission denied") ||
+          Notification.permission === "denied"
+        ) {
+          console.warn(
+            "[FCM] Notifications blocked by user. Skipping registration."
+          );
+          return;
+        }
         console.error("[FCM] Initialization error:", err);
       }
     }
@@ -226,5 +233,5 @@ export function useFcmToken(user) {
         unsubscribeTokenRefresh();
       }
     };
-  }, [user]);
+  }, [isInitialized, currentUser]);
 }

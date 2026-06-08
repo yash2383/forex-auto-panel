@@ -1,3 +1,5 @@
+let redirectingToLogin = false;
+
 export async function apiFetch(endpoint, options = {}) {
   // Read token directly from local storage if available
   const userStr = typeof window !== 'undefined' ? localStorage.getItem('tradebot-user') : null;
@@ -37,10 +39,32 @@ export async function apiFetch(endpoint, options = {}) {
   try {
     console.log('API URL:', url);
 
-    return await fetch(url, {
+    const response = await fetch(url, {
+      cache: 'no-store',
       ...options,
       headers,
     });
+
+    if (response.status === 401 && !redirectingToLogin) {
+      if (typeof window !== 'undefined') {
+        redirectingToLogin = true;
+        localStorage.removeItem('tradebot-user');
+        localStorage.removeItem('tradebot-authenticated');
+        document.cookie = 'tradebot-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
+
+        const current = window.location.pathname + window.location.search;
+        if (
+          !window.location.pathname.startsWith('/login') &&
+          !window.location.pathname.startsWith('/signup')
+        ) {
+          window.location.href = `/login?redirect=${encodeURIComponent(current)}`;
+        } else {
+          redirectingToLogin = false;
+        }
+      }
+    }
+
+    return response;
   } catch (error) {
     console.warn(`API unavailable: ${url}`, error);
 

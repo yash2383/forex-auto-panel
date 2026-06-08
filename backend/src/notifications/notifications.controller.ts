@@ -684,6 +684,7 @@ export class NotificationsController {
   async getDevices(
     @Res() res: Response,
     @Query('userId') userId?: string,
+    @Query('adminId') adminId?: string,
     @Query('platform') platform?: string,
     @Query('browser') browser?: string,
     @Query('isActive') isActiveRaw?: string,
@@ -701,7 +702,7 @@ export class NotificationsController {
         : undefined;
 
       const result = await this.notificationsService.getAdminDevices(
-        { userId, platform, browser, isActive, failureCount, lastUsedBefore },
+        { userId, adminId, platform, browser, isActive, failureCount, lastUsedBefore },
         limit,
         cursor,
       );

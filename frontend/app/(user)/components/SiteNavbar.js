@@ -3,6 +3,7 @@ import { apiFetch } from "../../../lib/apiFetch";
 
 import { UserPlus, Menu, X } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useAdminStore } from "../../../hooks/adminStore";
 
@@ -70,7 +71,14 @@ export default function SiteNavbar() {
     <nav className="fixed top-0 z-50 w-full border-b border-white/5 bg-[#050505]/85 backdrop-blur-md">
       <div className="relative mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="group flex min-w-0 shrink-0 items-center gap-2">
-          <span className="h-[32px] w-[118px] bg-[url('/forex.png')] bg-contain bg-center bg-no-repeat text-sm font-semibold tracking-tight text-white sm:h-[40px] sm:w-[142px]"></span>
+          <Image
+            src="/forex.png"
+            alt="Forex Logo"
+            width={1536}
+            height={1024}
+            className="h-10 w-auto sm:h-12 object-contain"
+            priority
+          />
         </Link>
  
         <div className="flex items-center justify-end gap-6">

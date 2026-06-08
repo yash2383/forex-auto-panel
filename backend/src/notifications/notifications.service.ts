@@ -1088,6 +1088,7 @@ export class NotificationsService implements OnModuleInit {
   async getAdminDevices(
     filters: {
       userId?: string;
+      adminId?: string;
       platform?: string;
       browser?: string;
       isActive?: boolean;
@@ -1099,6 +1100,7 @@ export class NotificationsService implements OnModuleInit {
   ) {
     const where: any = {};
     if (filters.userId) where.userId = filters.userId;
+    if (filters.adminId) where.adminId = filters.adminId;
     if (filters.platform) where.platform = filters.platform;
     if (filters.browser) where.browser = filters.browser;
     if (filters.isActive !== undefined) where.isActive = filters.isActive;

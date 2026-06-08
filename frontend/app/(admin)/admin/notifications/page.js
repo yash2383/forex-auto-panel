@@ -113,6 +113,7 @@ export default function AdminNotificationsPage() {
   const [activeTab, setActiveTab] = useState("events");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
+  const [notificationPermission, setNotificationPermission] = useState("default");
 
   // Auth User
   const currentUser = useAdminStore((s) => s.currentUser);
@@ -120,6 +121,7 @@ export default function AdminNotificationsPage() {
   // TAB state: Overview
   const [analytics, setAnalytics] = useState(null);
   const [activeDevicesCount, setActiveDevicesCount] = useState(0);
+  const [hasCurrentUserDevice, setHasCurrentUserDevice] = useState(false);
 
   // TAB state: Broadcasts
   const [broadcasts, setBroadcasts] = useState([]);
@@ -191,6 +193,18 @@ export default function AdminNotificationsPage() {
           const devData = await devRes.json();
           setActiveDevicesCount(devData.total || devData.devices?.length || 0);
         }
+        if (currentUser && currentUser.id) {
+          const isAdmin = ["SUPER_ADMIN", "MANAGER", "VIEWER"].includes(currentUser.role);
+          const filterParam = isAdmin ? `adminId=${currentUser.id}` : `userId=${currentUser.id}`;
+          const userDevRes = await apiFetch(`/api/notifications/admin/devices?${filterParam}&isActive=true&limit=5`);
+          if (userDevRes.ok) {
+            const userDevData = await userDevRes.json();
+            const devices = userDevData.devices || [];
+            setHasCurrentUserDevice(devices.length > 0);
+          }
+        } else {
+          setHasCurrentUserDevice(false);
+        }
         await fetchDeliveries(null, 20); 
       } else if (tab === "broadcasts") {
         const res = await apiFetch("/api/notifications/admin/broadcasts");
@@ -223,7 +237,13 @@ export default function AdminNotificationsPage() {
 
   useEffect(() => {
     loadTabData(activeTab);
-  }, [activeTab]);
+  }, [activeTab, currentUser]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
 
   // Dynamic recipient details hook on audience/cohort changes
   useEffect(() => {
@@ -961,6 +981,42 @@ export default function AdminNotificationsPage() {
                 <RefreshCw className="h-3.5 w-3.5" />
               </button>
             </div>
+
+            {/* Browser Push Notification Diagnostic Status */}
+            {notificationPermission !== "granted" || !hasCurrentUserDevice ? (
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 flex items-start gap-3 text-xs">
+                <AlertCircle className="h-4.5 w-4.5 text-yellow-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-yellow-300">Push Status: No registered browser device token</h4>
+                  <p className="text-neutral-400 mt-1 leading-relaxed">
+                    Browser push notifications will not deliver to this device. Current permission: <span className="font-mono text-white font-bold">{notificationPermission}</span>.
+                    {notificationPermission === "granted" && (
+                      <span className="text-yellow-400/90 block mt-1 font-semibold">
+                        ⚠️ Warning: Notifications are allowed by the browser, but this device has not registered successfully in the database.
+                      </span>
+                    )}
+                  </p>
+                  <div className="mt-2 text-neutral-300 space-y-1">
+                    <p className="font-semibold text-white">Fix:</p>
+                    <ol className="list-decimal pl-4 space-y-0.5 text-neutral-400">
+                      <li>Enable browser notifications</li>
+                      <li>Refresh page</li>
+                      <li>Re-register device (check if NEXT_PUBLIC_FIREBASE_VAPID_KEY is configured correctly)</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex items-start gap-3 text-xs">
+                <CheckCircle className="h-4.5 w-4.5 text-green-400 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-green-300">Push Status: Browser device token active</h4>
+                  <p className="text-neutral-400 mt-1 leading-relaxed">
+                    Browser push notifications are active for this device. Your browser is registered and ready to receive updates.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* KPI Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

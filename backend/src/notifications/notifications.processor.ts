@@ -102,13 +102,14 @@ export class PushProcessor {
       });
 
       // Execute FCM Push driver
-      await this.sendPushNotification(userId, title, body, link, payload);
+      const wasSent = await this.sendPushNotification(userId, title, body, link, payload);
 
       await this.prisma.notificationDelivery.update({
         where: { id: deliveryId },
         data: {
-          status: NotificationDeliveryStatus.DELIVERED,
-          deliveredAt: new Date(),
+          status: wasSent ? NotificationDeliveryStatus.DELIVERED : NotificationDeliveryStatus.FAILED,
+          error: wasSent ? null : `No active device tokens found or all push messages failed for user ${userId}`,
+          deliveredAt: wasSent ? new Date() : null,
         },
       });
     } catch (err) {
@@ -131,8 +132,8 @@ export class PushProcessor {
     body: string,
     link: string,
     payload: Record<string, any>,
-  ) {
-    if (!userId) return;
+  ): Promise<boolean> {
+    if (!userId) return false;
 
     const tokens = await this.prisma.deviceToken.findMany({
       where: { 
@@ -148,9 +149,10 @@ export class PushProcessor {
       this.logger.log(
         `No active device tokens found for user ${userId}. Push skipped.`,
       );
-      return;
+      return false;
     }
 
+    let sentCount = 0;
     for (const device of tokens) {
       try {
         this.logger.log(
@@ -167,6 +169,7 @@ export class PushProcessor {
           where: { id: device.id },
           data: { lastUsedAt: new Date() },
         });
+        sentCount++;
       } catch (err: any) {
         this.logger.error(
           `FCM send failed for token ${device.id}: ${err.message}`,
@@ -190,6 +193,7 @@ export class PushProcessor {
         }
       }
     }
+    return sentCount > 0;
   }
 }
 

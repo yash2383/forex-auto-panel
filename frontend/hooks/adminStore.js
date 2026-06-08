@@ -498,6 +498,7 @@ export const useAdminStore = create((set, get) => ({
         body: JSON.stringify({
           planName: payment.plan,
           amount: cleanAmount,
+          depositAmount: payment.depositAmount ? Number(payment.depositAmount) : undefined,
           txnHash: payment.txnHash,
           utr: payment.utr,
           paymentType: payment.paymentType || "USDT",

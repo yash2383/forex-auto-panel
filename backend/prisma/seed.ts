@@ -286,9 +286,18 @@ async function main() {
       slug: "club",
       name: "Club Plan",
       subtitle: "Micro Capital",
-      capitalLabel: "$10 - $100",
-      desc: "Ideal plan for new traders starting out with small test capital.",
-      features: ["5% fee on profits", "Beginner-friendly setup", "24/7 automated execution", "Access to core automation"],
+      capitalLabel: "$10 – $100+ Capital",
+      desc: "Perfect for beginners who want to start trading with a small investment and grow over time.",
+      features: [
+        "Start with as little as $10",
+        "Easy for beginners",
+        "24/7 automated trading",
+        "No trading experience required",
+        "Track your portfolio anytime",
+        "Increase your investment whenever you want",
+        "5% platform fee on deposits from $10–$100",
+        "Only 4% platform fee on deposits above $100"
+      ],
       btnText: "Get Started",
       status: "Active",
       isPopular: false,
@@ -296,6 +305,7 @@ async function main() {
       pricingType: "FLEXIBLE",
       weeklyProfit: 5,
       durationDays: 30,
+      sortOrder: 1,
     },
   });
 
@@ -303,17 +313,28 @@ async function main() {
     data: {
       slug: "individual",
       name: "Individual Plan",
-      subtitle: "Advanced / Full Access",
-      capitalLabel: "$1000+",
-      desc: "For advanced traders who require priority execution and higher capital limits.",
-      features: ["Reduced profit fee (5% to 4%)", "Advanced trading access", "Priority low-latency execution API", "Enhanced performance tracking"],
+      subtitle: "Advanced",
+      capitalLabel: "$1,000+ Capital",
+      desc: "Built for traders and investors who want to invest larger amounts and enjoy lower fees.",
+      features: [
+        "Start with $1,000 or more",
+        "Suitable for larger investments",
+        "Priority trade execution",
+        "Advanced trading features",
+        "Detailed performance tracking",
+        "Better fee rates for higher deposits",
+        "5% platform fee on deposits from $1,000–$9,999.99",
+        "Only 4% platform fee on deposits of $10,000 or more",
+        "Designed for long-term growth"
+      ],
       btnText: "Start Trading",
       status: "Active",
       isPopular: true,
-      amount: 1000,
-      pricingType: "FIXED",
+      amount: null,
+      pricingType: "FLEXIBLE",
       weeklyProfit: 4,
       durationDays: 365,
+      sortOrder: 2,
     },
   });
 
@@ -332,6 +353,7 @@ async function main() {
       pricingType: "FLEXIBLE",
       weeklyProfit: 5,
       durationDays: 30,
+      sortOrder: 3,
     },
   });
 

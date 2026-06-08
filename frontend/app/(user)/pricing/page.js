@@ -18,8 +18,8 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "../../../lib/apiFetch";
 
 const comparisonRows = [
-  ["Capital Range", "$10-$100", "$1000+", "Flexible"],
-  ["Profit Fee", "5%", "4%", "Custom"],
+  ["Capital Range", "$10 – $100+ Capital", "$1,000+ Capital", "Flexible"],
+  ["Platform Fee", "4% – 5%", "4% – 5%", "Custom"],
   ["Trading Access", "Basic", "Advanced", "Full"],
   ["Execution Speed", "Standard", "Priority", "Ultra"],
   ["Support", "Basic", "Priority", "Dedicated"],
@@ -85,36 +85,38 @@ function PlanCard({ plan }) {
         ))}
       </ul>
 
-      {isCurrent ? (
-        <button
-          disabled
-          className="mt-8 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-green-500/25 text-green-400 border border-green-500/30 text-sm font-bold cursor-not-allowed">
-          Current Plan
-          <Check className="h-4 w-4" />
-        </button>
-      ) : plan.href.startsWith("/signup") ? (
-        <Link
-          href={plan.href}
-          className={`mt-8 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold transition active:scale-[0.98] ${
-            plan.popular
-              ? "bg-white text-black hover:bg-neutral-200"
-              : "border border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]"
-          }`}>
-          {plan.cta}
-          <ArrowRight className="h-4 w-4" />
-        </Link>
-      ) : (
-        <button
-          onClick={plan.onSelect}
-          className={`mt-8 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold transition active:scale-[0.98] ${
-            plan.popular
-              ? "bg-white text-black hover:bg-neutral-200"
-              : "border border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]"
-          }`}>
-          {plan.cta}
-          <ArrowRight className="h-4 w-4" />
-        </button>
-      )}
+      <div className="mt-auto pt-8 w-full">
+        {isCurrent ? (
+          <button
+            disabled
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-green-500/25 text-green-400 border border-green-500/30 text-sm font-bold cursor-not-allowed">
+            Current Plan
+            <Check className="h-4 w-4" />
+          </button>
+        ) : plan.href.startsWith("/signup") ? (
+          <Link
+            href={plan.href}
+            className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+              plan.popular
+                ? "bg-white text-black hover:bg-neutral-200 shadow-lg shadow-white/10"
+                : "border border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]"
+            }`}>
+            {plan.cta}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        ) : (
+          <button
+            onClick={plan.onSelect}
+            className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+              plan.popular
+                ? "bg-white text-black hover:bg-neutral-200 shadow-lg shadow-white/10"
+                : "border border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]"
+            }`}>
+            {plan.cta}
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        )}
+      </div>
     </article>
   );
 }
@@ -229,7 +231,7 @@ export default function PricingPage() {
               Choose a plan that fits your capital and trading goals.
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-neutral-400 sm:text-lg">
-              Our pricing is performance-based. You only pay a small fee on profits.
+              Our pricing is clear and upfront. You only pay a flat platform fee on your deposit amount.
             </p>
           </div>
         </div>
@@ -249,15 +251,15 @@ export default function PricingPage() {
             </span>
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-green-300">How Pricing Works</p>
-              <h2 className="text-2xl font-semibold tracking-tight text-white">Performance-Based Model</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-white">Upfront Platform Fee</h2>
             </div>
           </div>
-          <p className="mt-5 text-lg font-semibold text-white">You only pay when you earn.</p>
+          <p className="mt-5 text-lg font-semibold text-white">Your trading profits are 100% yours.</p>
           <div className="mt-5 rounded-xl border border-white/10 bg-black/30 p-4 text-sm font-semibold text-neutral-200">
-            Profit <span className="text-green-300">&rarr;</span> Small % Fee <span className="text-green-300">&rarr;</span> You keep the rest
+            Deposit <span className="text-green-300">→</span> Upfront Fee <span className="text-green-300">→</span> Keep 100% of profits
           </div>
           <div className="mt-5 grid gap-3 text-sm text-neutral-300">
-            {["No upfront hidden charges", "No fixed monthly cost", "Fully transparent system"].map((item) => (
+            {["No profit-sharing fee", "No recurring monthly cost", "Fully transparent system"].map((item) => (
               <div key={item} className="flex items-center gap-3">
                 <Check className="h-4 w-4 text-green-300" />
                 {item}

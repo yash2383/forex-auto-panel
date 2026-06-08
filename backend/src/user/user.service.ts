@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword, verifyPassword } from '../common/crypto.util';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationEvent } from '@prisma/client';
+import { getPlatformFeePercent } from '../common/utils/platform-fee.util';
 
 @Injectable()
 export class UserService {
@@ -282,7 +283,7 @@ export class UserService {
       const resolvedPlan = p.initiation?.plan ?? await this.prisma.plan.findFirst({
         where: { name: { equals: p.planName, mode: 'insensitive' } }
       });
-      const platformFeePercent = resolvedPlan ? Number(resolvedPlan.platformFeePercent) : 4.00;
+      const platformFeePercent = resolvedPlan ? getPlatformFeePercent(resolvedPlan.name, amt) : 4.00;
       const platformFee = amt * (platformFeePercent / 100);
       const reward = (platformFee * commissionRate * (bonusMultiplier / 100)) / 100;
       pendingRewards += reward;

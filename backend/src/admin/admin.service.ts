@@ -9,6 +9,7 @@ import {
 import { NotificationsService } from '../notifications/notifications.service';
 import { ObservabilityService } from '../observability/observability.service';
 import { sendFcmTopicMessage, unsubscribeFromTopic } from '../notifications/firebase-admin';
+import { getPlatformFeePercent } from '../common/utils/platform-fee.util';
 
 @Injectable()
 export class AdminService implements OnModuleInit {
@@ -875,6 +876,7 @@ export class AdminService implements OnModuleInit {
         weeklyProfit: Number(p.weeklyProfit ?? 0),
         durationDays: Number(p.durationDays ?? 0),
         pricingType: p.pricingType || 'FIXED',
+        // Deprecated: dynamic fee engine now determines fee %
         platformFeePercent: Number(p.platformFeePercent ?? 4.00),
         referralEligible: !!p.referralEligible,
       })),
@@ -1189,6 +1191,7 @@ export class AdminService implements OnModuleInit {
         pricingType: typeOfPricing,
         weeklyProfit: Number(weeklyProfit) || 5,
         durationDays: Number(durationDays) || 30,
+        // Deprecated: dynamic fee engine now determines fee %
         platformFeePercent: platformFeePctVal,
         referralEligible: referralEligible !== undefined ? !!referralEligible : true,
       },
@@ -1273,6 +1276,7 @@ export class AdminService implements OnModuleInit {
           body.durationDays !== undefined
             ? Number(body.durationDays)
             : Number(plan.durationDays),
+        // Deprecated: dynamic fee engine now determines fee %
         platformFeePercent: platformFeePctVal !== undefined ? platformFeePctVal : undefined,
         referralEligible: body.referralEligible !== undefined ? !!body.referralEligible : undefined,
       },
@@ -1976,14 +1980,27 @@ export class AdminService implements OnModuleInit {
       return;
     }
 
-    const platformFeePercent = resolvedPlan ? Number(resolvedPlan.platformFeePercent) : 4.00;
+    let depositAmount = Number(qualifyingPayment.amount);
+    if (qualifyingPayment.initiation) {
+      depositAmount = Number(qualifyingPayment.initiation.amount);
+    } else {
+      const planName = resolvedPlan?.name || qualifyingPayment.planName;
+      const totalPayable = Number(qualifyingPayment.amount);
+      let feePercent = 5;
+      if (planName.toUpperCase().includes('INDIVIDUAL')) {
+        feePercent = totalPayable >= 10400 ? 4 : 5;
+      } else if (planName.toUpperCase().includes('CLUB')) {
+        feePercent = totalPayable > 104 ? 4 : 5;
+      }
+      depositAmount = totalPayable / (1 + feePercent / 100);
+    }
+    const platformFeePercent = resolvedPlan ? getPlatformFeePercent(resolvedPlan.name, depositAmount) : 4.00;
     const commissionRate = Number(refSettings.commissionRate ?? 10);
     
     const sysSettings = await tx.systemSettings.findFirst();
     const bonusMultiplier = Number(sysSettings?.referralBonusMultiplier ?? 100) / 100;
 
     // Calculate reward: Reward = DepositAmount * PlanFee% * ReferralCommission% * multiplier
-    const depositAmount = Number(qualifyingPayment.amount);
     const platformFeeAmount = depositAmount * (platformFeePercent / 100);
     const baseCommission = platformFeeAmount * (commissionRate / 100);
     const rewardAmount = baseCommission * bonusMultiplier;
@@ -2114,12 +2131,25 @@ export class AdminService implements OnModuleInit {
           where: { name: { equals: qualifyingPayment.planName, mode: 'insensitive' } }
         });
 
-        const platformFeePercent = resolvedPlan ? Number(resolvedPlan.platformFeePercent) : 4.00;
+        let depositAmount = Number(qualifyingPayment.amount);
+        if (qualifyingPayment.initiation) {
+          depositAmount = Number(qualifyingPayment.initiation.amount);
+        } else {
+          const planName = resolvedPlan?.name || qualifyingPayment.planName;
+          const totalPayable = Number(qualifyingPayment.amount);
+          let feePercent = 5;
+          if (planName.toUpperCase().includes('INDIVIDUAL')) {
+            feePercent = totalPayable >= 10400 ? 4 : 5;
+          } else if (planName.toUpperCase().includes('CLUB')) {
+            feePercent = totalPayable > 104 ? 4 : 5;
+          }
+          depositAmount = totalPayable / (1 + feePercent / 100);
+        }
+        const platformFeePercent = resolvedPlan ? getPlatformFeePercent(resolvedPlan.name, depositAmount) : 4.00;
         const commissionRate = Number(refSettings?.commissionRate ?? 10);
         const sysSettings = await tx.systemSettings.findFirst();
         const bonusMultiplier = Number(sysSettings?.referralBonusMultiplier ?? 100) / 100;
 
-        const depositAmount = Number(qualifyingPayment.amount);
         const platformFeeAmount = depositAmount * (platformFeePercent / 100);
         const baseCommission = platformFeeAmount * (commissionRate / 100);
         const rewardAmount = baseCommission * bonusMultiplier;
@@ -2797,6 +2827,24 @@ export class AdminService implements OnModuleInit {
       if (payment.status === 'APPROVED')
         throw new Error('Payment has already been approved');
 
+      let depositAmountVal = Number(payment.amount);
+      let platformFeeVal = 0;
+      if (payment.initiation) {
+        depositAmountVal = Number(payment.initiation.amount);
+        platformFeeVal = Number(payment.amount) - depositAmountVal;
+      } else {
+        const planName = payment.planName;
+        const totalPayable = Number(payment.amount);
+        let feePercent = 5;
+        if (planName.toUpperCase().includes('INDIVIDUAL')) {
+          feePercent = totalPayable >= 10400 ? 4 : 5;
+        } else if (planName.toUpperCase().includes('CLUB')) {
+          feePercent = totalPayable > 104 ? 4 : 5;
+        }
+        depositAmountVal = totalPayable / (1 + feePercent / 100);
+        platformFeeVal = totalPayable - depositAmountVal;
+      }
+
       const amountVal = Number(payment.amount);
       const idempotencyKey = `DEP_APPROVAL_${payment.id}`;
 
@@ -2816,7 +2864,13 @@ export class AdminService implements OnModuleInit {
             partnerId: payment.partnerId,
             accountType: 'USER',
             entryType: 'CREDIT',
-            amount: amountVal,
+            amount: depositAmountVal,
+            currency: payment.currency,
+          },
+          {
+            accountType: 'SYSTEM',
+            entryType: 'CREDIT',
+            amount: platformFeeVal,
             currency: payment.currency,
           },
         ],

@@ -4,6 +4,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationEvent, Prisma } from '@prisma/client';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { getPlatformFeePercent } from '../common/utils/platform-fee.util';
 
 @Injectable()
 export class DashboardService {
@@ -258,6 +259,7 @@ export class DashboardService {
     const {
       planName,
       amount,
+      depositAmount,
       txnHash,
       utr,
       paymentType,
@@ -268,6 +270,20 @@ export class DashboardService {
       screenshot,
       remark,
     } = body;
+
+    // Resolve deposit amount
+    let finalDepositAmount = Number(depositAmount);
+    if (!finalDepositAmount && amount !== undefined && amount !== null && !isNaN(Number(amount))) {
+      // Fallback calculation:
+      const totalPayable = Number(amount);
+      let feePercent = 5;
+      if (planName && planName.toUpperCase().includes('INDIVIDUAL')) {
+        feePercent = totalPayable >= 10400 ? 4 : 5;
+      } else if (planName && planName.toUpperCase().includes('CLUB')) {
+        feePercent = totalPayable > 104 ? 4 : 5;
+      }
+      finalDepositAmount = totalPayable / (1 + feePercent / 100);
+    }
 
     let finalScreenshot = screenshot || null;
     if (screenshot && screenshot.startsWith('data:image/')) {
@@ -392,7 +408,7 @@ export class DashboardService {
     if (matchedPlan) {
       if (matchedPlan.pricingType === 'FIXED') {
         const expected = new Prisma.Decimal(matchedPlan.amount!);
-        const actual = new Prisma.Decimal(amount);
+        const actual = new Prisma.Decimal(finalDepositAmount);
         if (!expected.equals(actual)) {
           return {
             error: `Invalid payment amount. The ${planName} plan requires a deposit of ${expected.toString()}.`,
@@ -408,12 +424,22 @@ export class DashboardService {
         const slug =
           matchedPlan.slug || matchedPlan.name.split(' ')[0].toLowerCase();
         const minAllowed = PLAN_MIN_AMOUNTS[slug] || 1;
-        if (Number(amount) < minAllowed) {
+        if (Number(finalDepositAmount) < minAllowed) {
           return {
             error: `Invalid payment amount. The ${matchedPlan.name} plan requires a minimum deposit of $${minAllowed} USDT.`,
             status: 400,
           };
         }
+      }
+
+      // Verify total payable amount matches expected amount based on dynamic platform fee
+      const feePct = getPlatformFeePercent(matchedPlan.name, finalDepositAmount);
+      const expectedTotalPayable = finalDepositAmount + (finalDepositAmount * feePct) / 100;
+      if (Math.abs(expectedTotalPayable - Number(amount)) > 0.01) {
+        return {
+          error: `Payment amount mismatch or tampering detected. Expected total: $${expectedTotalPayable.toFixed(2)}, got: $${Number(amount).toFixed(2)}.`,
+          status: 400,
+        };
       }
     }
 
@@ -547,7 +573,7 @@ export class DashboardService {
               completedAt: new Date(),
               converted: true,
               followUpStatus: 'CONVERTED',
-              amount: Number(amount), // Lock final amount
+              amount: Number(finalDepositAmount), // Lock final deposit amount
               paymentType: paymentType || 'USDT',
             },
           });

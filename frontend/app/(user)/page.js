@@ -1,16 +1,214 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  ArrowRight,
+  Check,
+  CircleDollarSign,
+  Handshake,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 import { useAdminStore } from "../../hooks/adminStore";
+import "../../app/globals.css"; // Ensure standard global CSS
 import { apiFetch } from "../../lib/apiFetch";
 
-export default function Home() {
-  const plans = useAdminStore((s) => s.plans || []);
-  const activePlans = plans.filter(p => p.status === "Active");
+const toneClasses = {
+  green: {
+    badge: "border-green-500/30 bg-green-500/10 text-green-300",
+    icon: "border-green-500/20 bg-green-500/10 text-green-300",
+    glow: "shadow-[0_0_50px_-18px_rgba(34,197,94,0.55)]",
+  },
+  violet: {
+    badge: "border-violet-500/30 bg-violet-500/10 text-violet-200",
+    icon: "border-violet-500/20 bg-violet-500/10 text-violet-200",
+    glow: "shadow-[0_0_58px_-18px_rgba(139,92,246,0.62)]",
+  },
+  cyan: {
+    badge: "border-cyan-500/30 bg-cyan-500/10 text-cyan-200",
+    icon: "border-cyan-500/20 bg-cyan-500/10 text-cyan-200",
+    glow: "shadow-[0_0_52px_-18px_rgba(34,211,238,0.48)]",
+  },
+};
 
+function PlanCard({ plan }) {
+  const Icon = plan.icon;
+  const tone = toneClasses[plan.tone];
+  const isCurrent = plan.isCurrentPlan;
+
+  return (
+    <article
+      className={`border-gradient relative flex h-full flex-col rounded-2xl bg-neutral-900/45 p-6 transition-colors hover:bg-neutral-900/65 sm:p-7 ${tone.glow}`}>
+      {plan.popular && (
+        <span className="absolute -top-3 right-5 inline-flex items-center gap-1 rounded-full bg-green-500 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-black shadow-md">
+          <Sparkles className="h-3 w-3" />
+          Most Popular
+        </span>
+      )}
+
+      <div className="flex items-start justify-between gap-4">
+        <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border ${tone.icon}`}>
+          <Icon className="h-5 w-5" />
+        </span>
+        <span className={`rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${tone.badge}`}>
+          {plan.tag}
+        </span>
+      </div>
+
+      <div className="mt-6">
+        <h2 className="text-2xl font-semibold tracking-tight text-white">{plan.name}</h2>
+        <div className="mt-5 flex flex-wrap items-end gap-x-2 gap-y-1 text-white">
+          <span className="text-4xl font-bold tracking-tight">{plan.price}</span>
+          {plan.priceNote && <span className="pb-1 text-xs font-medium text-neutral-500">{plan.priceNote}</span>}
+        </div>
+        <p className="mt-4 min-h-20 text-sm leading-relaxed text-neutral-400">{plan.description}</p>
+      </div>
+
+      <ul className="mt-6 grid gap-3 border-t border-white/5 pt-6 text-sm text-neutral-300">
+        {plan.features.map((feature) => (
+          <li key={feature} className="flex gap-3">
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-300" />
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-auto pt-8 w-full">
+        {isCurrent ? (
+          <button
+            disabled
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-green-500/25 text-green-400 border border-green-500/30 text-sm font-bold cursor-not-allowed">
+            Current Plan
+            <Check className="h-4 w-4" />
+          </button>
+        ) : plan.href.startsWith("/signup") ? (
+          <Link
+            href={plan.href}
+            className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+              plan.popular
+                ? "bg-white text-black hover:bg-neutral-200 shadow-lg shadow-white/10"
+                : "border border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]"
+            }`}>
+            {plan.cta}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        ) : (
+          <button
+            onClick={plan.onSelect}
+            className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-sm font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+              plan.popular
+                ? "bg-white text-black hover:bg-neutral-200 shadow-lg shadow-white/10"
+                : "border border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]"
+            }`}>
+            {plan.cta}
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </article>
+  );
+}
+
+export default function Home() {
+  const storePlans = useAdminStore((s) => s.plans || []);
+  const fetchPlans = useAdminStore((s) => s.fetchPlans);
+  const currentUser = useAdminStore((s) => s.currentUser);
+  const fetchData = useAdminStore((s) => s.fetchData);
+  const router = useRouter();
+  const [activePlan, setActivePlan] = useState(null);
   const [trades, setTrades] = useState([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const handlePlanSelect = async (plan) => {
+    const planId = plan.id;
+    const minAmounts = { club: 10, individual: 1000, custom: 5000 };
+    const planSlug = plan.slug || plan.name.split(" ")[0].toLowerCase();
+    const amount = (plan.amount != null && Number(plan.amount) > 0)
+      ? Number(plan.amount)
+      : (minAmounts[planSlug] || 0);
+
+    if (!currentUser) {
+      router.push(`/signup?next=${encodeURIComponent(`/checkout?plan=${planSlug}`)}`);
+      return;
+    }
+    try {
+      const res = await apiFetch("/api/dashboard/initiate-payment", {
+        method: "POST",
+        body: JSON.stringify({ planId: plan.id, amount: amount, paymentGateway: "usdt", source: "Homepage - " + plan.name })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.initiationId) {
+          router.push(`/checkout?plan=${planSlug}&initId=${data.initiationId}`);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    router.push(`/checkout?plan=${planSlug}`);
+  };
+
+  useEffect(() => {
+    fetchPlans();
+    fetchData();
+
+    if (currentUser) {
+      apiFetch("/api/user/subscription")
+        .then(async (res) => {
+          if (res.ok) {
+            const data = await res.json();
+            if (data.hasSubscription && data.subscription) {
+              setActivePlan(data.subscription.planName);
+            }
+          }
+        })
+        .catch((err) => console.error("Error fetching subscription:", err));
+    } else {
+      setActivePlan(null);
+    }
+  }, [fetchPlans, fetchData, currentUser]);
+
+  const activePlans = storePlans.filter((p) => p.isActive !== false);
+
+  const plans = activePlans.map((plan, index) => {
+    let icon = CircleDollarSign;
+    let tone = "green";
+    if (index === 1) {
+      icon = Zap;
+      tone = "violet";
+    } else if (index > 1) {
+      icon = Handshake;
+      tone = "cyan";
+    }
+
+    const planSlug = plan.slug || plan.name.split(" ")[0].toLowerCase();
+    const href = currentUser
+      ? `/checkout?plan=${planSlug}`
+      : `/signup?next=${encodeURIComponent(`/checkout?plan=${planSlug}`)}`;
+
+    const isCurrentPlan = activePlan && (activePlan === plan.name || activePlan.toLowerCase().includes(planSlug));
+
+    return {
+      ...plan,
+      name: plan.name,
+      tag: plan.subtitle,
+      price: plan.capitalLabel,
+      priceNote: plan.capitalLabel === "Custom Pricing" ? "" : "capital",
+      description: plan.desc,
+      features: plan.features || [],
+      cta: plan.btnText || "Get Started",
+      href,
+      onSelect: () => handlePlanSelect(plan),
+      icon,
+      tone,
+      popular: Boolean(plan.isPopular),
+      isCurrentPlan: !!isCurrentPlan,
+    };
+  });
 
   useEffect(() => {
     async function loadTrades() {
@@ -347,83 +545,14 @@ export default function Home() {
               Simple pricing
             </h2>
             <p className="mt-4 text-lg text-neutral-400 max-w-2xl mx-auto font-geist">
-              Transparent, profit-based plans tailored for your capital requirements.
+              Our pricing is clear and upfront. You only pay a flat platform fee on your deposit amount.
             </p>
           </div>
 
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-5xl mt-16 mx-auto animate-on-scroll">
-            {activePlans.map((plan) => {
-              const isPopular = Boolean(plan.isPopular);
-              return (
-                <div
-                  key={plan.id}
-                  className={`group border-gradient relative rounded-3xl p-8 hover:bg-neutral-900/60 transition-colors flex flex-col justify-between shadow-[0_0_30px_rgba(255,255,255,0.01)] ${
-                    isPopular
-                      ? "bg-neutral-900/60 border border-green-500/20 hover:shadow-[0_0_40px_rgba(34,197,94,0.05)]"
-                      : "bg-neutral-900/40 hover:shadow-[0_0_40px_rgba(0,208,156,0.03)]"
-                  }`}
-                >
-                  {isPopular && (
-                    <div className="absolute -top-3.5 right-6 bg-green-500 text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
-                      Most Popular
-                    </div>
-                  )}
-
-                  <div>
-                    <div className="flex justify-between items-center gap-2">
-                      <h3 className="text-2xl font-semibold text-white tracking-tight font-geist">
-                        {plan.name}
-                      </h3>
-                      <span className="text-[10px] font-semibold text-green-300 bg-green-500/10 border border-green-500/20 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                        {plan.subtitle}
-                      </span>
-                    </div>
-
-                    <div className="mt-6">
-                      <div className="flex items-baseline text-white">
-                        <span className="text-4xl font-bold tracking-tight font-geist">
-                          {plan.capitalLabel}
-                        </span>
-                        <span className="text-xs text-neutral-400 ml-2">capital limits</span>
-                      </div>
-                      <p className="text-xs text-neutral-400 mt-2 min-h-[32px]">
-                        {plan.desc}
-                      </p>
-                    </div>
-
-                    <ul className="mt-8 space-y-4 border-t border-white/5 pt-6 text-sm text-neutral-400">
-                      {(plan.features || []).map((feature, idx) => (
-                        <li key={idx} className="flex items-center gap-3">
-                          <svg className="h-4 w-4 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                          </svg>
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {(() => {
-                    const planSlug = plan.slug || plan.name.split(" ")[0].toLowerCase();
-                    const minAmounts = { club: 10, individual: 1000, custom: 5000 };
-                    const amount = plan.amount || minAmounts[planSlug] || 0;
-                    return (
-                      <a
-                        href={`/checkout?plan=${planSlug}&amount=${amount}`}
-                        className={`mt-10 block w-full text-center text-xs font-semibold rounded-full py-3 transition-colors ${
-                          isPopular
-                            ? "bg-white text-black hover:bg-neutral-200 shadow-md"
-                            : "relative border-gradient bg-white/5 hover:bg-white/10 text-white"
-                        }`}
-                      >
-                        {plan.btnText || "Get Started"}
-                      </a>
-                    );
-                  })()}
-                </div>
-              );
-            })}
+            {plans.map((plan) => (
+              <PlanCard key={plan.name} plan={plan} />
+            ))}
           </div>
         </div>
       </section>

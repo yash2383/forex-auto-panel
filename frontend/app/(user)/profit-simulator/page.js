@@ -2,12 +2,13 @@
 
 import { Calculator, CircleDollarSign, Gauge, ShieldAlert, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
+import { getPlatformFeePercent } from "../../../lib/platformFee";
 
 const plans = {
   club: {
     label: "Club Plan",
     detail: "Beginner",
-    fee: 0.04,
+    fee: 0.05,
     returns: {
       "1w": 0.025,
       "1m": 0.08,
@@ -17,7 +18,7 @@ const plans = {
   individual: {
     label: "Individual Plan",
     detail: "Advanced",
-    fee: 0.06,
+    fee: 0.05,
     returns: {
       "1w": 0.04,
       "1m": 0.12,
@@ -62,13 +63,19 @@ export default function ProfitSimulatorPage() {
     const plan = plans[planKey];
     const expectedReturn = plan.returns[durationKey] * risks[riskKey].multiplier;
     const profit = amount * expectedReturn;
-    const fee = profit * plan.fee;
+    
+    // Dynamic platform fee percentage calculation
+    const feePct = getPlatformFeePercent(planKey === "individual" ? "INDIVIDUAL" : "CLUB", amount);
+    const fee = profit * (feePct / 100);
     const netProfit = profit - fee;
     const finalBalance = amount + netProfit;
 
     return {
       amount,
-      plan,
+      plan: {
+        ...plan,
+        fee: feePct / 100,
+      },
       expectedReturn,
       profit,
       fee,
@@ -114,21 +121,25 @@ export default function ProfitSimulatorPage() {
               <div>
                 <span className="mb-3 block text-sm font-semibold text-white">Select Plan</span>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {Object.entries(plans).map(([key, plan]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setPlanKey(key)}
-                      className={`rounded-xl border p-4 text-left transition ${
-                        planKey === key
-                          ? "border-green-400 bg-green-500/10 text-white"
-                          : "border-white/10 bg-white/[0.03] text-neutral-300 hover:bg-white/[0.06]"
-                      }`}>
-                      <span className="block text-sm font-bold">{plan.label}</span>
-                      <span className="mt-1 block text-xs text-neutral-500">{plan.detail}</span>
-                      <span className="mt-3 block text-xs font-semibold text-green-300">Fee {formatPercent(plan.fee)}</span>
-                    </button>
-                  ))}
+                  {Object.entries(plans).map(([key, plan]) => {
+                    const amount = Number.isFinite(Number(investment)) ? Math.max(Number(investment), 0) : 0;
+                    const feePct = getPlatformFeePercent(key === "individual" ? "INDIVIDUAL" : "CLUB", amount);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setPlanKey(key)}
+                        className={`rounded-xl border p-4 text-left transition ${
+                          planKey === key
+                            ? "border-green-400 bg-green-500/10 text-white"
+                            : "border-white/10 bg-white/[0.03] text-neutral-300 hover:bg-white/[0.06]"
+                        }`}>
+                        <span className="block text-sm font-bold">{plan.label}</span>
+                        <span className="mt-1 block text-xs text-neutral-500">{plan.detail}</span>
+                        <span className="mt-3 block text-xs font-semibold text-green-300">Fee {formatPercent(feePct / 100)}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

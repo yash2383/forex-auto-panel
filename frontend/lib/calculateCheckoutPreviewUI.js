@@ -1,3 +1,5 @@
+import { getPlatformFeePercent } from "./platformFee";
+
 /**
  * calculateCheckoutPreviewUI.js
  *
@@ -6,7 +8,7 @@
  *
  * Business rules (all configurable per plan):
  *   - plan.amount       → base entry fee (FIXED plans). null for FLEXIBLE plans.
- *   - plan.weeklyProfit → platform profit-share percentage
+ *   - plan.weeklyProfit → platform profit-share percentage (Deprecated: now dynamically calculated)
  *
  * For FIXED plans:
  *   totalPayable = plan.amount (entry fee; no markup added at checkout)
@@ -14,7 +16,7 @@
  * For FLEXIBLE plans:
  *   User enters their own deposit amount (previewAmount).
  *   We show:  previewAmount  (what they pay)
- *   We earn:  weeklyProfit%  deducted from future profits (not charged upfront at checkout).
+ *   We earn:  weeklyProfit%  deducted from profits (calculated dynamically).
  *
  * @param {object} plan           - Plan object from the database
  * @param {number} previewAmount  - User-entered preview amount (for FLEXIBLE plans)
@@ -23,19 +25,17 @@
 export function calculateCheckoutPreviewUI(plan, previewAmount = 0) {
   const isFlexible = plan.pricingType === "FLEXIBLE" || plan.amount == null;
   const base = isFlexible ? Number(previewAmount) || 0 : Number(plan.amount) || 0;
-  const profitFeePercent = Number(plan.weeklyProfit) || 0;
-
-  const entryFee = base;
-  const platformFeeNote = profitFeePercent > 0
-    ? `${profitFeePercent}% deducted from profits per cycle`
-    : null;
+  
+  const feePercent = getPlatformFeePercent(plan.name, base);
+  const platformFee = Math.round(base * (feePercent / 100) * 100) / 100;
+  const totalPayable = Math.round((base + platformFee) * 100) / 100;
 
   return {
     isFlexible,
     baseAmount: base,
-    entryFee,
-    profitFeePercent,
-    platformFeeNote,
+    platformFeePercent: feePercent,
+    platformFee,
+    totalPayable,
     currency: "USDT",
   };
 }

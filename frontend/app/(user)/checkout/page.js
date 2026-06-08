@@ -194,7 +194,7 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
         <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-green-500/10 text-green-400 shadow-[0_0_40px_rgba(34,197,94,0.2)]">
           <CircleCheck className="h-12 w-12" />
         </span>
-        
+
         <h1 className="mt-8 text-3xl font-extrabold tracking-tight text-green-400 sm:text-4xl animate-pulse">
           🎉 Congratulations!
         </h1>
@@ -235,7 +235,7 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
         <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-red-500/10 text-red-400 shadow-[0_0_40px_rgba(239,68,68,0.2)]">
           <XCircle className="h-12 w-12" />
         </span>
-        
+
         <h1 className="mt-8 text-3xl font-extrabold tracking-tight text-red-400 sm:text-4xl">
           Payment Rejected
         </h1>
@@ -271,7 +271,7 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
       <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-yellow-400/10 text-yellow-300 shadow-[0_0_40px_rgba(250,204,21,0.15)] mb-6">
         <Clock3 className="h-12 w-12 animate-pulse" />
       </span>
-      
+
       <h2 className="text-2xl font-bold text-white mb-2">Payment Under Review</h2>
 
       <div className="flex flex-col items-center gap-2 text-sm text-neutral-400 mb-6 font-semibold">
@@ -443,19 +443,19 @@ export default function CheckoutPage() {
         }
       })
     ])
-    .then(([planData, methods]) => {
-      setFetchedPlan(planData);
-      setPaymentMethods(methods);
-      if (methods.length > 0) {
-        setSelectedMethod(methods[0]);
-      }
-      setPlanLoading(false);
-    })
-    .catch((err) => {
-      console.error(err);
-      setPlanError(err.message || "Failed to initialize checkout. Please check your plan selection.");
-      setPlanLoading(false);
-    });
+      .then(([planData, methods]) => {
+        setFetchedPlan(planData);
+        setPaymentMethods(methods);
+        if (methods.length > 0) {
+          setSelectedMethod(methods[0]);
+        }
+        setPlanLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setPlanError(err.message || "Failed to initialize checkout. Please check your plan selection.");
+        setPlanLoading(false);
+      });
   }, [mounted, router]);
 
   useEffect(() => {
@@ -614,12 +614,12 @@ export default function CheckoutPage() {
               {step === "payment"
                 ? "Complete Your Payment"
                 : paymentStatus === "APPROVED"
-                ? "Subscription Activated"
-                : paymentStatus === "REJECTED"
-                ? "Payment Rejected"
-                : paymentStatus === "VERIFIED"
-                ? "Payment Verified"
-                : "Payment Under Review"}
+                  ? "Subscription Activated"
+                  : paymentStatus === "REJECTED"
+                    ? "Payment Rejected"
+                    : paymentStatus === "VERIFIED"
+                      ? "Payment Verified"
+                      : "Payment Under Review"}
             </h1>
           </div>
           <div className="flex rounded-full border border-white/10 bg-white/[0.03] p-1 text-xs font-bold text-neutral-400">
@@ -646,15 +646,13 @@ export default function CheckoutPage() {
                           key={m.key}
                           type="button"
                           onClick={() => setSelectedMethod(m)}
-                          className={`flex items-center gap-3 rounded-xl border p-4 text-left transition ${
-                            isSelected
+                          className={`flex items-center gap-3 rounded-xl border p-4 text-left transition ${isSelected
                               ? "border-green-500 bg-green-500/5 text-white"
                               : "border-white/10 bg-white/[0.02] text-neutral-400 hover:border-white/20 hover:text-white"
-                          }`}
+                            }`}
                         >
-                          <span className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                            isSelected ? "border-green-500 bg-green-500 text-black" : "border-neutral-600"
-                          }`}>
+                          <span className={`flex h-5 w-5 items-center justify-center rounded-full border ${isSelected ? "border-green-500 bg-green-500 text-black" : "border-neutral-600"
+                            }`}>
                             {isSelected && <Check className="h-3 w-3 stroke-[3px]" />}
                           </span>
                           <div>
@@ -714,7 +712,7 @@ export default function CheckoutPage() {
                       <div>
                         <p className="text-xs font-semibold text-neutral-500">Amount to Pay</p>
                         <p className="mt-1 text-3xl font-bold tracking-tight text-green-300">
-                          {pricing ? `$${pricing.entryFee.toLocaleString()} USDT` : "Loading..."}
+                          {pricing ? `$${pricing.totalPayable.toLocaleString()} USDT` : "Loading..."}
                         </p>
                       </div>
                       <p className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-relaxed text-neutral-400">
@@ -760,7 +758,7 @@ export default function CheckoutPage() {
                       <div>
                         <p className="text-xs font-semibold text-neutral-500">Amount to Pay</p>
                         <p className="mt-1 text-3xl font-bold tracking-tight text-green-300">
-                          {pricing ? `$${pricing.entryFee.toLocaleString()} USD` : "Loading..."}
+                          {pricing ? `$${pricing.totalPayable.toLocaleString()} USD` : "Loading..."}
                         </p>
                       </div>
                       <p className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-relaxed text-neutral-400">
@@ -779,7 +777,7 @@ export default function CheckoutPage() {
 
                   const formData = new FormData(event.currentTarget);
                   let txnHash = String(formData.get("txnHash") || "").trim();
-                  
+
                   if (!txnHash) {
                     setPaymentError("Transaction reference is required.");
                     return;
@@ -800,7 +798,7 @@ export default function CheckoutPage() {
                   if (pricing?.isFlexible) {
                     const slug = fetchedPlan?.name?.split(" ")[0]?.toLowerCase() || "";
                     const minAllowed = PLAN_MIN_AMOUNTS[slug] || 1;
-                    const submittedAmount = pricing?.entryFee || 0;
+                    const submittedAmount = pricing?.baseAmount || 0;
                     if (submittedAmount < minAllowed) {
                       setPaymentError(
                         `Minimum deposit for the ${fetchedPlan?.name || "selected"} plan is $${minAllowed} USDT. Please enter at least $${minAllowed}.`
@@ -809,7 +807,7 @@ export default function CheckoutPage() {
                     }
                   }
 
-                  if (!pricing?.entryFee || pricing.entryFee <= 0) {
+                  if (!pricing?.baseAmount || pricing.baseAmount <= 0) {
                     setPaymentError("Please enter a valid deposit amount.");
                     return;
                   }
@@ -820,7 +818,8 @@ export default function CheckoutPage() {
                     user: paymentUser.name,
                     email: paymentUser.email,
                     plan: `${plan.name} ${plan.planType}`,
-                    amount: pricing?.entryFee || 0,
+                    amount: pricing?.totalPayable || 0,
+                    depositAmount: pricing?.baseAmount || 0,
                     txnHash,
                     screenshot: screenshotPreview,
                     network: selectedMethod?.key === "UPI" ? "UPI" : selectedMethod?.network || "TRC20",
@@ -851,23 +850,22 @@ export default function CheckoutPage() {
                       return PLAN_MIN_AMOUNTS[slug] || 1;
                     })()}
                     step="any"
-                    placeholder="Enter exact amount paid"
+                    placeholder="Enter deposit amount"
                     value={amountInput ?? ""}
                     onChange={(e) => setAmountInput(e.target.value)}
                     readOnly={!pricing?.isFlexible}
                     disabled={!pricing?.isFlexible}
-                    className={`mt-2 h-12 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white outline-none placeholder:text-neutral-600 focus:border-green-500/50 ${
-                      !pricing?.isFlexible ? "cursor-not-allowed text-neutral-400 bg-neutral-900/50" : ""
-                    }`}
+                    className={`mt-2 h-12 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 text-sm text-white outline-none placeholder:text-neutral-600 focus:border-green-500/50 ${!pricing?.isFlexible ? "cursor-not-allowed text-neutral-400 bg-neutral-900/50" : ""
+                      }`}
                   />
                   <p className="mt-1 text-[11px] text-neutral-500">
                     {pricing?.isFlexible
                       ? (() => {
-                          const slug = fetchedPlan?.name?.split(" ")[0]?.toLowerCase() || "";
-                          const min = PLAN_MIN_AMOUNTS[slug] || 1;
-                          return <>Minimum deposit: <span className="text-green-300 font-semibold">${min} USDT</span>. Enter the exact amount you sent.</>
-                        })()
-                      : <>Fixed entry fee: <span className="text-green-300 font-semibold">{plan.capital}</span>. Enter the exact amount you sent.</>
+                        const slug = fetchedPlan?.name?.split(" ")[0]?.toLowerCase() || "";
+                        const min = PLAN_MIN_AMOUNTS[slug] || 1;
+                        return <>Minimum deposit: <span className="text-green-300 font-semibold">${min} USDT</span>.</>
+                      })()
+                      : <>Fixed entry fee: <span className="text-green-300 font-semibold">{plan.capital}</span>.</>
                     }
                   </p>
                   {(!pricing?.isFlexible) && (
@@ -875,6 +873,23 @@ export default function CheckoutPage() {
                       <Info className="h-3.5 w-3.5 text-neutral-500" />
                       This plan has a fixed entry fee.
                     </p>
+                  )}
+
+                  {pricing && (
+                    <div className="mt-3 space-y-2 rounded-xl border border-white/5 bg-white/[0.01] p-3 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Platform Fee Rate:</span>
+                        <span className="font-semibold text-white">{pricing.platformFeePercent}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-neutral-500">Platform Fee:</span>
+                        <span className="font-semibold text-white">${pricing.platformFee.toLocaleString()} {selectedMethod?.key === "UPI" ? "USD" : "USDT"}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-white/5 pt-2 font-bold text-green-300">
+                        <span>Total Amount Payable:</span>
+                        <span>${pricing.totalPayable.toLocaleString()} {selectedMethod?.key === "UPI" ? "USD" : "USDT"}</span>
+                      </div>
+                    </div>
                   )}
                 </label>
 
@@ -952,25 +967,63 @@ export default function CheckoutPage() {
                   <p className="mt-4 text-sm leading-relaxed text-neutral-300">{plan.description}</p>
                   <div className="mt-4">
                     <SummaryRow label="Capital Range" value={plan.capital} />
-                    <SummaryRow label="Profit Fee" value={plan.profitFee} highlight />
+                    <SummaryRow
+                      label="Platform Fee"
+                      value={pricing ? `${pricing.platformFeePercent}%` : "Dynamic"}
+                      highlight
+                    />
                     <SummaryRow label="Plan Type" value={plan.planType} />
-                    <SummaryRow 
-                      label="Amount to Pay" 
+                    <SummaryRow
+                      label="Deposit Amount"
                       value={
-                        pricing 
+                        pricing
                           ? selectedMethod?.key === "UPI"
-                            ? `$${pricing.entryFee.toLocaleString()} USD`
-                            : `$${pricing.entryFee.toLocaleString()} USDT`
+                            ? `$${pricing.baseAmount.toLocaleString()} USD`
+                            : `$${pricing.baseAmount.toLocaleString()} USDT`
                           : "Loading..."
-                      } 
-                      highlight 
+                      }
+                    />
+                    <SummaryRow
+                      label="Platform Fee Amount"
+                      value={
+                        pricing
+                          ? selectedMethod?.key === "UPI"
+                            ? `$${pricing.platformFee.toLocaleString()} USD`
+                            : `$${pricing.platformFee.toLocaleString()} USDT`
+                          : "Loading..."
+                      }
+                    />
+                    <SummaryRow
+                      label="Total Amount Payable"
+                      value={
+                        pricing
+                          ? selectedMethod?.key === "UPI"
+                            ? `$${pricing.totalPayable.toLocaleString()} USD`
+                            : `$${pricing.totalPayable.toLocaleString()} USDT`
+                          : "Loading..."
+                      }
+                      highlight
                     />
                   </div>
-                  {pricing?.platformFeeNote && (
-                    <p className="mt-3 text-xs text-neutral-400 italic">
-                      Note: {pricing.platformFeeNote} (not charged upfront).
+                  <div className="mt-4 border-t border-white/5 pt-4 text-[11px] text-neutral-400 space-y-2">
+                    <p className="font-semibold text-white">Fee Structure:</p>
+                    <ul className="list-disc pl-4 space-y-1">
+                      {plan.slug === "club" ? (
+                        <>
+                          <li>$10 – $100 → 5%</li>
+                          <li>Above $100 → 4%</li>
+                        </>
+                      ) : (
+                        <>
+                          <li>$1,000 – $9,999.99 → 5%</li>
+                          <li>$10,000+ → 4%</li>
+                        </>
+                      )}
+                    </ul>
+                    <p className="italic mt-2">
+                      Platform fee is calculated automatically based on your deposit amount.
                     </p>
-                  )}
+                  </div>
                 </div>
               </div>
 

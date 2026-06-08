@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useAdminStore } from "../../../../hooks/adminStore";
@@ -893,9 +893,9 @@ export default function AdminNotificationsPage() {
                             <thead>
                               <tr className="border-b border-white/5 text-neutral-500 font-bold uppercase tracking-wider text-[9px] bg-black/5">
                                 <th className="px-5 py-2.5">Event</th>
-                                <th className="px-5 py-2.5 text-center w-24">🔔 Bell</th>
-                                <th className="px-5 py-2.5 text-center w-24">📱 Push</th>
-                                <th className="px-5 py-2.5 text-center w-24">⚡ Socket</th>
+                                <th className="px-5 py-2.5 text-center w-24">≡ƒöö Bell</th>
+                                <th className="px-5 py-2.5 text-center w-24">≡ƒô▒ Push</th>
+                                <th className="px-5 py-2.5 text-center w-24">ΓÜí Socket</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
@@ -936,7 +936,7 @@ export default function AdminNotificationsPage() {
                               <p className="text-xs font-bold text-neutral-200">{ev.friendlyLabel}</p>
                               <div className="flex flex-wrap gap-4 items-center">
                                 <div className="flex items-center gap-1.5 select-none">
-                                  <span className="text-[10px] text-neutral-500 font-bold">🔔 Bell:</span>
+                                  <span className="text-[10px] text-neutral-500 font-bold">≡ƒöö Bell:</span>
                                   <ToggleSwitch
                                     checked={ev.bellEnabled}
                                     onChange={() => handleDirectToggle(ev, "bellEnabled")}
@@ -944,7 +944,7 @@ export default function AdminNotificationsPage() {
                                   />
                                 </div>
                                 <div className="flex items-center gap-1.5 select-none">
-                                  <span className="text-[10px] text-neutral-500 font-bold">📱 Push:</span>
+                                  <span className="text-[10px] text-neutral-500 font-bold">≡ƒô▒ Push:</span>
                                   <ToggleSwitch
                                     checked={ev.pushEnabled}
                                     onChange={() => handleDirectToggle(ev, "pushEnabled")}
@@ -952,7 +952,7 @@ export default function AdminNotificationsPage() {
                                   />
                                 </div>
                                 <div className="flex items-center gap-1.5 select-none">
-                                  <span className="text-[10px] text-neutral-500 font-bold">⚡ Socket:</span>
+                                  <span className="text-[10px] text-neutral-500 font-bold">ΓÜí Socket:</span>
                                   <ToggleSwitch
                                     checked={ev.socketEnabled}
                                     onChange={() => handleDirectToggle(ev, "socketEnabled")}
@@ -992,7 +992,7 @@ export default function AdminNotificationsPage() {
                     Browser push notifications will not deliver to this device. Current permission: <span className="font-mono text-white font-bold">{notificationPermission}</span>.
                     {notificationPermission === "granted" && (
                       <span className="text-yellow-400/90 block mt-1 font-semibold">
-                        ⚠️ Warning: Notifications are allowed by the browser, but this device has not registered successfully in the database.
+                        ΓÜá∩╕Å Warning: Notifications are allowed by the browser, but this device has not registered successfully in the database.
                       </span>
                     )}
                   </p>
@@ -1157,9 +1157,9 @@ export default function AdminNotificationsPage() {
                         <span className="block text-[11px] font-semibold text-neutral-400">Target Output Channels</span>
                         <div className="flex flex-wrap gap-4">
                           {[
-                            { key: "BELL", label: "🔔 Bell" },
-                            { key: "PUSH", label: "📱 Push" },
-                            { key: "SOCKET", label: "⚡ Socket" }
+                            { key: "BELL", label: "≡ƒöö Bell" },
+                            { key: "PUSH", label: "≡ƒô▒ Push" },
+                            { key: "SOCKET", label: "ΓÜí Socket" }
                           ].map(ch => {
                             const checked = broadcastForm.channels.includes(ch.key);
                             return (
@@ -1630,9 +1630,9 @@ export default function AdminNotificationsPage() {
                 <span className="block text-[10px] text-neutral-500 font-bold uppercase mb-1">Channel</span>
                 <select value={logFilters.channel} onChange={(e) => { setLogFilters({ ...logFilters, channel: e.target.value }); }} className="h-9 border border-white/10 bg-[#081118] text-xs text-white rounded-lg px-2 w-full outline-none font-semibold cursor-pointer">
                   <option value="">All Channels</option>
-                  <option value="BELL">🔔 Bell</option>
-                  <option value="PUSH">📱 Push</option>
-                  <option value="SOCKET">⚡ Socket</option>
+                  <option value="BELL">≡ƒöö Bell</option>
+                  <option value="PUSH">≡ƒô▒ Push</option>
+                  <option value="SOCKET">ΓÜí Socket</option>
                 </select>
               </label>
 
@@ -1716,7 +1716,7 @@ export default function AdminNotificationsPage() {
                         {new Date(d.createdAt).toLocaleString()}
                       </td>
                     </tr>
-                  ))}
+                  ))}`
                   {getFilteredDeliveries().length === 0 && (
                     <tr>
                       <td colSpan={true ? 6 : 5} className="px-4 py-8 text-center text-neutral-500">No matching logs found.</td>

@@ -58,6 +58,20 @@ export class AdminController {
     }
   }
 
+  @Get('user-stats')
+  @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
+  async getUserStats(@Res() res: Response) {
+    try {
+      const result = await this.adminService.getUserStats();
+      return res.json(result);
+    } catch (error: any) {
+      console.error('Admin user stats load error:', error);
+      return res
+        .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .json({ message: 'Internal server error' });
+    }
+  }
+
   @Get('dashboard/revenue-chart')
   @Roles('SUPER_ADMIN', 'MANAGER', 'VIEWER')
   async getRevenueChart(@Res() res: Response) {

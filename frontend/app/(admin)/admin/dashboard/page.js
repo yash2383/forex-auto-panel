@@ -898,6 +898,75 @@ function PlatformOverview({ onVerify, onApprove, onReject }) {
   const activeWalletBalance = activeStats.activeWalletBalance;
   const totalProfit = activeStats.totalProfitPaid ?? activeStats.totalProfit;
 
+  // Live user stats
+  const [userStats, setUserStats] = useState(null);
+  const [userStatsLoading, setUserStatsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserStats = async () => {
+      try {
+        const res = await apiFetch("/api/admin/user-stats");  
+        if (res.ok) {
+          const data = await res.json();
+          setUserStats(data);
+        }
+      } catch (e) {
+        console.error("Failed to load user stats:", e);
+      } finally {
+        setUserStatsLoading(false);
+      }
+    };
+    fetchUserStats();
+  }, []);
+
+  const userStatCards = [
+    {
+      label: "All Users",
+      desc: "Total registered users",
+      value: userStats?.totalUsers ?? 0,
+      bg: "from-blue-500/20 to-blue-500/5",
+      border: "border-blue-500/30",
+      text: "text-blue-300",
+      dot: "bg-blue-400",
+    },
+    {
+      label: "Users Without Deposit",
+      desc: "No approved payment",
+      value: userStats?.usersWithoutDeposit ?? 0,
+      bg: "from-orange-500/20 to-orange-500/5",
+      border: "border-orange-500/30",
+      text: "text-orange-300",
+      dot: "bg-orange-400",
+    },
+    {
+      label: "Users With Deposit",
+      desc: "At least 1 approved payment",
+      value: userStats?.usersWithDeposit ?? 0,
+      bg: "from-green-500/20 to-green-500/5",
+      border: "border-green-500/30",
+      text: "text-green-300",
+      dot: "bg-green-400",
+    },
+    {
+      label: "Individual Plan Users",
+      desc: "Active individual plan subscribers",
+      value: userStats?.individualPlanUsers ?? 0,
+      bg: "from-violet-500/20 to-violet-500/5",
+      border: "border-violet-500/30",
+      text: "text-violet-300",
+      dot: "bg-violet-400",
+    },
+    {
+      label: "Club Plan Users",
+      desc: "Active club plan subscribers",
+      value: userStats?.clubPlanUsers ?? 0,
+      bg: "from-cyan-500/20 to-cyan-500/5",
+      border: "border-cyan-500/30",
+      text: "text-cyan-300",
+      dot: "bg-cyan-400",
+    },
+  ];
+
   return (
     <>
       <section className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 min-w-0">
@@ -912,6 +981,36 @@ function PlatformOverview({ onVerify, onApprove, onReject }) {
         ].map((item) => (
           <MetricCard key={item.label} item={item} />
         ))}
+      </section>
+
+      {/* User Statistics Section */}
+      <section className="rounded-xl border border-white/[0.08] bg-[#081118]/95 shadow-[0_18px_65px_-55px_rgba(0,208,156,0.65)] p-5">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-base font-bold text-white">User Statistics</h2>
+            <p className="text-xs text-neutral-500 mt-0.5">Live counts calculated from the database</p>
+          </div>
+          {userStatsLoading && (
+            <span className="text-[10px] text-neutral-500 font-semibold animate-pulse">Loading…</span>
+          )}
+        </div>
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {userStatCards.map((card) => (
+            <div
+              key={card.label}
+              className={`rounded-xl border ${card.border} bg-gradient-to-br ${card.bg} p-4 flex flex-col gap-3`}
+            >
+              <div className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${card.dot} shrink-0`} />
+                <p className="text-[11px] font-semibold text-neutral-300 leading-tight">{card.label}</p>
+              </div>
+              <p className={`text-2xl font-black ${card.text} leading-none`}>
+                {userStatsLoading ? "—" : (userStats ? card.value.toLocaleString() : "—")}
+              </p>
+              <p className="text-[10px] text-neutral-500">{card.desc}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-6 w-full min-w-0">
@@ -933,6 +1032,7 @@ function PlatformOverview({ onVerify, onApprove, onReject }) {
     </>
   );
 }
+
 
 function AdminSectionPage({
   section, activeFilter = "All", onView, onEdit, onDelete, onBlock, onVerify, onApprove, onReject,

@@ -197,9 +197,12 @@ export default function Home() {
       name: plan.name,
       tag: plan.subtitle,
       price: plan.capitalLabel,
-      priceNote: plan.capitalLabel === "Custom Pricing" ? "" : "capital",
+      priceNote:
+        plan.capitalLabel === "Custom Pricing" || plan.capitalLabel?.toLowerCase().includes("capital")
+          ? ""
+          : "capital",
       description: plan.desc,
-      features: plan.features || [],
+      features: (plan.features || []).slice(0, 5),
       cta: plan.btnText || "Get Started",
       href,
       onSelect: () => handlePlanSelect(plan),

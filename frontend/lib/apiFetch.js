@@ -55,6 +55,7 @@ export async function apiFetch(endpoint, options = {}) {
         const current = window.location.pathname + window.location.search;
         if (
           !window.location.pathname.startsWith('/login') &&
+          !window.location.pathname.startsWith('/admin/login') &&
           !window.location.pathname.startsWith('/signup')
         ) {
           window.location.href = `/login?redirect=${encodeURIComponent(current)}`;

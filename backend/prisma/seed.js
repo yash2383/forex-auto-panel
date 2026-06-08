@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { hashPassword } from "../lib/crypto.js";
+import { hashPassword } from "../dist/common/crypto.util.js";
 
 const prisma = new PrismaClient();
 
@@ -82,10 +82,10 @@ async function main() {
   });
 
   console.log("Seeding admins...");
-  const harshAdmin = await prisma.admin.create({
+  const mainAdmin = await prisma.admin.create({
     data: {
-      name: "Harsh Mehta",
-      email: "harsh@forex-auto-panel.capital",
+      name: "Admin",
+      email: "admin@gmail.com",
       passwordHash: hashPassword("password123"),
       role: "SUPER_ADMIN",
       status: "ACTIVE",
@@ -93,36 +93,6 @@ async function main() {
         partners: ["view", "create", "edit", "delete"],
         admins: ["view", "create", "edit", "delete"],
         reports: ["view", "create", "edit", "delete"],
-      },
-    },
-  });
-
-  const johnAdmin = await prisma.admin.create({
-    data: {
-      name: "John Doe",
-      email: "john@forex-auto-panel.capital",
-      passwordHash: hashPassword("password123"),
-      role: "MANAGER",
-      status: "ACTIVE",
-      permissions: {
-        partners: ["view", "create", "edit"],
-        admins: ["view"],
-        reports: ["view"],
-      },
-    },
-  });
-
-  const sarahAdmin = await prisma.admin.create({
-    data: {
-      name: "Sarah Jenkins",
-      email: "sarah@forex-auto-panel.capital",
-      passwordHash: hashPassword("password123"),
-      role: "VIEWER",
-      status: "ACTIVE",
-      permissions: {
-        partners: ["view"],
-        admins: [],
-        reports: ["view"],
       },
     },
   });
@@ -146,6 +116,7 @@ async function main() {
         email: u.email,
         passwordHash: hashPassword("password123"),
         status: u.status,
+        referralCode: "REF_" + u.name.toUpperCase() + Math.floor(Math.random() * 1000),
       },
     });
 
@@ -357,7 +328,7 @@ async function main() {
   console.log("Seeding security log...");
   await prisma.securityEvent.create({
     data: {
-      adminId: harshAdmin.id,
+      adminId: mainAdmin.id,
       action: "SEED_COMPLETE",
       reason: "Successfully seeded default database dataset with complete balanced ledger logs",
       ipAddress: "127.0.0.1",

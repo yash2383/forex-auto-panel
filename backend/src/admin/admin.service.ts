@@ -277,6 +277,69 @@ export class AdminService implements OnModuleInit {
     };
   }
 
+  async getUserStats() {
+    const [
+      totalUsers,
+      usersWithoutDeposit,
+      usersWithDeposit,
+      individualPlanUsers,
+      clubPlanUsers,
+    ] = await Promise.all([
+      // All registered (non-deleted) users
+      this.prisma.user.count({ where: { isDeleted: false } }),
+
+      // Users with NO approved payments
+      this.prisma.user.count({
+        where: {
+          isDeleted: false,
+          payments: { none: { status: 'APPROVED' } },
+        },
+      }),
+
+      // Users with at least one approved payment
+      this.prisma.user.count({
+        where: {
+          isDeleted: false,
+          payments: { some: { status: 'APPROVED' } },
+        },
+      }),
+
+      // Users with an active Individual plan
+      this.prisma.user.count({
+        where: {
+          isDeleted: false,
+          userPlans: {
+            some: {
+              active: true,
+              plan: { name: { contains: 'Individual', mode: 'insensitive' } },
+            },
+          },
+        },
+      }),
+
+      // Users with an active Club plan
+      this.prisma.user.count({
+        where: {
+          isDeleted: false,
+          userPlans: {
+            some: {
+              active: true,
+              plan: { name: { contains: 'Club', mode: 'insensitive' } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      totalUsers,
+      usersWithoutDeposit,
+      usersWithDeposit,
+      individualPlanUsers,
+      clubPlanUsers,
+    };
+  }
+
   async getRevenueChartData() {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 6); // Last 7 days including today

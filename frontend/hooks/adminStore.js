@@ -82,11 +82,7 @@ export const useAdminStore = create((set, get) => ({
     { id: "notif-2", audience: "Expired Users", message: "Renew your plan today", channel: "Email", status: "Sent" },
     { id: "notif-3", audience: "Active Users", message: "New trading update added", channel: "In-app", status: "Queued" }
   ],
-  plans: [
-    { id: "1", name: "Club Plan", subtitle: "Micro Capital", capitalLabel: "$10 - $100", desc: "Ideal plan for new traders starting out with small test capital.", features: ["5% fee on profits", "Beginner-friendly setup", "24/7 automated execution", "Access to core automation"], btnText: "Get Started", status: "Active", isPopular: false },
-    { id: "2", name: "Individual Plan", subtitle: "Advanced / Full Access", capitalLabel: "$1000+", desc: "For advanced traders who require priority execution and higher capital limits.", features: ["Reduced profit fee (5% to 4%)", "Advanced trading access", "Priority low-latency execution API", "Enhanced performance tracking"], btnText: "Start Trading", status: "Active", isPopular: true },
-    { id: "3", name: "Custom Plan", subtitle: "Flexible / Tailored", capitalLabel: "Custom Pricing", desc: "Need a personalized setup? Get a custom trading plan based on your capital, execution preference, and performance goals.", features: ["Customized profit fee structure", "Dedicated execution optimization", "Priority execution & support", "Scalable capital management"], btnText: "Contact Us", status: "Active", isPopular: false }
-  ],
+  plans: [],
   settings: {
     upiId: "",
     upiName: "",

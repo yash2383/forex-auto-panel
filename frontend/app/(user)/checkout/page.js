@@ -190,39 +190,69 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
     const formattedPlan = rawPlanName.charAt(0).toUpperCase() + rawPlanName.slice(1);
 
     return (
-      <section className="mx-auto max-w-3xl rounded-2xl border border-green-500/30 bg-[#0A0A0A]/95 p-8 text-center shadow-[0_0_80px_-30px_rgba(34,197,94,0.5)] sm:p-12">
-        <span className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-green-500/10 text-green-400 shadow-[0_0_40px_rgba(34,197,94,0.2)]">
-          <CircleCheck className="h-12 w-12" />
-        </span>
-
-        <h1 className="mt-8 text-3xl font-extrabold tracking-tight text-green-400 sm:text-4xl animate-pulse">
-          🎉 Congratulations!
-        </h1>
-
-        <p className="mx-auto mt-4 max-w-lg text-lg text-neutral-300">
-          Your subscription has been activated successfully.
-        </p>
-
-        <div className="mx-auto mt-8 max-w-xs rounded-2xl border border-white/5 bg-white/[0.02] p-6 text-left space-y-4">
-          <div className="flex items-center justify-between text-neutral-400">
-            <span className="text-sm">Plan:</span>
-            <span className="text-sm font-bold text-white">{formattedPlan}</span>
+      <section className="mx-auto max-w-3xl overflow-hidden rounded-3xl border border-green-500/30 bg-[#0A0A0A]/95 text-center shadow-[0_0_100px_-20px_rgba(34,197,94,0.45)]">
+        {/* Glowing top banner */}
+        <div className="relative bg-gradient-to-br from-green-900/60 via-emerald-900/40 to-[#0A0A0A] px-8 pt-12 pb-8">
+          {/* Radial glow */}
+          <div className="pointer-events-none absolute inset-0 flex items-start justify-center">
+            <div className="h-48 w-72 rounded-full bg-green-500/20 blur-3xl" />
           </div>
-          <div className="flex items-center justify-between text-neutral-400">
-            <span className="text-sm">Status:</span>
-            <span className="text-sm font-bold text-green-400">Active</span>
-          </div>
+
+          {/* Animated tick circle */}
+          <span className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-green-500/20 text-green-400 shadow-[0_0_50px_rgba(34,197,94,0.4)] ring-1 ring-green-500/30">
+            <CircleCheck className="h-12 w-12 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]" />
+          </span>
+
+          <h1 className="relative mt-6 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+            🎉 Congratulations!
+          </h1>
+          <p className="relative mx-auto mt-3 max-w-md text-base text-green-200/80">
+            You are now accessing the dashboard.
+          </p>
         </div>
 
-        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={() => router.push("/dashboard")}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-green-500 px-8 text-sm font-bold text-black transition hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98]"
-          >
-            Go to Dashboard
-            <ArrowRight className="h-4 w-4" />
-          </button>
+        {/* Details card */}
+        <div className="px-8 py-8 sm:px-12">
+          <div className="mx-auto mb-8 max-w-xs divide-y divide-white/5 rounded-2xl border border-white/5 bg-white/[0.02] px-6">
+            <div className="flex items-center justify-between py-4 text-sm">
+              <span className="text-neutral-500">Plan</span>
+              <span className="font-bold text-white">{formattedPlan}</span>
+            </div>
+            <div className="flex items-center justify-between py-4 text-sm">
+              <span className="text-neutral-500">Amount</span>
+              <span className="font-bold text-white">{formattedAmount}</span>
+            </div>
+            <div className="flex items-center justify-between py-4 text-sm">
+              <span className="text-neutral-500">Status</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 px-3 py-0.5 text-xs font-bold text-green-400 ring-1 ring-green-500/30">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+                Active
+              </span>
+            </div>
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard")}
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-green-500 px-8 text-sm font-bold text-black transition hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98] sm:w-auto"
+            >
+              Go to Dashboard
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-8 text-sm font-bold text-white transition hover:bg-white/[0.09] hover:scale-[1.02] active:scale-[0.98] sm:w-auto"
+            >
+              Visit Website
+            </button>
+          </div>
+
+          <p className="mt-6 text-xs text-neutral-600">
+            Your subscription is now active. Start trading on the dashboard.
+          </p>
         </div>
       </section>
     );
@@ -323,7 +353,7 @@ export default function CheckoutPage() {
   const [planParam, setPlanParam] = useState("");
 
   const [step, setStep] = useState("payment");
-  const [paymentUser, setPaymentUser] = useState({ name: "Guest", email: "" });
+  const [paymentUser, setPaymentUser] = useState({ name: "Guest", email: "", role: "USER" });
   const [screenshotPreview, setScreenshotPreview] = useState("");
   const [screenshotName, setScreenshotName] = useState("");
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
@@ -396,6 +426,23 @@ export default function CheckoutPage() {
         router.replace(`/login?redirect=${encodeURIComponent(`/checkout?plan=${requestedPlan}&step=${selectedStep}`)}`);
       }, 0);
       return;
+    }
+
+    // Admins and partners should not access the user checkout page
+    try {
+      const stored = localStorage.getItem("forex-auto-panel-user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const role = parsed?.role || "USER";
+        if (role !== "USER") {
+          setTimeout(() => {
+            router.replace("/admin/dashboard");
+          }, 0);
+          return;
+        }
+      }
+    } catch {
+      // If we can't parse the user, proceed normally
     }
 
     // Auto-redirect if they already have an active/pending payment
@@ -517,11 +564,12 @@ export default function CheckoutPage() {
           const parsed = JSON.parse(stored);
           setPaymentUser({
             name: parsed.name || "Guest",
-            email: parsed.email || ""
+            email: parsed.email || "",
+            role: parsed.role || "USER"
           });
         }
       } catch {
-        setPaymentUser({ name: "Guest", email: "" });
+        setPaymentUser({ name: "Guest", email: "", role: "USER" });
       }
     }
   }, []);
@@ -604,32 +652,34 @@ export default function CheckoutPage() {
   return (
     <main className="min-h-screen bg-[#050505] px-4 pb-20 pt-28 text-white sm:px-6 lg:px-8">
       <section className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-green-300">
-              <LockKeyhole className="h-4 w-4" />
-              Secure payment processing via {selectedMethod?.key || "USDT"}
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-              {step === "payment"
-                ? "Complete Your Payment"
-                : paymentStatus === "APPROVED"
-                  ? "Subscription Activated"
-                  : paymentStatus === "REJECTED"
-                    ? "Payment Rejected"
-                    : paymentStatus === "VERIFIED"
-                      ? "Payment Verified"
-                      : "Payment Under Review"}
-            </h1>
+        {paymentStatus !== "APPROVED" && (
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-green-300">
+                <LockKeyhole className="h-4 w-4" />
+                Secure payment processing via {selectedMethod?.key || "USDT"}
+              </p>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+                {step === "payment"
+                  ? "Complete Your Payment"
+                  : paymentStatus === "APPROVED"
+                    ? "Subscription Activated"
+                    : paymentStatus === "REJECTED"
+                      ? "Payment Rejected"
+                      : paymentStatus === "VERIFIED"
+                        ? "Payment Verified"
+                        : "Payment Under Review"}
+              </h1>
+            </div>
+            <div className="flex rounded-full border border-white/10 bg-white/[0.03] p-1 text-xs font-bold text-neutral-400">
+              {["payment", "status"].map((item, index) => (
+                <span key={item} className={`rounded-full px-3 py-2 ${step === item ? "bg-green-500 text-black" : ""}`}>
+                  {index + 1}. {item}
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="flex rounded-full border border-white/10 bg-white/[0.03] p-1 text-xs font-bold text-neutral-400">
-            {["payment", "status"].map((item, index) => (
-              <span key={item} className={`rounded-full px-3 py-2 ${step === item ? "bg-green-500 text-black" : ""}`}>
-                {index + 1}. {item}
-              </span>
-            ))}
-          </div>
-        </div>
+        )}
 
         {step === "payment" && (
           <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
@@ -774,6 +824,12 @@ export default function CheckoutPage() {
                 onSubmit={async (event) => {
                   event.preventDefault();
                   if (isSubmittingPayment) return;
+
+                  // Safety guard: admins/partners must not submit deposits via this flow
+                  if (paymentUser.role && paymentUser.role !== "USER") {
+                    setPaymentError("Admin and partner accounts cannot make deposits through the checkout page. Please use the admin panel.");
+                    return;
+                  }
 
                   const formData = new FormData(event.currentTarget);
                   let txnHash = String(formData.get("txnHash") || "").trim();

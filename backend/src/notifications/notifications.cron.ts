@@ -16,7 +16,7 @@ export class NotificationsCron {
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly observabilityService: ObservabilityService,
-  ) {}
+  ) { }
 
   /**
    * Run cleanup, archiving, and daily analytics builder at 00:00 (midnight) daily

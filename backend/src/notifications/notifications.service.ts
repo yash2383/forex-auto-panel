@@ -628,9 +628,9 @@ export class NotificationsService implements OnModuleInit {
       return this.prisma.user.findMany({
         where: {
           isDeleted: false,
-          investments: {
+          userPlans: {
             some: {
-              status: 'ACTIVE',
+              active: true,
               plan: { name: { contains: 'Club', mode: 'insensitive' } },
             },
           },
@@ -643,9 +643,9 @@ export class NotificationsService implements OnModuleInit {
       return this.prisma.user.findMany({
         where: {
           isDeleted: false,
-          investments: {
+          userPlans: {
             some: {
-              status: 'ACTIVE',
+              active: true,
               plan: { name: { contains: 'Individual', mode: 'insensitive' } },
             },
           },
@@ -731,8 +731,8 @@ export class NotificationsService implements OnModuleInit {
         status: true,
         lastLoginAt: true,
         isVerified: true,
-        investments: {
-          where: { status: 'ACTIVE' },
+        userPlans: {
+          where: { active: true },
           select: {
             plan: {
               select: { name: true },
@@ -744,7 +744,7 @@ export class NotificationsService implements OnModuleInit {
 
     const resolvedUsers = dbUsers.map((u) => {
       const planName =
-        u.investments[0]?.plan?.name ||
+        u.userPlans[0]?.plan?.name ||
         (u.status === 'VIP' ? 'VIP' : 'Individual');
       const isOnline = u.lastLoginAt
         ? Date.now() - new Date(u.lastLoginAt).getTime() < 15 * 60 * 1000
@@ -758,7 +758,7 @@ export class NotificationsService implements OnModuleInit {
         status: u.status,
         isOnline,
         isVerified: u.isVerified,
-        hasActiveInvestment: u.investments.length > 0,
+        hasActiveInvestment: u.userPlans.length > 0,
       };
     });
 

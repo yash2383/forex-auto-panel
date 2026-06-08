@@ -129,7 +129,7 @@ export const useAdminStore = create((set, get) => ({
   isInitialized: false,
   fetchData: async () => {
     try {
-      const userStr = typeof window !== 'undefined' ? localStorage.getItem('tradebot-user') : null;
+      const userStr = typeof window !== 'undefined' ? localStorage.getItem('forex-auto-panel-user') : null;
       if (!userStr) {
         set({ currentUser: null });
         return;
@@ -138,9 +138,9 @@ export const useAdminStore = create((set, get) => ({
       const meRes = await apiFetch("/api/auth/me");
       if (!meRes.ok) {
         if (meRes.status === 401) {
-          localStorage.removeItem("tradebot-user");
-          localStorage.removeItem("tradebot-authenticated");
-          document.cookie = 'tradebot-token=; path=/; max-age=0; SameSite=Lax';
+          localStorage.removeItem("forex-auto-panel-user");
+          localStorage.removeItem("forex-auto-panel-authenticated");
+          document.cookie = 'forex-auto-panel-token=; path=/; max-age=0; SameSite=Lax';
         }
         set({ currentUser: null });
         return;

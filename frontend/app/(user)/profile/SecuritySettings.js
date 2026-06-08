@@ -67,9 +67,9 @@ export default function SecuritySettings({ profile }) {
     try {
       await apiFetch("/api/auth/logout", { method: "POST" });
     } catch {}
-    localStorage.removeItem("tradebot-user");
-    localStorage.removeItem("tradebot-authenticated");
-    document.cookie = "tradebot-token=; path=/; max-age=0; SameSite=Lax";
+    localStorage.removeItem("forex-auto-panel-user");
+    localStorage.removeItem("forex-auto-panel-authenticated");
+    document.cookie = "forex-auto-panel-token=; path=/; max-age=0; SameSite=Lax";
     useAdminStore.setState({ currentUser: null });
     window.location.href = "/login";
   };

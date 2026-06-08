@@ -1,6 +1,6 @@
-# Tradebot Public Marketing Website Documentation
+# Forex Auto Panel Public Marketing Website Documentation
 
-Welcome to the comprehensive technical and operational documentation of the Tradebot Public Marketing Website subsystem. This document details the routes, custom layouts, modular styling elements, calculation engines, and interactive views of the public web application located under the root of `app/`.
+Welcome to the comprehensive technical and operational documentation of the Forex Auto Panel Public Marketing Website subsystem. This document details the routes, custom layouts, modular styling elements, calculation engines, and interactive views of the public web application located under the root of `app/`.
 
 ---
 
@@ -34,7 +34,7 @@ The website uses a custom styled dark layout (`#050505`) with green neon accents
 *   It updates the document's body class to `.light-theme` when set to light.
 *   Persistent theme configuration is synchronized with the client browser's local storage:
     ```javascript
-    localStorage.setItem("tradebot-theme", isLight ? "light" : "dark");
+    localStorage.setItem("forex-auto-panel-theme", isLight ? "light" : "dark");
     ```
 
 ### B. Typography & Fonts (`layout.js`)
@@ -54,7 +54,7 @@ The marketing homepage utilizes a sequence of elements to engage prospects:
 *   **Title Header**: Features high-impact neon messaging: *"Your Trading Works Automated. Intelligent. Profitable."*
 *   **Interactive Call-to-Actions**: Links to the `/dashboard` or down to `/past-trades`. Includes hover micro-animations (e.g. rotating icons, gradient border expansions).
 
-### B. "Meet Tradebot" Feature Section
+### B. "Meet Forex Auto Panel" Feature Section
 *   A side-by-side showcase detailing structural integration:
     *   *Highlights grid*: Highlights consistent performance, 24/7 active runtimes, and execution triggers.
     *   *Dynamic Exchange Cards*: Four grid items outlining integrations with Binance, TradingView, MetaTrader, and KuCoin.

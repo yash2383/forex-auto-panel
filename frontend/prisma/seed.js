@@ -86,7 +86,7 @@ async function main() {
   const harshAdmin = await prisma.admin.create({
     data: {
       name: "Harsh Mehta",
-      email: "harsh@nexus.com",
+      email: "harsh@forex-auto-panel.capital",
       passwordHash: hashPassword("password123"),
       role: "SUPER_ADMIN",
       status: "ACTIVE",
@@ -101,7 +101,7 @@ async function main() {
   const johnAdmin = await prisma.admin.create({
     data: {
       name: "John Doe",
-      email: "john@nexus.com",
+      email: "john@forex-auto-panel.capital",
       passwordHash: hashPassword("password123"),
       role: "MANAGER",
       status: "ACTIVE",
@@ -116,7 +116,7 @@ async function main() {
   const sarahAdmin = await prisma.admin.create({
     data: {
       name: "Sarah Jenkins",
-      email: "sarah@nexus.com",
+      email: "sarah@forex-auto-panel.capital",
       passwordHash: hashPassword("password123"),
       role: "VIEWER",
       status: "ACTIVE",
@@ -269,7 +269,7 @@ async function main() {
   await prisma.systemSettings.create({
     data: {
       partnerId: null, // Global setting
-      upiId: "tradebot@upi",
+      upiId: "forex-auto-panel@upi",
       usdtAddress: "TXYZ123ABC456DEF789GHI",
       usdtNetwork: "TRC20",
       referralFeePct: 10.00,

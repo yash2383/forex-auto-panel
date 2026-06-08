@@ -236,7 +236,7 @@ export default function ReportsPage() {
       const fileNameMatch = contentDisposition.match(/filename="([^"]+)"/);
       const fileName =
         fileNameMatch?.[1] ||
-        `Tradebot_${type}_${new Date().toISOString().slice(0, 10)}.${format}`;
+        `Forex_Auto_Panel_${type}_${new Date().toISOString().slice(0, 10)}.${format}`;
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

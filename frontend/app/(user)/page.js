@@ -275,19 +275,19 @@ export default function Home() {
           <div className="inline-flex animate-hero-element animate-badge mb-6 items-center">
             <div
               className="inline-flex gap-2 text-[11px] font-medium text-green-300 bg-green-500/10 border-green-500/20 border rounded-full pt-1 pr-3 pb-1 pl-3 backdrop-blur-sm gap-x-2 gap-y-2 items-center">
-              Tradebot Report: Live market automation for modern traders</div>
+              Forex Auto Panel Report: Live market automation for modern traders</div>
           </div>
 
 
           <h1
             className="text-4xl sm:text-6xl lg:text-7xl leading-[1.1] animate-hero-element animate-title-1 font-medium text-white tracking-tighter mb-6">
-            Your Trading Works <br className="hidden sm:block" /> <span className="text-[#ffffff]"><span
-              className="text-green-300">Automated. Intelligent. Profitable.</span></span></h1>
+            Automated Forex Trading <br className="hidden sm:block" /> <span className="text-[#ffffff]"><span
+              className="text-green-300">Made Simple</span></span></h1>
 
 
           <p
             className="sm:text-lg leading-relaxed animate-hero-element animate-description text-base text-neutral-400 max-w-2xl mt-4 mr-auto ml-auto">
-            Automated trading powered by real-time market execution.</p>
+            Grow your capital through intelligent forex trading automation. Monitor performance in real time while our system executes trading strategies around the clock.</p>
 
 
           <div
@@ -310,19 +310,18 @@ export default function Home() {
                   </svg>
                 </div>
                 <span
-                  className="transition-colors group-hover:text-green-100 text-sm font-semibold text-white tracking-tight">Dashboard</span>
+                  className="transition-colors group-hover:text-green-100 text-sm font-semibold text-white tracking-tight">Get Started</span>
               </div>
             </a>
 
-            <a href="#courses"
+            <a href="#pricing"
               className="group relative inline-flex items-center justify-center overflow-hidden rounded-full p-[1px] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)]">
               <span
                 className="absolute inset-[-100%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,transparent_0%,transparent_75%,#ffffff_100%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"></span>
               <span
                 className="absolute inset-0 rounded-full bg-white/10 transition-opacity duration-300 group-hover:opacity-0"></span>
               <span
-                className="flex items-center justify-center gap-2 transition-colors duration-300 group-hover:text-white text-sm font-medium text-neutral-400 bg-gradient-to-b from-neutral-900 to-black w-full h-full rounded-full pt-2.5 pr-5 pb-2.5 pl-5 relative shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">Explore
-                Platform <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                className="flex items-center justify-center gap-2 transition-colors duration-300 group-hover:text-white text-sm font-medium text-neutral-400 bg-gradient-to-b from-neutral-900 to-black w-full h-full rounded-full pt-2.5 pr-5 pb-2.5 pl-5 relative shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">View Plans <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
                   className="transition-transform duration-300 group-hover:translate-x-1">
                   <path d="M5 12h14"></path>
@@ -342,71 +341,52 @@ export default function Home() {
                     <div
                       className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-wider uppercase mb-4 border-green-500/20 bg-green-500/10 text-green-400">
                       <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-green-400"></span>
-                      Tradebot Platform
+                      Forex Auto Panel Platform
                     </div>
                     <h2 className="text-3xl sm:text-4xl lg:text-5xl leading-[1.05] text-white tracking-tighter font-normal">
-                      Meet Tradebot.
+                      About Forex Auto Panel
                     </h2>
-                    <p className="text-xs text-neutral-400 mt-2 leading-relaxed max-w-xs">
-                      Tradebot is an automated trading platform that handles market analysis, trade execution, and risk
-                      management -- so you can focus on growing your capital.
-                    </p>
+                    <div className="text-xs text-neutral-400 mt-4 leading-relaxed max-w-sm space-y-3">
+                      <p>
+                        Forex Auto Panel is an advanced automated forex trading platform designed to help users grow their capital through intelligent trading automation.
+                      </p>
+                      <p>
+                        Our system operates 24/7, executing forex market strategies automatically while providing users with complete transparency, real-time portfolio monitoring, and scalable investment opportunities.
+                      </p>
+                      <p>
+                        Whether you are a beginner or an experienced investor, Forex Auto Panel offers a simple and efficient way to participate in the forex market without requiring manual trading expertise.
+                      </p>
+                    </div>
 
 
-                    <div className="mt-10 relative pl-2">
+                    <div className="mt-8 relative pl-2">
 
                       <div
                         className="absolute left-[11px] top-2 bottom-6 w-px bg-gradient-to-b to-transparent opacity-30 from-green-500 via-teal-500">
                       </div>
 
-                      <div className="flex flex-col gap-8">
-
-                        <div className="flex gap-4 items-start relative group cursor-default">
-                          <div
-                            className="flex-shrink-0 w-6 h-6 rounded-full border flex items-center justify-center z-10 relative transition-colors border-green-500/30 bg-green-500/10 group-hover:border-green-400/50 shadow-[0_0_10px_rgba(34,197,94,0.2)]">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_5px_rgba(34,197,94,0.8)]"></div>
-                          </div>
-                          <div className="pt-0.5">
-                            <span className="text-sm font-medium text-white transition-colors group-hover:text-green-300">
-                              Trading that grows
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                        {[
+                          "Automated Forex Trading",
+                          "Real-Time Portfolio Tracking",
+                          "Secure Account Management",
+                          "Instant Deposit Monitoring",
+                          "Automated Profit Distribution",
+                          "Multi-Level Referral Program",
+                          "Scalable Investment Plans",
+                          "24/7 Trading Operations",
+                          "Professional Risk Management",
+                          "Mobile & Desktop Accessibility"
+                        ].map((feature) => (
+                          <div key={feature} className="flex gap-3 items-center group cursor-default">
+                            <div className="flex-shrink-0 w-5 h-5 rounded-full border flex items-center justify-center transition-colors border-green-500/30 bg-green-500/10 group-hover:border-green-400/50 shadow-[0_0_10px_rgba(34,197,94,0.1)]">
+                              <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div>
+                            </div>
+                            <span className="text-xs font-semibold text-neutral-300 transition-colors group-hover:text-green-300">
+                              {feature}
                             </span>
-                            <p className="text-xs text-neutral-400 mt-1 leading-relaxed max-w-xs">
-                              Tradebot uses optimized automation to deliver consistent performance across changing markets.
-                            </p>
                           </div>
-                        </div>
-
-
-                        <div className="flex gap-4 items-start relative group cursor-default">
-                          <div
-                            className="flex-shrink-0 w-6 h-6 rounded-full border flex items-center justify-center z-10 relative transition-colors border-teal-500/30 bg-teal-500/10 group-hover:border-teal-400/50">
-                            <div className="w-1.5 h-1.5 rounded-full bg-teal-400"></div>
-                          </div>
-                          <div className="pt-0.5">
-                            <span className="text-sm font-medium text-white transition-colors group-hover:text-teal-300">
-                              Always active
-                            </span>
-                            <p className="text-xs text-neutral-400 mt-1 leading-relaxed max-w-xs">
-                              The system runs 24/7, monitoring markets and adjusting trades in real time.
-                            </p>
-                          </div>
-                        </div>
-
-
-                        <div className="flex gap-4 items-start relative group cursor-default">
-                          <div
-                            className="flex-shrink-0 w-6 h-6 rounded-full border flex items-center justify-center z-10 relative transition-colors border-lime-500/30 bg-lime-500/10 group-hover:border-lime-400/50">
-                            <div className="w-1.5 h-1.5 rounded-full bg-lime-400"></div>
-                          </div>
-                          <div className="pt-0.5">
-                            <span className="text-sm font-medium text-white transition-colors group-hover:text-lime-300">
-                              Fully automated
-                            </span>
-                            <p className="text-xs text-neutral-400 mt-1 leading-relaxed max-w-xs">
-                              Trades are executed automatically with no manual effort required.
-                            </p>
-                          </div>
-                        </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -576,7 +556,7 @@ export default function Home() {
               Built on powerful trading infrastructure
             </h2>
             <p className="text-base text-neutral-400 max-w-2xl mt-3 mr-auto ml-auto">
-              Tradebot connects with leading platforms and APIs to ensure fast, reliable execution.
+              Forex Auto Panel connects with leading platforms and APIs to ensure fast, reliable execution.
             </p>
           </div>
 
@@ -813,7 +793,7 @@ export default function Home() {
               Recent trade performance
             </h2>
             <p className="mt-4 text-lg text-neutral-400 max-w-2xl mx-auto font-geist">
-              Review recent automated entries, exits, and results from Tradebot execution.
+              Review recent automated entries, exits, and results from Forex Auto Panel execution.
             </p>
           </div>
 
@@ -1151,7 +1131,7 @@ export default function Home() {
 
           <div className="relative mt-8 sm:mt-10 quoteReveal">
             <blockquote className="mx-auto max-w-5xl text-center text-3xl font-medium leading-tight tracking-tight text-white sm:text-5xl sm:leading-[1.08] lg:text-6xl">
-              &quot;Tradebot made trading simple and automated.&quot;
+              &quot;Forex Auto Panel made trading simple and automated.&quot;
             </blockquote>
           </div>
 
@@ -1164,7 +1144,7 @@ export default function Home() {
                 &mdash; Harsh
               </span>
               <span className="block text-neutral-500 text-xs">
-                Tradebot User
+                Forex Auto Panel User
               </span>
             </div>
           </div>
@@ -1201,10 +1181,10 @@ export default function Home() {
               Start growing your capital
             </h2>
             <h2 className="text-4xl md:text-6xl font-semibold tracking-tight text-white mt-1">
-              Join Tradebot and experience automated trading built for modern investors.
+              Join Forex Auto Panel and experience automated trading built for modern investors.
             </h2>
             <p className="mt-4 text-base md:text-lg text-neutral-400">
-              Join Tradebot and experience automated trading built for modern investors.
+              Join Forex Auto Panel and experience automated trading built for modern investors.
             </p>
 
 
@@ -1228,14 +1208,14 @@ export default function Home() {
 
 
             <div className="mt-8 flex items-center justify-center gap-6 text-neutral-400">
-              <a href="mailto:hello@tradebot.com" className="group hover:text-white transition-colors flex items-center gap-2">
+              <a href="mailto:hello@forex-auto-panel.com" className="group hover:text-white transition-colors flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                   className="lucide lucide-mail h-4 w-4 transition-colors text-green-400 group-hover:text-green-300">
                   <path d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"></path>
                   <rect x="2" y="4" width="20" height="16" rx="2"></rect>
                 </svg>
-                hello@tradebot.com
+                hello@forex-auto-panel.com
               </a>
             </div>
 

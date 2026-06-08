@@ -1,4 +1,4 @@
-# Tradebot Dev Guidelines
+# Forex Auto Panel Dev Guidelines
 
 ## Build & Test Commands
 *   **Start Dev Server**: `npm run dev`

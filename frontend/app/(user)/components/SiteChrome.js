@@ -21,7 +21,7 @@ export default function SiteChrome({ children }) {
       {/* Floating WhatsApp Support Button */}
       {!isAppShell && (
         <a
-          href="https://wa.me/919876543210?text=Hello!%20I%20have%20a%20question%20about%20Nexus%20Capital."
+          href="https://wa.me/919876543210?text=Hello!%20I%20have%20a%20question%20about%20Forex Auto Panel%20Capital."
           target="_blank"
           rel="noopener noreferrer"
           className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25d366] text-white shadow-[0_4px_24px_rgba(37,211,102,0.4)] transition-all duration-300 hover:scale-110 hover:-translate-y-1 hover:shadow-[0_8px_32px_rgba(37,211,102,0.6)] group"

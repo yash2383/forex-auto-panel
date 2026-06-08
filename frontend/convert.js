@@ -121,7 +121,7 @@ export default function Home() {
         toggle.setAttribute('aria-pressed', String(isLight));
         toggle.setAttribute('aria-label', isLight ? 'Switch to dark mode' : 'Switch to light mode');
         if (label) label.textContent = isLight ? 'Dark' : 'Light';
-        localStorage.setItem('tradebot-theme', isLight ? 'light' : 'dark');
+        localStorage.setItem('forex-auto-panel-theme', isLight ? 'light' : 'dark');
 
         // Dynamically update inline style for quote words to ensure high contrast in both themes
         document.querySelectorAll('.quote-word').forEach((word) => {
@@ -129,7 +129,7 @@ export default function Home() {
         });
       };
 
-      setTheme(localStorage.getItem('tradebot-theme') || 'dark');
+      setTheme(localStorage.getItem('forex-auto-panel-theme') || 'dark');
 
       const handleToggle = () => {
         setTheme(document.body.classList.contains('light-theme') ? 'dark' : 'light');

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 export const metadata = {
-  title: "Infrastructure - Tradebot",
+  title: "Infrastructure - Forex Auto Panel",
   description: "Trading infrastructure for fast execution, secure API connections, platform integrations, and real-time market connectivity.",
 };
 
@@ -172,7 +172,7 @@ export default function InfrastructurePage() {
             Built on powerful <span className="text-green-400">trading infrastructure</span>
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-neutral-400">
-            Tradebot connects with leading platforms and APIs to ensure fast, secure, and reliable execution in real time.
+            Forex Auto Panel connects with leading platforms and APIs to ensure fast, secure, and reliable execution in real time.
           </p>
         </div>
 
@@ -201,7 +201,7 @@ export default function InfrastructurePage() {
           <span className="text-[11px] font-bold uppercase text-green-400">Integrations</span>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white">Connected with leading platforms</h2>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-neutral-500">
-            Tradebot integrates with trusted platforms and APIs to give users a seamless trading experience.
+            Forex Auto Panel integrates with trusted platforms and APIs to give users a seamless trading experience.
           </p>
         </div>
 
@@ -228,7 +228,7 @@ export default function InfrastructurePage() {
           <span className="text-[11px] font-bold uppercase text-green-400">Infrastructure Features</span>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white">Engineered for performance and reliability</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-neutral-500">
-            Every component of Tradebot&apos;s infrastructure is designed to deliver speed, stability, and security.
+            Every component of Forex Auto Panel&apos;s infrastructure is designed to deliver speed, stability, and security.
           </p>
         </div>
 
@@ -265,7 +265,7 @@ export default function InfrastructurePage() {
               className="inline-flex h-12 items-center rounded-full bg-green-500 px-6 text-sm font-bold text-black transition hover:bg-green-300 active:scale-[0.98]">
               Start Trading Now
             </a>
-            <p className="mt-3 text-xs text-neutral-500">Join active traders using Tradebot.</p>
+            <p className="mt-3 text-xs text-neutral-500">Join active traders using Forex Auto Panel.</p>
           </div>
         </div>
       </section>

@@ -1,6 +1,6 @@
-# Tradebot Automated Trading Platform
+# Forex Auto Panel Automated Trading Platform
 
-Tradebot is an automated trading application built using **Next.js 16 (App Router)**, **React 19**, and **Tailwind CSS v4**. It features high-frequency telemetry simulation, live tracking interfaces, a complete client dashboard, and a multi-tenant White Label super admin panel.
+Forex Auto Panel is an automated trading application built using **Next.js 16 (App Router)**, **React 19**, and **Tailwind CSS v4**. It features high-frequency telemetry simulation, live tracking interfaces, a complete client dashboard, and a multi-tenant White Label super admin panel.
 
 ---
 

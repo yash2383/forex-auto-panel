@@ -92,9 +92,9 @@ function PaymentStatusView({ moveToStep, onStatusLoaded }) {
         }
       } else {
         if (res.status === 401) {
-          localStorage.removeItem("tradebot-user");
-          localStorage.removeItem("tradebot-authenticated");
-          document.cookie = 'tradebot-token=; path=/; max-age=0; SameSite=Lax';
+          localStorage.removeItem("forex-auto-panel-user");
+          localStorage.removeItem("forex-auto-panel-authenticated");
+          document.cookie = 'forex-auto-panel-token=; path=/; max-age=0; SameSite=Lax';
           router.replace(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
           return;
         }
@@ -390,7 +390,7 @@ export default function CheckoutPage() {
     setPlanParam(requestedPlan);
     setStep(selectedStep);
 
-    const isAuthenticated = localStorage.getItem("tradebot-authenticated") === "true";
+    const isAuthenticated = localStorage.getItem("forex-auto-panel-authenticated") === "true";
     if (!isAuthenticated) {
       setTimeout(() => {
         router.replace(`/login?redirect=${encodeURIComponent(`/checkout?plan=${requestedPlan}&step=${selectedStep}`)}`);
@@ -512,7 +512,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
-        const stored = localStorage.getItem("tradebot-user");
+        const stored = localStorage.getItem("forex-auto-panel-user");
         if (stored) {
           const parsed = JSON.parse(stored);
           setPaymentUser({

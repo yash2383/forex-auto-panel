@@ -28,7 +28,7 @@ const SidebarContent = memo(({
             <Hexagon className="h-6 w-6 fill-white/20" />
           </span>
           <div>
-            <span className="block text-xl font-bold tracking-tight">Nexus Capital</span>
+            <span className="block text-xl font-bold tracking-tight">Forex Auto Panel</span>
             <span className="mt-1 flex items-center gap-1 text-xs text-neutral-400 font-semibold">
               <Crown className="h-3 w-3 text-yellow-300" />
               {getCleanRoleLabel(currentUser?.role)}
@@ -222,7 +222,7 @@ export default function AdminShell({ children }) {
         return;
       }
 
-      const isAuthenticated = localStorage.getItem("tradebot-authenticated") === "true";
+      const isAuthenticated = localStorage.getItem("forex-auto-panel-authenticated") === "true";
       if (!isAuthenticated) {
         setTimeout(() => router.push("/admin/login"), 0);
         return;
@@ -234,9 +234,9 @@ export default function AdminShell({ children }) {
         
         if (!user || !["SUPER_ADMIN", "MANAGER", "VIEWER"].includes(user.role)) {
           // Not authorized admin! Clear storage and redirect
-          localStorage.removeItem("tradebot-user");
-          localStorage.removeItem("tradebot-authenticated");
-          document.cookie = "tradebot-token=; path=/; max-age=0; SameSite=Lax";
+          localStorage.removeItem("forex-auto-panel-user");
+          localStorage.removeItem("forex-auto-panel-authenticated");
+          document.cookie = "forex-auto-panel-token=; path=/; max-age=0; SameSite=Lax";
           useAdminStore.setState({ currentUser: null });
           setTimeout(() => router.push("/admin/login"), 0);
           return;
@@ -260,9 +260,9 @@ export default function AdminShell({ children }) {
     } catch (e) {
       console.error("Logout API error:", e);
     }
-    localStorage.removeItem("tradebot-user");
-    localStorage.removeItem("tradebot-authenticated");
-    document.cookie = "tradebot-token=; path=/; max-age=0; SameSite=Lax";
+    localStorage.removeItem("forex-auto-panel-user");
+    localStorage.removeItem("forex-auto-panel-authenticated");
+    document.cookie = "forex-auto-panel-token=; path=/; max-age=0; SameSite=Lax";
     useAdminStore.setState({ currentUser: null });
     router.push("/admin/login");
   };
@@ -494,7 +494,7 @@ export default function AdminShell({ children }) {
   const toggleTheme = () => {
     const nextTheme = theme === "light" ? "dark" : "light";
     document.body.classList.toggle("light-theme", nextTheme === "light");
-    localStorage.setItem("tradebot-theme", nextTheme);
+    localStorage.setItem("forex-auto-panel-theme", nextTheme);
     setTheme(nextTheme);
   };
 
@@ -555,7 +555,7 @@ export default function AdminShell({ children }) {
                 </button>
                 <div className="flex items-center gap-2 lg:hidden">
                   <Hexagon className="h-5 w-5 text-neutral-200 fill-white/20" />
-                  <span className="text-base font-bold tracking-tight">Nexus</span>
+                  <span className="text-base font-bold tracking-tight">Forex Auto Panel</span>
                 </div>
               </div>
 
@@ -641,7 +641,7 @@ export default function AdminShell({ children }) {
                       <div className="absolute right-0 mt-2 w-56 rounded-xl border border-white/[0.09] bg-[#0b141b] p-2 shadow-2xl backdrop-blur-xl z-50 animate-[fadeIn_0.15s_ease-out]">
                         <div className="px-3 py-2 text-xs border-b border-white/[0.06] mb-1">
                           <p className="font-semibold text-white truncate">{currentUser?.name || "System Operator"}</p>
-                          <p className="text-neutral-500 truncate mt-0.5">{currentUser?.email || "admin@nexus.capital"}</p>
+                          <p className="text-neutral-500 truncate mt-0.5">{currentUser?.email || "admin@forex-auto-panel.capital"}</p>
                           <p className="text-blue-400 font-bold mt-1 uppercase tracking-wider text-[10px]">{getCleanRoleLabel(currentUser?.role)}</p>
                         </div>
                         <button
@@ -723,8 +723,10 @@ export default function AdminShell({ children }) {
 
           {pathname === "/admin/dashboard" && !section && (
             <div className="mt-5 px-4 sm:px-6">
-              <h1 className="text-2xl font-semibold tracking-tight text-white">Welcome back, Operator!</h1>
-              <p className="mt-1 text-sm text-neutral-400">Here&apos;s what&apos;s happening with your platform today.</p>
+              <h1 className="text-2xl font-semibold tracking-tight text-white">Forex Auto Panel Administration</h1>
+              <p className="mt-1 text-sm text-neutral-400">
+                Manage users, trading operations, deposits, withdrawals, profits, referrals, and platform settings from one centralized dashboard.
+              </p>
               <div className="relative mt-4 block lg:hidden w-full z-40">
                 <label className="flex h-11 w-full items-center gap-2 rounded-full border border-white/[0.09] bg-black/10 px-4 text-sm text-neutral-500 focus-within:border-green-500/35 transition">
                   <Search className="h-4 w-4" />

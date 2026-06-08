@@ -342,7 +342,7 @@ To connect the React frontend to NestJS modules, replace static Zustand store ca
 ### A. API Request Utility Wrapper
 ```javascript
 export async function fetchWithAuth(url, options = {}) {
-  const token = localStorage.getItem('tradebot-jwt-token');
+  const token = localStorage.getItem('forex-auto-panel-jwt-token');
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,

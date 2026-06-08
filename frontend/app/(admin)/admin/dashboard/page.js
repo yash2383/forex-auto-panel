@@ -802,7 +802,7 @@ function PendingPaymentsTable({ onVerify, onApprove, onReject }) {
                 e.preventDefault();
                 addPayment({
                   user: initForm.user || "Guest",
-                  email: initForm.email || "unknown@tradebot.local",
+                  email: initForm.email || "unknown@forex-auto-panel.local",
                   plan: initForm.plan || "Manual",
                   amount: initForm.amount || "$0.00",
                   txnHash: initForm.txnHash || "Pending",

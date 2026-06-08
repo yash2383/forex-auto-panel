@@ -93,7 +93,7 @@ export default function PastTradesPage() {
   const itemsPerPage = 10;
 
   useEffect(() => {
-    document.title = "Past Trades - Tradebot";
+    document.title = "Past Trades - Forex Auto Panel";
   }, []);
 
   useEffect(() => {
@@ -228,7 +228,7 @@ export default function PastTradesPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.setAttribute("href", url);
-    a.setAttribute("download", `tradebot_history_${Date.now()}.csv`);
+    a.setAttribute("download", `forex-auto-panel_history_${Date.now()}.csv`);
     a.click();
   };
 
@@ -249,7 +249,7 @@ export default function PastTradesPage() {
               Your Trading Works <span className="text-green-400">Automated. Intelligent. Profitable.</span>
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-neutral-400">
-              Tradebot is an intelligent automated trading system that analyzes the market 24/7 and executes high-probability trades for consistent results.
+              Forex Auto Panel is an intelligent automated trading system that analyzes the market 24/7 and executes high-probability trades for consistent results.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <a href="/signup" className="inline-flex h-12 items-center rounded-full bg-green-500 px-6 text-sm font-bold text-black transition hover:bg-green-300 active:scale-[0.98]">
@@ -298,7 +298,7 @@ export default function PastTradesPage() {
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 p-5">
             <div>
               <h2 className="text-xl font-semibold tracking-tight text-white">Recent Trades</h2>
-              <p className="mt-1 text-xs text-neutral-500">Real-time trades executed by Tradebot</p>
+              <p className="mt-1 text-xs text-neutral-500">Real-time trades executed by Forex Auto Panel</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-3 h-9 text-xs text-neutral-300">
@@ -478,7 +478,7 @@ export default function PastTradesPage() {
 
         <section className="mt-8 rounded-xl border border-white/10 bg-[#0B1110]/95 p-5 sm:p-7">
           <div className="text-center">
-            <h2 className="text-2xl font-semibold tracking-tight text-white">Why Choose Tradebot?</h2>
+            <h2 className="text-2xl font-semibold tracking-tight text-white">Why Choose Forex Auto Panel?</h2>
             <p className="mt-2 text-sm text-neutral-500">Everything you need to trade smarter and grow faster</p>
           </div>
           <div className="mt-7 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -500,7 +500,7 @@ export default function PastTradesPage() {
         <section className="mt-8 overflow-hidden rounded-xl border border-green-500/10 bg-[linear-gradient(135deg,rgba(34,197,94,0.12),rgba(11,17,16,0.98)_52%,rgba(3,8,7,0.98))] p-8 text-center">
           <div className="mx-auto max-w-2xl">
             <h2 className="text-2xl font-semibold tracking-tight text-white">Ready to Start Your Trading Journey?</h2>
-            <p className="mt-3 text-sm text-neutral-400">Join thousands of traders who trust Tradebot for automated trading success.</p>
+            <p className="mt-3 text-sm text-neutral-400">Join thousands of traders who trust Forex Auto Panel for automated trading success.</p>
             <a href="/signup" className="mt-6 inline-flex h-12 items-center rounded-full bg-green-500 px-7 text-sm font-bold text-black transition hover:bg-green-300 active:scale-[0.98]">
               Get Started Now
             </a>

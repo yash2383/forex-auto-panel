@@ -1,6 +1,6 @@
-# Tradebot Database Architecture & Schema Specification
+# Forex Auto Panel Database Architecture & Schema Specification
 
-This document details the production-grade PostgreSQL database schema designed for the Tradebot fintech platform, utilizing Prisma ORM.
+This document details the production-grade PostgreSQL database schema designed for the Forex Auto Panel fintech platform, utilizing Prisma ORM.
 
 ---
 

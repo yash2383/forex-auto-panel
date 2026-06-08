@@ -52,16 +52,16 @@ export default function AdminLogin() {
       if (!user || !["SUPER_ADMIN", "MANAGER", "VIEWER"].includes(user.role)) {
         // Log out immediately to clear cookie if user is not authorized
         await apiFetch("/api/auth/logout", { method: "POST" });
-        document.cookie = "tradebot-token=; path=/; max-age=0; SameSite=Lax";
+        document.cookie = "forex-auto-panel-token=; path=/; max-age=0; SameSite=Lax";
         setError("Access Denied: This portal is reserved for administrators.");
         setLoading(false);
         return;
       }
 
       // Store auth session
-      localStorage.setItem("tradebot-user", JSON.stringify({ ...user, token }));
-      localStorage.setItem("tradebot-authenticated", "true");
-      document.cookie = `tradebot-token=${token}; path=/; max-age=86400; SameSite=Lax`;
+      localStorage.setItem("forex-auto-panel-user", JSON.stringify({ ...user, token }));
+      localStorage.setItem("forex-auto-panel-authenticated", "true");
+      document.cookie = `forex-auto-panel-token=${token}; path=/; max-age=86400; SameSite=Lax`;
 
       // Hydrate state
       await useAdminStore.getState().fetchData();
@@ -93,7 +93,7 @@ export default function AdminLogin() {
             <Terminal className="h-6 w-6" />
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white bg-clip-text bg-gradient-to-r from-white via-neutral-200 to-neutral-400">
-            NEXUS PORTAL
+            FOREX AUTO PANEL PORTAL
           </h1>
           <p className="mt-2 text-xs font-semibold uppercase tracking-widest text-blue-400/70">
             Administrative Access Only
@@ -134,7 +134,7 @@ export default function AdminLogin() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@nexus.capital"
+                  placeholder="admin@forex-auto-panel.capital"
                   className="h-12 w-full rounded-xl border border-white/[0.08] bg-black/40 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-neutral-600 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 focus:bg-black/60"
                   disabled={loading || success}
                 />

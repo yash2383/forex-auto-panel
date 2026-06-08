@@ -2,7 +2,7 @@ let redirectingToLogin = false;
 
 export async function apiFetch(endpoint, options = {}) {
   // Read token directly from local storage if available
-  const userStr = typeof window !== 'undefined' ? localStorage.getItem('tradebot-user') : null;
+  const userStr = typeof window !== 'undefined' ? localStorage.getItem('forex-auto-panel-user') : null;
   let token = null;
 
   if (userStr) {
@@ -11,14 +11,14 @@ export async function apiFetch(endpoint, options = {}) {
       token = storedUser?.token || null;
 
       if (!token) {
-        localStorage.removeItem('tradebot-user');
-        localStorage.removeItem('tradebot-authenticated');
-        document.cookie = 'tradebot-token=; path=/; max-age=0; SameSite=Lax';
+        localStorage.removeItem('forex-auto-panel-user');
+        localStorage.removeItem('forex-auto-panel-authenticated');
+        document.cookie = 'forex-auto-panel-token=; path=/; max-age=0; SameSite=Lax';
       }
     } catch {
-      localStorage.removeItem('tradebot-user');
-      localStorage.removeItem('tradebot-authenticated');
-      document.cookie = 'tradebot-token=; path=/; max-age=0; SameSite=Lax';
+      localStorage.removeItem('forex-auto-panel-user');
+      localStorage.removeItem('forex-auto-panel-authenticated');
+      document.cookie = 'forex-auto-panel-token=; path=/; max-age=0; SameSite=Lax';
     }
   }
 
@@ -48,9 +48,9 @@ export async function apiFetch(endpoint, options = {}) {
     if (response.status === 401 && !redirectingToLogin) {
       if (typeof window !== 'undefined') {
         redirectingToLogin = true;
-        localStorage.removeItem('tradebot-user');
-        localStorage.removeItem('tradebot-authenticated');
-        document.cookie = 'tradebot-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
+        localStorage.removeItem('forex-auto-panel-user');
+        localStorage.removeItem('forex-auto-panel-authenticated');
+        document.cookie = 'forex-auto-panel-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
 
         const current = window.location.pathname + window.location.search;
         if (

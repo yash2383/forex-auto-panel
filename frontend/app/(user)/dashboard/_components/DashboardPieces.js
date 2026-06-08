@@ -315,7 +315,7 @@ export const PastTradesTable = ({ compact = false }) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.setAttribute("href", url);
-    a.setAttribute("download", `tradebot_history_${Date.now()}.csv`);
+    a.setAttribute("download", `forex-auto-panel_history_${Date.now()}.csv`);
     a.click();
   };
 

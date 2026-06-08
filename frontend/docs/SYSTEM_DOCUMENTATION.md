@@ -1,6 +1,6 @@
-# Tradebot Platform - System Architecture & Comprehensive Documentation
+# Forex Auto Panel Platform - System Architecture & Comprehensive Documentation
 
-Welcome to the comprehensive technical documentation for the Tradebot Automated Trading Platform. This document outlines the architectural patterns, technical requirements, structural directory mappings, state management systems, and functional features across all three major panels: the **User Website**, the **User Dashboard**, and the **Super Admin Panel**.
+Welcome to the comprehensive technical documentation for the Forex Auto Panel Automated Trading Platform. This document outlines the architectural patterns, technical requirements, structural directory mappings, state management systems, and functional features across all three major panels: the **User Website**, the **User Dashboard**, and the **Super Admin Panel**.
 
 ---
 

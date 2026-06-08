@@ -1,6 +1,6 @@
-# Tradebot User Dashboard Subsystem Documentation
+# Forex Auto Panel User Dashboard Subsystem Documentation
 
-Welcome to the comprehensive technical and operational documentation of the Tradebot User Dashboard subsystem. This document describes the structure, sidebar navigation, widgets, interfaces, forms, and business logic of the client-side portal located in `app/dashboard`.
+Welcome to the comprehensive technical and operational documentation of the Forex Auto Panel User Dashboard subsystem. This document describes the structure, sidebar navigation, widgets, interfaces, forms, and business logic of the client-side portal located in `app/dashboard`.
 
 ---
 

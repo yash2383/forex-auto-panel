@@ -45,7 +45,11 @@ export default function DashboardShell({ children }) {
   const getPageHeader = () => {
     switch (pathname) {
       case "/dashboard":
-        return { title: `Welcome back, ${currentUser?.name || "User"}`, subtitle: "Here's what's happening with your trades today." };
+        return {
+          title: "Welcome to Forex Auto Panel",
+          subtitle:
+            "Manage your investments, monitor trading performance, track profits, and grow your portfolio through our automated forex trading system.",
+        };
       case "/dashboard/wallet":
         return { title: "Wallet & Funds", subtitle: "Manage your deposits, withdrawals, and balances." };
       case "/dashboard/profit-history":
@@ -59,7 +63,11 @@ export default function DashboardShell({ children }) {
       case "/dashboard/support":
         return { title: "Help & Support", subtitle: "Get assistance with your account or trading." };
       default:
-        return { title: `Welcome back, ${currentUser?.name || "User"}`, subtitle: "Manage your trading dashboard." };
+        return {
+          title: "Welcome to Forex Auto Panel",
+          subtitle:
+            "Manage your investments, monitor trading performance, track profits, and grow your portfolio through our automated forex trading system.",
+        };
     }
   };
 
@@ -71,9 +79,9 @@ export default function DashboardShell({ children }) {
     } catch (e) {
       console.error("Logout error:", e);
     }
-    localStorage.removeItem("tradebot-user");
-    localStorage.removeItem("tradebot-authenticated");
-    document.cookie = "tradebot-token=; path=/; max-age=0; SameSite=Lax";
+    localStorage.removeItem("forex-auto-panel-user");
+    localStorage.removeItem("forex-auto-panel-authenticated");
+    document.cookie = "forex-auto-panel-token=; path=/; max-age=0; SameSite=Lax";
     useAdminStore.setState({ currentUser: null });
     window.location.href = "/login";
   };
@@ -122,7 +130,7 @@ export default function DashboardShell({ children }) {
     const isLight = theme === "light";
     const nextTheme = isLight ? "dark" : "light";
     document.body.classList.toggle("light-theme", !isLight);
-    localStorage.setItem("tradebot-theme", nextTheme);
+    localStorage.setItem("forex-auto-panel-theme", nextTheme);
     setTheme(nextTheme);
   };
 
@@ -162,7 +170,7 @@ export default function DashboardShell({ children }) {
                 alt="Forex Logo"
                 className="h-9 w-auto object-contain"
               />
-              <span className="text-2xl font-bold tracking-tight">Tradebot</span>
+              <span className="text-2xl font-bold tracking-tight">Forex Auto Panel</span>
             </div>
             <button className="lg:hidden text-neutral-400 hover:text-white" onClick={() => setIsSidebarOpen(false)}>
               <X className="h-5 w-5" />

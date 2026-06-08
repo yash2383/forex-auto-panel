@@ -62,7 +62,7 @@ export default function NotificationDropdown() {
     loadNotifications();
 
     // Retrieve local storage JWT token
-    const userStr = typeof window !== "undefined" ? localStorage.getItem("tradebot-user") : null;
+    const userStr = typeof window !== "undefined" ? localStorage.getItem("forex-auto-panel-user") : null;
     let token = null;
     if (userStr) {
       try {

@@ -21,7 +21,7 @@ function decodeJwtPayload(token) {
 }
 
 export function proxy(req) {
-  const token = req.cookies.get("tradebot-token")?.value;
+  const token = req.cookies.get("forex-auto-panel-token")?.value;
   const path = req.nextUrl.pathname;
 
   const payload = token ? decodeJwtPayload(token) : null;

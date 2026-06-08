@@ -1,6 +1,6 @@
 import crypto from "crypto";
 
-const JWT_SECRET = process.env.JWT_SECRET || "default-super-secret-key-1234567890-tradebot";
+const JWT_SECRET = process.env.JWT_SECRET || "default-super-secret-key-1234567890-forex-auto-panel";
 
 function base64url(str) {
   return Buffer.from(str).toString("base64")

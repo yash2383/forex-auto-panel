@@ -2,8 +2,9 @@ import "./globals.css";
 import SiteChrome from "./(user)/components/SiteChrome";
 
 export const metadata = {
-  title: "Tradebot - Automated Trading Platform",
-  description: "Automated trading powered by real-time market execution.",
+  title: "Forex Auto Panel | Automated Forex Trading Platform",
+  description:
+    "Grow your capital through intelligent forex trading automation with real-time portfolio monitoring.",
 };
 
 export default function RootLayout({ children }) {
@@ -23,7 +24,7 @@ export default function RootLayout({ children }) {
             __html: `
               (function() {
                 try {
-                  var theme = localStorage.getItem('tradebot-theme') || 'dark';
+                  var theme = localStorage.getItem('forex-auto-panel-theme') || 'dark';
                   if (theme === 'light') {
                     document.body.classList.add('light-theme');
                   }

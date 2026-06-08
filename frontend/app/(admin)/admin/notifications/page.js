@@ -286,7 +286,7 @@ export default function AdminNotificationsPage() {
   // Socket.IO Listeners for real-time progress updates
   useEffect(() => {
     if (!currentUser) return;
-    const userStr = typeof window !== "undefined" ? localStorage.getItem("tradebot-user") : null;
+    const userStr = typeof window !== "undefined" ? localStorage.getItem("forex-auto-panel-user") : null;
     let token = null;
     if (userStr) {
       try {
@@ -690,7 +690,7 @@ export default function AdminNotificationsPage() {
     const sampleData = {
       amount: "5,000",
       name: "Rahul",
-      email: "rahul@nexus.capital",
+      email: "rahul@forex-auto-panel.capital",
       ipAddress: "127.0.0.1",
       pair: "BTC/USDT",
       type: "BUY",
@@ -1105,7 +1105,7 @@ export default function AdminNotificationsPage() {
                       </label>
                       <label className="block">
                         <span className="block text-[11px] font-semibold text-neutral-400 mb-1.5">Message Body</span>
-                        <textarea required value={broadcastForm.body} onChange={(e) => setBroadcastForm({ ...broadcastForm, body: e.target.value })} className="w-full h-24 rounded-lg border border-white/[0.08] bg-black/20 p-3 text-xs text-white outline-none focus:border-green-500/35 transition resize-none placeholder:text-neutral-600" placeholder="Nexus Capital will undergo a scheduled maintenance on..." />
+                        <textarea required value={broadcastForm.body} onChange={(e) => setBroadcastForm({ ...broadcastForm, body: e.target.value })} className="w-full h-24 rounded-lg border border-white/[0.08] bg-black/20 p-3 text-xs text-white outline-none focus:border-green-500/35 transition resize-none placeholder:text-neutral-600" placeholder="Forex Auto Panel will undergo a scheduled maintenance on..." />
                       </label>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,6 +1,6 @@
-# Nexus Capital Super Admin Dashboard Documentation
+# Forex Auto Panel Super Admin Dashboard Documentation
 
-Welcome to the comprehensive technical and operational documentation of the Nexus Capital Super Admin subsystem. This document describes the structure, routes, permission matrix, UI screens, database/state fields, and operational workflows of the admin portal located in `app/admin`.
+Welcome to the comprehensive technical and operational documentation of the Forex Auto Panel Super Admin subsystem. This document describes the structure, routes, permission matrix, UI screens, database/state fields, and operational workflows of the admin portal located in `app/admin`.
 
 ---
 
@@ -202,7 +202,7 @@ Admin sections are dynamically rendered through `AdminSectionPage` inside `app/a
 *   **Metrics**: Referral % (`10%`), Platform Fee (`4%`), Payment QR (`Active`), Configs (`16`).
 *   **Data Fields**: `Setting Name`, `Value`, `Department Owner`, `Status`.
 *   **Payment Configuration Form**:
-    *   `UPI ID Input`: Enter platform collection UPI ID (default: `tradebot@upi`).
+    *   `UPI ID Input`: Enter platform collection UPI ID (default: `forex-auto-panel@upi`).
     *   `QR Code Update`: Upload files or rebuild the default visual static QR block.
     *   `Payment Modes Checkbox`: Toggle payment methods on/off (e.g., *UPI*, *Bank Transfer*).
     *   `Save Settings Button`: Commits all changes to the environment configuration.

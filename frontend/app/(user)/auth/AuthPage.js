@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAdminStore } from "../../../hooks/adminStore";
 
-const steps = ["Register your identity", "Configure Tradebot", "Activate your profile"];
+const steps = ["Register your identity", "Configure Forex Auto Panel", "Activate your profile"];
 
 const AuthInput = ({ label, placeholder, type = "text", name, value, onChange, disabled }) => (
   <label className="block">
@@ -166,9 +166,9 @@ export default function AuthPage({ mode }) {
   }, [countdown]);
 
   const completeLogin = async (token, user) => {
-    localStorage.setItem("tradebot-user", JSON.stringify({ ...user, token }));
-    localStorage.setItem("tradebot-authenticated", "true");
-    document.cookie = `tradebot-token=${token}; path=/; max-age=86400; SameSite=Lax`;
+    localStorage.setItem("forex-auto-panel-user", JSON.stringify({ ...user, token }));
+    localStorage.setItem("forex-auto-panel-authenticated", "true");
+    document.cookie = `forex-auto-panel-token=${token}; path=/; max-age=86400; SameSite=Lax`;
 
     // Sync Zustand data
     await useAdminStore.getState().fetchData();
@@ -437,15 +437,15 @@ export default function AuthPage({ mode }) {
             <div className="w-full max-w-sm">
               <div className="mx-auto mb-8 flex items-center justify-center gap-2 text-white">
                 <span className="h-3 w-3 rounded-full bg-green-300 shadow-[0_0_18px_rgba(134,239,172,0.9)]"></span>
-                <span className="text-xl font-semibold tracking-tight">Tradebot</span>
+                <span className="text-xl font-semibold tracking-tight">Forex Auto Panel</span>
               </div>
               <h1 className="text-3xl font-medium tracking-tight text-white sm:text-4xl">
-                {isSignup ? "Join Tradebot" : "Welcome back"}
+                {isSignup ? "Create Your Account" : "Welcome Back"}
               </h1>
               <p className="mx-auto mt-5 max-w-xs text-sm font-medium leading-relaxed text-white/60">
                 {isSignup
-                  ? "Follow these 3 quick phases to activate your automated trading space."
-                  : "Access your automated trading dashboard, execution logs, and risk controls."}
+                  ? "Join Forex Auto Panel and start your automated forex trading journey today."
+                  : "Sign in to your Forex Auto Panel account to access your dashboard and trading portfolio."}
               </p>
               <div className="mt-8 flex flex-col gap-3 text-left">
                 {steps.map((step, index) => (
@@ -469,10 +469,12 @@ export default function AuthPage({ mode }) {
               <>
                 <div className="space-y-2">
                   <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                    {isSignup ? "Create New Profile" : "Log in to Tradebot"}
+                    {isSignup ? "Create Your Account" : "Welcome Back"}
                   </h2>
                   <p className="text-sm text-neutral-500">
-                    {isSignup ? "Input your basic details to begin the journey." : "Enter your account details to continue trading."}
+                    {isSignup
+                      ? "Join Forex Auto Panel and start your automated forex trading journey today."
+                      : "Sign in to your Forex Auto Panel account to access your dashboard and trading portfolio."}
                   </p>
                 </div>
 
@@ -700,7 +702,7 @@ export default function AuthPage({ mode }) {
 
             <div className="mt-8 flex items-center gap-2 text-xs text-neutral-600">
               <ShieldCheck className="h-4 w-4 text-green-300" />
-              Protected access for Tradebot accounts.
+              Protected access for Forex Auto Panel accounts.
             </div>
           </div>
         </section>

@@ -44,7 +44,7 @@ export class EmailService {
     partnerName: string,
   ): Promise<boolean> {
     const from =
-      process.env.SMTP_FROM || `"Tradebot Support" <noreply@yourdomain.com>`;
+      process.env.SMTP_FROM || `"Forex Auto Panel Support" <noreply@yourdomain.com>`;
     const subject = `Your Verification Code - ${partnerName}`;
     const text = `Hello,\n\nYour 6-digit verification code is: ${code}\n\nThis code will expire in 5 minutes.\n\nThank you,\n${partnerName} Team`;
     const html = `
@@ -89,12 +89,12 @@ export class EmailService {
 
   async sendWelcomeEmail(email: string, name: string): Promise<boolean> {
     const from =
-      process.env.SMTP_FROM || `"Tradebot Support" <noreply@yourdomain.com>`;
-    const subject = `Welcome to Tradebot, ${name}!`;
-    const text = `Hello ${name},\n\nWelcome to Tradebot! Your account has been verified and activated successfully.\n\nYou can now access all investment and trading features on your dashboard.\n\nBest regards,\nTradebot Team`;
+      process.env.SMTP_FROM || `"Forex Auto Panel Support" <noreply@yourdomain.com>`;
+    const subject = `Welcome to Forex Auto Panel, ${name}!`;
+    const text = `Hello ${name},\n\nWelcome to Forex Auto Panel! Your account has been verified and activated successfully.\n\nYou can now access all investment and trading features on your dashboard.\n\nBest regards,\nForex Auto Panel Team`;
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 8px;">
-        <h2 style="color: #22c55e; text-align: center;">Welcome to Tradebot</h2>
+        <h2 style="color: #22c55e; text-align: center;">Welcome to Forex Auto Panel</h2>
         <p>Hello <strong>${name}</strong>,</p>
         <p>Your account has been verified and activated successfully!</p>
         <p>You can now log in and explore all automated trading algorithms, risk parameters, and investment features on your dashboard.</p>
@@ -102,7 +102,7 @@ export class EmailService {
           <a href="http://localhost:3000/login" style="background-color: #22c55e; color: black; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 6px; font-size: 16px;">Go to Dashboard</a>
         </div>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-        <p style="font-size: 12px; color: #71717a; text-align: center;">This is an automated welcoming email from Tradebot. Please do not reply.</p>
+        <p style="font-size: 12px; color: #71717a; text-align: center;">This is an automated welcoming email from Forex Auto Panel. Please do not reply.</p>
       </div>
     `;
 

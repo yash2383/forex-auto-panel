@@ -22,7 +22,7 @@ export default async function RegisterPage(props) {
   const campaign = searchParams?.campaign;
 
   const cookieStore = await cookies();
-  const token = cookieStore.get("tradebot-token")?.value;
+  const token = cookieStore.get("forex-auto-panel-token")?.value;
   const user = token ? decodeJwtPayload(token) : null;
 
   if (user) {

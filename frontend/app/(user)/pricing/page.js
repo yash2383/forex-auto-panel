@@ -304,7 +304,7 @@ export default function PricingPage() {
           Start Growing Your Capital
         </span>
         <h2 className="mx-auto mt-5 max-w-3xl text-3xl font-semibold tracking-tight text-white sm:text-5xl">
-          Join Tradebot and experience automated trading built for modern investors.
+          Join Forex Auto Panel and experience automated trading built for modern investors.
         </h2>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link href={currentUser ? "/dashboard" : "/signup"} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-bold text-black transition hover:bg-neutral-200 sm:w-auto">

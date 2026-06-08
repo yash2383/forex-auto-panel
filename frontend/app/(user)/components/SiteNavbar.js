@@ -28,9 +28,9 @@ export default function SiteNavbar() {
   const handleLogout = async () => {
     try {
       await apiFetch("/api/auth/logout", { method: "POST" });
-      localStorage.removeItem("tradebot-authenticated");
-      localStorage.removeItem("tradebot-user");
-      document.cookie = "tradebot-token=; path=/; max-age=0; SameSite=Lax";
+      localStorage.removeItem("forex-auto-panel-authenticated");
+      localStorage.removeItem("forex-auto-panel-user");
+      document.cookie = "forex-auto-panel-token=; path=/; max-age=0; SameSite=Lax";
       window.location.href = "/";
     } catch (e) {
       console.error("Logout error:", e);
@@ -46,14 +46,14 @@ export default function SiteNavbar() {
       document.body.classList.toggle("light-theme", isLight);
       toggle.setAttribute("aria-pressed", String(isLight));
       toggle.setAttribute("aria-label", isLight ? "Switch to dark mode" : "Switch to light mode");
-      localStorage.setItem("tradebot-theme", isLight ? "light" : "dark");
+      localStorage.setItem("forex-auto-panel-theme", isLight ? "light" : "dark");
 
       document.querySelectorAll(".quote-word").forEach((word) => {
         word.style.color = isLight ? "var(--text-primary)" : "rgb(255 255 255)";
       });
     };
 
-    setTheme(localStorage.getItem("tradebot-theme") || "dark");
+    setTheme(localStorage.getItem("forex-auto-panel-theme") || "dark");
 
     const handleToggle = () => {
       setTheme(document.body.classList.contains("light-theme") ? "dark" : "light");

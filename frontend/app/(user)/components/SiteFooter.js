@@ -7,7 +7,7 @@ export default function SiteFooter() {
         {/* Brand Column */}
         <div className="space-y-4">
           <Link href="/" className="inline-flex items-center gap-2">
-            <span className="text-lg font-bold tracking-tight text-white">Tradebot</span>
+            <span className="text-lg font-bold tracking-tight text-white">Forex Auto Panel</span>
           </Link>
           <p className="text-xs leading-relaxed text-neutral-400 max-w-xs">
             Automated trading powered by real-time market execution. Optimized algorithmic strategy execution for modern investors.
@@ -84,7 +84,7 @@ export default function SiteFooter() {
       {/* Footer Bottom info */}
       <div className="mt-12 border-t border-white/5 pt-8 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-neutral-500">
-          <span>&copy; 2026 Tradebot. All rights reserved.</span>
+          <span>Forex Auto Panel &copy; 2026. All Rights Reserved.</span>
           <span>Automated trading for modern investors.</span>
         </div>
         <p className="text-[10px] leading-relaxed text-neutral-600">

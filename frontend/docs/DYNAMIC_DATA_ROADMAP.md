@@ -1,12 +1,12 @@
 # Dynamic Data Roadmap
 
-This document is the single checklist for making Tradebot fully dynamic. It records what is already connected to PostgreSQL through the NestJS API, what is still local/mock data, and the order to finish the remaining work.
+This document is the single checklist for making Forex Auto Panel fully dynamic. It records what is already connected to PostgreSQL through the NestJS API, what is still local/mock data, and the order to finish the remaining work.
 
 ## Current Data Flow
 
 Frontend calls the backend through `frontend/lib/apiFetch.js`.
 
-Authenticated requests read the token from `localStorage.tradebot-user.token` and send:
+Authenticated requests read the token from `localStorage.forex-auto-panel-user.token` and send:
 
 ```text
 Authorization: Bearer <token>
@@ -15,7 +15,7 @@ Authorization: Bearer <token>
 Route protection in `frontend/proxy.js` reads the browser cookie:
 
 ```text
-tradebot-token
+forex-auto-panel-token
 ```
 
 Backend runs at:
@@ -63,7 +63,7 @@ http://localhost:3000/dashboard/past-trades
 
 Flow:
 
-1. Admin logs in as `harsh@nexus.com`.
+1. Admin logs in as `harsh@forex-auto-panel.capital`.
 2. Admin opens `?section=trades`.
 3. Admin creates a trade and assigns it to a client.
 4. Admin closes the trade with an exit price.
@@ -193,7 +193,7 @@ A module is fully dynamic only when all items are true:
 Admin:
 
 ```text
-harsh@nexus.com
+harsh@forex-auto-panel.capital
 password123
 ```
 

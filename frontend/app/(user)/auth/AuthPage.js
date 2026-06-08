@@ -3,7 +3,6 @@ import { apiFetch } from "../../../lib/apiFetch";
 
 import { Eye, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAdminStore } from "../../../hooks/adminStore";
@@ -427,13 +426,10 @@ export default function AuthPage({ mode }) {
           <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(34,197,94,0.16),transparent_45%,rgba(20,184,166,0.12))]"></div>
 
           <Link href="/" className="absolute left-5 top-5 z-10 inline-flex">
-            <Image
+            <img
               src="/forex.png"
               alt="Forex Logo"
-              width={1536}
-              height={1024}
               className="h-10 w-auto object-contain"
-              priority
             />
           </Link>
 
